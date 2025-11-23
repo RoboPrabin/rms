@@ -14,7 +14,7 @@ class BroSummaryPage:
 
 
     def render(self):
-        st.title("🙎🏻 Client Summary")
+        st.title("🙎🏻 Client Summary", anchor=False)
         df = self.load_data()
         df = helper.format_dataframe(df)
         search_query = st.text_input("Search in table")

@@ -4,6 +4,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from utils import helper
 from navigation import render_sidebar
+from app_state import current_user
 # 🔧 BRO Limit Manager Class
 class BroLimitManager:
     def __init__(self):
@@ -128,14 +129,14 @@ manager = BroLimitManager()
 
 
 # 🔐 Session info
-role = st.session_state.get("role", "").upper()
-username = st.session_state.get("username", "").upper()
-
+role = current_user().get("role", "").upper()
+username = current_user().get("username", "").upper()
+print(f"Logged in as: {username} with role: {role}")
 # 🧮 Admin/Manager View
 if role in ['MANAGER', 'ADMIN']:
-    st.title("🧮 Bro Limit Manager")
+    st.title("🧮 Bro Limit Manager", anchor=False)
 
-    bro_codes = manager.get_bro_codes()
+    bro_codes = manager.    get_bro_codes()
     selected_bro = st.selectbox("Select Bro Code", bro_codes)
 
     new_limit = st.number_input("Enter New Total Limit", min_value=0.0, step=0.01)
@@ -155,7 +156,7 @@ if role in ['MANAGER', 'ADMIN']:
 
 # 👤 Individual BRO View
 else:
-    st.title("🧮 Limit Manager")
+    st.title("🧮 Limit Manager", anchor=False)
     selected_type = st.radio(
     "Client Type",
     ["Cred Clients", "UnCred Clients"],

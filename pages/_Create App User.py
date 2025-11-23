@@ -12,7 +12,7 @@ class CreateAppUser:
         st.set_page_config(page_title="Create App User", layout="wide", page_icon="➕")
         render_sidebar()
         helper.adjust_ui()
-        st.title("👤 Create New App User")
+        st.title("👤 Create New App User", anchor=False)
         self.engine = create_engine(helper.get_holding_engine())
         self.df_users : pd.DataFrame= None
 

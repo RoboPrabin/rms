@@ -19,11 +19,12 @@ class LoginPage:
             st.switch_page(page_url.dashbord_url)
 
     def show_login_form(self):
-        st.title("🔐Login Portal")
+        st.title("🔐Login Portal", anchor=False)
         with st.form("login_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Login")
+            
 
         if submitted:
             user = get_user_by_username(username)

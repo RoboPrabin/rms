@@ -11,7 +11,7 @@ class Meroshare:
         st.set_page_config(page_title="Meroshare", layout="wide", page_icon="✨")
         helper.adjust_ui()
         render_sidebar()
-        st.title("📝 Add MeroShare Account")
+        st.title("📝 Add MeroShare Account", anchor=False)
         self.role = current_user()['role']
         self.engine = sqlalchemy.create_engine(helper.get_holding_engine())
 
