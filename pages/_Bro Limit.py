@@ -82,6 +82,8 @@ class BroLimitManager:
     def client_summary(_self, username: str):
         df = _self._query("SELECT * FROM client_summary WHERE bro = :username", {"username": username})
         df.reset_index(drop=True, inplace=True)
+        df = df.round(2)
+        df = helper.format_negative_numbers(df)
         df.index += 1
         return df
     
@@ -146,6 +148,8 @@ if role in ['MANAGER', 'ADMIN']:
     st.markdown("---")
     st.subheader("📊 Current BRO Limits")
     df = helper.format_dataframe(manager.fetch_all_limits())
+    df.rename(columns={"Used Limit": "Assigned Limit"}, inplace=True)
+
     search_query = st.text_input("Search in table")
 
     if search_query:
@@ -154,8 +158,8 @@ if role in ['MANAGER', 'ADMIN']:
     df.index += 1
     st.dataframe(df, width='stretch')
 
-# 👤 Individual BRO View
 else:
+    # 👤 Individual BRO View
     st.title("🧮 Limit Manager", anchor=False)
     selected_type = st.radio(
     "Client Type",
@@ -210,5 +214,7 @@ else:
 
     st.markdown("---")
     st.subheader("🍁 My Clients Summary")
+
     df = helper.format_dataframe(manager.client_summary(username=username))
+    df.rename(columns={"Profit Loss Percentage": "Profit (Loss) Percentage", "Profit Loss Amount" : "Profit (Loss) Amount"}, inplace=True)
     st.dataframe(df, width='stretch')

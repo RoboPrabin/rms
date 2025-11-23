@@ -18,7 +18,12 @@ class ManagerSummaryPage:
     def render(self):
         st.title("🧑‍💼 Manager Summary", anchor=False)
         df = self.load_data()
+        df = df.round(2)
+        df = helper.format_negative_numbers(df)
         df = helper.format_dataframe(df)
+        # df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)
+
+        df.rename(columns={"Used Limit": "Assigned Limit", "Total Ledger Balance": "Used Limit" , "Unrealised Profit Loss" : "Unrealised Profit (Loss)"}, inplace=True)
         search_query = st.text_input("Search in table")
 
         if search_query:

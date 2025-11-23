@@ -16,7 +16,10 @@ class BroSummaryPage:
     def render(self):
         st.title("🙎🏻 Client Summary", anchor=False)
         df = self.load_data()
+        df = df.round(2)
+        df = helper.format_negative_numbers(df)
         df = helper.format_dataframe(df)
+        df.rename(columns={"Profit Loss Percentage": "Profit (Loss) Percentage", "Profit Loss Amount" : "Profit (Loss) Amount"}, inplace=True)
         search_query = st.text_input("Search in table")
 
         if search_query:

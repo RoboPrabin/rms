@@ -29,29 +29,6 @@ class Dashboard:
         df = pd.read_sql("SELECT * FROM holdings", engine)
         return df
 
-
-    # def show_header(_self):
-    #     # ---------------------------------------------------------
-    #     # HEADER UI
-    #     # ---------------------------------------------------------
-    #     st.markdown("""
-    #     <style>
-    #         .header-container { display:flex; justify-content:space-between; align-items:center; }
-    #         .red-button {
-    #             background-color:#d9534f; 
-    #             color:white !important; 
-    #             padding:0.5em 1em; 
-    #             font-weight:bold; 
-    #             border-radius:5px; 
-    #             text-decoration:none !important;
-    #         }
-    #     </style>
-    #     <div class="header-container">
-    #         <h1><span style="color:red;">Live</span> Client Holdings</h1>
-    #     </div>
-    #     """, unsafe_allow_html=True)
-
-
     def show_header(_self):
         helper.adjust_ui()
 
@@ -115,9 +92,9 @@ class Dashboard:
                 'Bro', 'Name', 'Boid', 'Client Code', 'Ledger Balance',
                 'Script', 'Ltp', 'Market Value', 'Profit Loss', 'Profit Loss Percentage'
             ]
-
-            df = df[column_order + [c for c in df.columns if c not in column_order]]
-
+            df = helper.format_negative_numbers(df)
+            df :pd.DataFrame= df[column_order + [c for c in df.columns if c not in column_order]]
+            df.rename(columns={"Profit Loss": "Profit (Loss)", "Profit Loss Percentage": "Profit (Loss) Percentage"}, inplace=True)
             df = helper.format_dataframe(df)
             df.index = df.index + 1
             _self.df = df
@@ -146,15 +123,18 @@ class Dashboard:
             df_filtered.index = df_filtered.index + 1
         else:
             df_filtered = _self.df
-        # rows = len(df_filtered)
 
-        # row height ~ 28px per row + 35px header
-        # row_height = 10
-        # header_height = 35
+        # def highlight_rows(row):
+        #     if "(" in str(row.get("Profit Loss", "")):
+        #         return ["background-color: #ffcccc; color: black"] * len(row)  # light red
+        #     else:
+        #         return [""] * len(row)
 
-        # table_height = rows * row_height + header_height
+        # styled_df = _self.df.style.apply(highlight_rows, axis=1)
 
-        # st.dataframe(df_filtered, width='content', height=table_height)
+        # st.dataframe(styled_df, width="content")
+        # st.table(_self.df.style.apply(highlight_rows, axis=1))
+
         st.dataframe(df_filtered, width='content')
 
     def hide_download_csv_button():

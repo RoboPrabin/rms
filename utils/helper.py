@@ -13,6 +13,11 @@ from config import config
 from cryptography.fernet import Fernet
 
 
+
+def format_negative_numbers(df):
+    df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)
+    return df
+
 def adjust_ui():
     st.markdown("""
            <style>

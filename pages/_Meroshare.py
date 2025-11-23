@@ -8,12 +8,17 @@ from utils import helper
 
 class Meroshare:
     def __init__(self):
+        self.role = current_user()['role']
         st.set_page_config(page_title="Meroshare", layout="wide", page_icon="✨")
         helper.adjust_ui()
         render_sidebar()
-        st.title("📝 Add MeroShare Account", anchor=False)
-        self.role = current_user()['role']
+        self.total_accounts = 0
         self.engine = sqlalchemy.create_engine(helper.get_holding_engine())
+        if self.role in ["BRO", "ADMIN"]:
+            st.title("📝 Add MeroShare Account", anchor=False)
+        # else:
+        #     st.title(f"👥 Total MeroShare Accounts : {self.total_accounts}", anchor=False)
+
 
     def show_input_fields(self):
         # Input fields
@@ -80,27 +85,33 @@ class Meroshare:
             df = pd.read_sql(
                 "SELECT * FROM meroshare_acc WHERE bro = %s",
                 self.engine,
-                params=(self.loggedin_user['username'].upper(),)
+                params=(current_user()['username'].upper(),)
             )
         return df
-    
+
 
     def load_and_display_data(self):
         try:
             # role = self.role
             df = self.load_data()
+            # if self.role == "MANAGER":
             df.reset_index(drop=True, inplace=True)
             df.index = df.index + 1  
                 
             df.drop(columns=['id'], inplace=True)
             column_order = ['clientName', 'category','dp', 'username', 'password','hasVerifiedCredentials', 'bro']
             total_count = len(df)
+            self.total_accounts = total_count 
             df = df[column_order]
             df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
+            print("hello", df.columns)
+            if self.role != "MANAGER":
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown(f"<h3>👥 Total MeroShare Accounts : {total_count}</h3>", unsafe_allow_html=True)
+            elif self.role == "MANAGER":
+                st.title(f"👥 Total MeroShare Accounts : {total_count}", anchor=False)
 
-            st.markdown("<hr>", unsafe_allow_html=True)
-            st.markdown(f"<h3>👥 Total MeroShare Accounts : {total_count}</h3>", unsafe_allow_html=True)
-
+            # print(df.columns)
             if df.empty:
                 st.info("No MeroShare accounts registered yet.")
             else:
@@ -108,69 +119,74 @@ class Meroshare:
 
                 if search_query:
                     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
-
-                df.index += 1
+                if self.role == "MANAGER":
+                    df.drop(columns=['Password'], inplace=True)
+                
+                
                 st.dataframe(df, width='stretch')
-                # st.dataframe(df, width='stretch')
 
-                # 🔧 Add edit/delete controls per row
-                for i, row in df.iterrows():
-                    with st.expander(f"🔧 Manage: {row['Client Name']}"):
-                        st.write(f"DP: {row['Dp']}")
-                        st.write(f"Verified: {row['Has Verified Credentials']}")
+                if self.role != "MANAGER":
+                    # 🔧 Add edit/delete controls per row
+                    for i, row in df.iterrows():
+                        with st.expander(f"🔧 Manage: {row['Client Name']}"):
+                            st.write(f"DP: {row['Dp']}")
+                            st.write(f"Verified: {row['Has Verified Credentials']}")
 
-                        # 📝 Edit form
-                        with st.form(f"edit_form_{i}"):
-                            new_dp = st.text_input("DP", value=str(row['Dp']))
-                            new_password = st.text_input("Password", value=row['Password'], type="password")
-                            new_verified = st.selectbox(
-                                "Has Verified Credentials",
-                                ["Yes", "No"],
-                                index=0 if row['Has Verified Credentials'] else 1
-                            )
-                            submitted = st.form_submit_button("Update")
-                            if submitted:
+                            # 📝 Edit form
+                            with st.form(f"edit_form_{i}"):
+                                new_dp = st.text_input("DP", value=str(row['Dp']))
+                                new_password = st.text_input("Password", value=row['Password'], type="password")
+                                new_verified = st.selectbox(
+                                    "Has Verified Credentials",
+                                    ["Yes", "No"],
+                                    index=0 if row['Has Verified Credentials'] else 1
+                                )
+                                submitted = st.form_submit_button("Update")
+                                if submitted:
+                                    try:
+                                        with self.engine.begin() as conn:
+                                            conn.execute(
+                                                sqlalchemy.text("""
+                                                    UPDATE meroshare_acc
+                                                    SET dp = :dp, password = :password, "hasVerifiedCredentials" = :verified
+                                                    WHERE username = :username
+                                                """),
+                                                {
+                                                    "dp": int(new_dp),
+                                                    "password": new_password,
+                                                    "verified": new_verified == "Yes",
+                                                    "username": row['Username']
+                                                }
+                                            )
+                                        st.success("✅ Updated successfully!")
+                                        df = self.load_data()
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"❌ Update failed: {e}")
+
+                            # 🗑️ Delete button
+                            if st.button(f"Delete {row['Username']}", key=f"delete_{i}"):
                                 try:
                                     with self.engine.begin() as conn:
                                         conn.execute(
-                                            sqlalchemy.text("""
-                                                UPDATE meroshare_acc
-                                                SET dp = :dp, password = :password, "hasVerifiedCredentials" = :verified
-                                                WHERE username = :username
-                                            """),
-                                            {
-                                                "dp": int(new_dp),
-                                                "password": new_password,
-                                                "verified": new_verified == "Yes",
-                                                "username": row['Username']
-                                            }
+                                            sqlalchemy.text("DELETE FROM meroshare_acc WHERE username = :username"),
+                                            {"username": row['Username']}
                                         )
-                                    st.success("✅ Updated successfully!")
+                                    st.success(f"🗑️ Deleted {row['Username']} successfully!")
                                     df = self.load_data()
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f"❌ Update failed: {e}")
-
-                        # 🗑️ Delete button
-                        if st.button(f"Delete {row['Username']}", key=f"delete_{i}"):
-                            try:
-                                with self.engine.begin() as conn:
-                                    conn.execute(
-                                        sqlalchemy.text("DELETE FROM meroshare_acc WHERE username = :username"),
-                                        {"username": row['Username']}
-                                    )
-                                st.success(f"🗑️ Deleted {row['Username']} successfully!")
-                                df = self.load_data()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ Delete failed: {e}")
+                                    st.error(f"❌ Delete failed: {e}")
 
         except Exception as e:
             st.error(f"❌ Failed to load data: {e}")
 
     def render_meroshare_page(self):
-        self.show_input_fields()
-        self.load_and_display_data()
+        if self.role == "MANAGER":
+            self.load_and_display_data()
+        else:
+            self.show_input_fields()
+            self.load_and_display_data()
 
 if __name__ == "__main__":
     meroshare = Meroshare()
