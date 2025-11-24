@@ -71,10 +71,9 @@ class Dashboard:
         """, unsafe_allow_html=True)
 
     def show_holdings(_self):
-        with st.spinner("Loading data...", show_time=True):
+        with st.spinner("Loading holdings data..."):
             # sleep(5)
             df:pd.DataFrame = _self.load_data()
-            sleep(1.3)
             df.rename(columns=lambda x: camel_to_title(x), inplace=True)
 
             columns_to_drop = [
@@ -102,6 +101,8 @@ class Dashboard:
             df = helper.format_dataframe(df)
             df.index = df.index + 1
             _self.df = df
+            sleep(1.3)
+
 
     def show_download_button(_self):
         # ---------------------------------------------------------

@@ -127,7 +127,8 @@ class CreateAppUser:
     def render_page(self):
         self.show_creation_form()
         self.show_all_app_users()
-        self.show_update_delete_function()
+        if self.role == "ADMIN":
+            self.show_update_delete_function()
 
 if __name__ == "__main__":
     app_user = CreateAppUser()

@@ -55,6 +55,7 @@ class Feedback:
                     db.save_feedback(bro=bro, star=rating + 1, remarks="")
                     stars_text = ["", "Terrible", "Poor", "Average", "Good", "Excellent"][rating + 1]
                     st.success(f"Thank you, **{bro}**! You rated: **{stars_text}** ({rating + 1} ⭐)")
+                    st.balloons()
 
 
         with col2:
