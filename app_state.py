@@ -9,6 +9,7 @@ cookies = EncryptedCookieManager(
     password="THIS_IS_SECRET_CHANGE_IT_123"  # must be constant
 )
 
+
 if not cookies.ready():
     st.stop()
 
