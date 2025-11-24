@@ -1,7 +1,9 @@
 # _Logout.py
 import streamlit as st
 from utils import page_url
-from app_state import logout_user
+# from app_state import logout_user
+from time import sleep
 
-logout_user()                    # clears cookies
-# st.switch_page(page_url.login_url)  # redirect immediately
+st.session_state.clear()
+st.switch_page("Login.py")
+st.stop()

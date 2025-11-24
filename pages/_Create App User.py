@@ -89,7 +89,7 @@ class CreateAppUser:
         if action == "Update":
             new_email = st.text_input("New Email", value=self.df_users.loc[self.df_users["username"] == selected_user, "email"].values[0])
             new_role = st.selectbox("New Role", ["MANAGER", "BRO", "ADMIN"])
-            new_password = st.text_input("New Password", type="password")
+            new_password = st.text_input("New Password", type="password", value=self.df_users.loc[self.df_users["username"] == selected_user, "password"].values[0])
 
             if st.button("Update User"):
                 try:

@@ -10,14 +10,7 @@ class LoginPage:
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
 
     def check_logged_in(self):    
-        # If already logged in, redirect automatically
-        # if is_logged_in():
-        #     st.success("Already logged in, redirecting...")
-        #     time.sleep(0.5)
-        #     st.switch_page(page_url.dashbord_url)
-        # 1) Restore from query params first
         app_state.restore_state_from_query_params()
-        # 2) If already authenticated, bounce to dashboard
         app_state.check_authentication_state_login_page()
 
     def show_login_form(self):
@@ -53,8 +46,6 @@ class LoginPage:
     def render_page(self):
         self.check_logged_in()
         self.show_login_form()
-
-        # Fixed bottom footer (clean & professional)
         st.markdown(
             """
             <div style="

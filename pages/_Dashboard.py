@@ -20,7 +20,7 @@ class Dashboard:
         self.username, self.role = app_state.get_current_user_info()
 
         
-        navigation.render_sidebar()  # Sidebar menus
+        navigation.render_sidebar() 
         self.df: pd.DataFrame = None
 
     # ---------------------------------------------------------
@@ -71,9 +71,10 @@ class Dashboard:
         """, unsafe_allow_html=True)
 
     def show_holdings(_self):
-        with st.spinner("Loading data..."):
-
+        with st.spinner("Loading data...", show_time=True):
+            # sleep(5)
             df:pd.DataFrame = _self.load_data()
+            sleep(1.3)
             df.rename(columns=lambda x: camel_to_title(x), inplace=True)
 
             columns_to_drop = [
