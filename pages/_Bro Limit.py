@@ -4,12 +4,16 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from utils import helper
 from navigation import render_sidebar
-from app_state import current_user
+import app_state
 # 🔧 BRO Limit Manager Class
 class BroLimitManager:
     def __init__(self):
-        # helper.hide_login_page()
         st.set_page_config(page_title="Bro Limit", layout='wide', page_icon="🧑‍🦱")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
+
         helper.adjust_ui()
         render_sidebar()
         self.engine = create_engine(helper.get_holding_engine())
@@ -131,11 +135,10 @@ manager = BroLimitManager()
 
 
 # 🔐 Session info
-role = current_user().get("role", "").upper()
-username = current_user().get("username", "").upper()
-print(f"Logged in as: {username} with role: {role}")
+
+print(f"Logged in as: {manager.username} with role: {manager.role}")
 # 🧮 Admin/Manager View
-if role in ['MANAGER', 'ADMIN']:
+if manager.role in ['MANAGER', 'ADMIN']:
     st.title("🧮 Bro Limit Manager", anchor=False)
 
     bro_codes = manager.    get_bro_codes()
@@ -169,7 +172,7 @@ else:
     )
     if selected_type == "Cred Clients":
         # bro_code_df = manager.get_login_bro_code(username="N/A ")
-        bro_code_df = manager.get_login_bro_code(username=username)
+        bro_code_df = manager.get_login_bro_code(username=manager.username)
         if bro_code_df.empty:
             st.warning("No clients found for your BRO code.")
         else:
@@ -179,7 +182,7 @@ else:
 
             new_limit = st.number_input("Enter Limit", min_value=0.0, step=0.01)
             if st.button("Update Limit"):
-                manager.update_provided_limit(client_code, username, new_limit)
+                manager.update_provided_limit(client_code, manager.username, new_limit)
     else:
         new_client = st.text_input("Enter Client Name").upper()
         new_client_code = st.text_input("Enter Client Code").upper()
@@ -208,13 +211,13 @@ else:
 
     st.markdown("---")
     st.subheader("📊 My Current Limit")
-    df = helper.format_dataframe(manager.fetch_login_user_limits(username=username))
+    df = helper.format_dataframe(manager.fetch_login_user_limits(username=manager.username))
     df.index = df.index + 1
     st.dataframe(df, width='stretch')
 
     st.markdown("---")
     st.subheader("🍁 My Clients Summary")
 
-    df = helper.format_dataframe(manager.client_summary(username=username))
+    df = helper.format_dataframe(manager.client_summary(username=manager.username))
     df.rename(columns={"Profit Loss Percentage": "Profit (Loss) Percentage", "Profit Loss Amount" : "Profit (Loss) Amount"}, inplace=True)
     st.dataframe(df, width='stretch')

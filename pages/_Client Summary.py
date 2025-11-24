@@ -4,13 +4,17 @@ import sqlalchemy
 from config import config
 from utils import helper
 from navigation import render_sidebar
-
+import app_state
 
 class BroSummaryPage:
     def __init__(self):
+        st.set_page_config(page_title="Client Summary", layout='wide', page_icon="📃")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        
         helper.adjust_ui()
         render_sidebar()
-        st.set_page_config(page_title="Client Summary", layout='wide', page_icon="📃")
 
 
     def render(self):

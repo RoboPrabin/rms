@@ -1,4 +1,4 @@
-from app_state import current_user
+import app_state
 import pandas as pd
 import streamlit as st
 import uuid
@@ -10,6 +10,12 @@ from navigation import render_sidebar
 class CreateAppUser:
     def __init__(self):
         st.set_page_config(page_title="Create App User", layout="wide", page_icon="➕")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
+
+
         render_sidebar()
         helper.adjust_ui()
         st.title("👤 Create New App User", anchor=False)

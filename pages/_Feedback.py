@@ -1,14 +1,20 @@
 import streamlit as st
 from navigation import render_sidebar
-from app_state import (
-    current_user, has_given_rating, mark_rating_given,
-    has_given_remarks, mark_remarks_given)
-from db.db import save_feedback
+import app_state
+from db import db
+
 
 
 class Feedback:
     def __init__(self):
         st.set_page_config(page_title="Feedback", page_icon="💬", layout="centered")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
+
+
+
         render_sidebar()
 
     def show_headings(self):
@@ -40,18 +46,13 @@ class Feedback:
 
             # Only show message + save when user clicks a face
             if rating is not None:
-                user = current_user()
-                bro_name = user["username"] or "Anonymous"
+                bro_name = self.username or "Anonymous"
 
-                if has_given_rating():
+                if db.has_given_feedback(bro_name):
                     st.info("You've already shared your feedback. Thank you!")
                 else:
-                    user = current_user()
-                    bro = user["username"] or "guest"
-
-                    save_feedback(bro=bro, star=rating + 1, remarks="")
-                    mark_rating_given()
-
+                    bro = self.username or "guest"
+                    db.save_feedback(bro=bro, star=rating + 1, remarks="")
                     stars_text = ["", "Terrible", "Poor", "Average", "Good", "Excellent"][rating + 1]
                     st.success(f"Thank you, **{bro}**! You rated: **{stars_text}** ({rating + 1} ⭐)")
 
@@ -105,12 +106,12 @@ class Feedback:
             if st.button("Submit Feedback", type="primary"):
                 if not opinion.strip():
                     st.warning("Please write something before submitting.")
-                elif has_given_remarks():
+                elif db.has_given_remarks(self.username):
                     st.info("You've already submitted written feedback. Thank you!")
                 else:
-                    user = current_user()["username"] or "guest"
-                    save_feedback(bro=user, star=0, remarks=opinion.strip())
-                    mark_remarks_given()
+                    user = self.username or "guest"
+                    db.save_feedback(bro=user, star=0, remarks=opinion.strip())
+                    # mark_remarks_given()
                     st.success("Thank you! Your detailed feedback has been saved.")
                     st.balloons()
 

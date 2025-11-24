@@ -5,15 +5,17 @@ from config import config
 from utils import helper
 # from auth_guard import require_role
 from navigation import render_sidebar
+import app_state
 
 class ManagerSummaryPage:
     def __init__(self):
         st.set_page_config(page_title="Manager Summary", layout="wide", page_icon="👨‍💼")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+
         helper.adjust_ui()
         render_sidebar()
-        
-        # helper.hide_login_page()
-        # helper.logout_if_unauthorized()
 
     def render(self):
         st.title("🧑‍💼 Manager Summary", anchor=False)
@@ -21,7 +23,6 @@ class ManagerSummaryPage:
         df = df.round(2)
         df = helper.format_negative_numbers(df)
         df = helper.format_dataframe(df)
-        # df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)
 
         df.rename(columns={"Used Limit": "Assigned Limit", "Total Ledger Balance": "Used Limit" , "Unrealised Profit Loss" : "Unrealised Profit (Loss)"}, inplace=True)
         search_query = st.text_input("Search in table")

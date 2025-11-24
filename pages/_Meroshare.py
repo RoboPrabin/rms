@@ -1,4 +1,4 @@
-from app_state import current_user
+import app_state
 from navigation import render_sidebar
 import pandas as pd
 import streamlit as st
@@ -8,8 +8,13 @@ from utils import helper
 
 class Meroshare:
     def __init__(self):
-        self.role = current_user()['role']
         st.set_page_config(page_title="Meroshare", layout="wide", page_icon="✨")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
+
+
         helper.adjust_ui()
         render_sidebar()
         self.total_accounts = 0
@@ -66,7 +71,7 @@ class Meroshare:
                                     "username": username,
                                     "password": password,
                                     "verified": verified_bool,
-                                    "bro": self.loggedin_user['username'].upper()
+                                    "bro": self.username.upper()
                                 }
                             )
                             st.success("✅ MeroShare account info added successfully!")
@@ -85,7 +90,7 @@ class Meroshare:
             df = pd.read_sql(
                 "SELECT * FROM meroshare_acc WHERE bro = %s",
                 self.engine,
-                params=(current_user()['username'].upper(),)
+                params=(self.username.upper(),)
             )
         return df
 

@@ -6,7 +6,7 @@ import io
 from utils import page_url
 from utils.helper import camel_to_title, format_with_comma, hide_components, get_holding_engine
 from utils import helper
-from app_state import require_login, current_user
+import app_state
 import navigation
 
 
@@ -14,10 +14,13 @@ class Dashboard:
     def __init__(self):
         # st.set_page_config(page_title="Dashboard")
         st.set_page_config(page_title=f"Dashboard |",page_icon="🏠",layout="wide")
-        require_login()            # Redirect to login if not authenticated
-        self.user = current_user()
-        navigation.render_sidebar()  # Sidebar menus
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
 
+        
+        navigation.render_sidebar()  # Sidebar menus
         self.df: pd.DataFrame = None
 
     # ---------------------------------------------------------
@@ -107,7 +110,7 @@ class Dashboard:
         _self.df.to_excel(output, index=False, engine="openpyxl")
         output.seek(0)
 
-        role = current_user().get("role", "").upper()
+        role = _self.role
         if role in helper.get_hero_role():
             st.download_button("📥 Download XLSX", data=output, file_name="client_holdings_TSL.xlsx", width='content')
 

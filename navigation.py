@@ -1,18 +1,23 @@
 
 # navigation.py
 import streamlit as st
-from app_state import is_logged_in, current_user, logout_user
+# from app_state import is_logged_in, current_user, logout_user
+import app_state
 from utils import page_url
 def render_sidebar():
     """
     Renders the sidebar menus based on login state and role.
     """
-    if not is_logged_in():
-        st.sidebar.page_link(page_url.login_url, label="Login", icon="🔐")
-        return
+    # if not is_logged_in():
+    #     st.sidebar.page_link(page_url.login_url, label="Login", icon="🔐")
+    #     return
     
-    user = current_user()
-    role = user.get("role")
+    # user = current_user()
+
+    app_state.restore_state_from_query_params()
+    app_state.sync_query_params_from_session()
+    app_state.check_authenticaiton_state()
+    username, role = app_state.get_current_user_info()
 
     st.markdown("""
         <style>
@@ -128,7 +133,7 @@ def render_sidebar():
 
         <div style='text-align:center; margin:15px 0 25px; color:#444;'>
             <div style='font-size:14px;font-weight: bold; color:#a6a6a6; margin-top:0px;'> 
-                <span style=''>{user['username'].upper()}</span> | {user['role']}
+                <span style=''>{username.upper()}</span> | {role.upper()}
             </div>
         </div>
 
