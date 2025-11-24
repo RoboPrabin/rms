@@ -161,7 +161,9 @@ def render_sidebar():
             st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="✨")
             st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
     
+        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
+        # st.sidebar.page_link(page_url.settings_url, label="‎‎ ‎ Settings", icon="⚙️")
         st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-    st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
+        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     

@@ -109,7 +109,6 @@ class Meroshare:
             self.total_accounts = total_count 
             df = df[column_order]
             df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
-            print("hello", df.columns)
             if self.role != "MANAGER":
                 st.markdown("<hr>", unsafe_allow_html=True)
                 st.markdown(f"<h3>👥 Total MeroShare Accounts : {total_count}</h3>", unsafe_allow_html=True)

@@ -11,8 +11,34 @@ from datetime import datetime
 import streamlit as st
 from config import config
 from cryptography.fernet import Fernet
+import re
 
 
+def validate_phone(phone: str) -> bool:
+    """
+    Validate a phone number:
+    - Must be exactly 10 digits
+    - Must start with 9
+    """
+    # Regex: start with 9, followed by 9 digits (total 10)
+    pattern = r"^9\d{9}$"
+    return bool(re.match(pattern, phone))
+
+
+def is_valid_password(password: str) -> bool:
+    """
+    Validates a password:
+    - Minimum 6 characters
+    - At least 1 uppercase letter
+    - At least 1 digit
+    - At least 1 special symbol
+    """
+    if len(password) < 6:
+        return False
+
+    # Regex: uppercase, digit, symbol
+    pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$'
+    return bool(re.match(pattern, password))
 
 def format_negative_numbers(df):
     df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)

@@ -13,8 +13,6 @@ class Feedback:
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
 
-
-
         render_sidebar()
 
     def show_headings(self):
@@ -85,12 +83,13 @@ class Feedback:
 
 
         st.markdown("#### Write Detailed Feedback")
-        with st.expander("✍️ Share your thoughts (optional)", expanded=False):
+        with st.expander(label="✍️ Share your thoughts (optional)", expanded=False):
             opinion = st.text_area(
-                "", 
+                "Opition", 
                 placeholder="Suggestions, issues, or appreciation...",
                 height=120,
-                key="feedback_text"
+                key="feedback_text",
+                label_visibility="hidden"
             )
             st.markdown("""
                 <style>

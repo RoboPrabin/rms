@@ -1,3 +1,4 @@
+from db import db
 import app_state
 import pandas as pd
 import streamlit as st
@@ -18,7 +19,7 @@ class CreateAppUser:
 
         render_sidebar()
         helper.adjust_ui()
-        st.title("👤 Create New App User", anchor=False)
+        st.title("👤 Create App User", anchor=False)
         self.engine = create_engine(helper.get_holding_engine())
         self.df_users : pd.DataFrame= None
 
@@ -27,13 +28,20 @@ class CreateAppUser:
         with st.form("create_user_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password", help="Password field is case sensitive.")
+            phone = st.text_input("Phone")
             email = st.text_input("Email")
             role = st.selectbox("Role", ["MANAGER", "BRO", "ADMIN"])
             submitted = st.form_submit_button("Create User")
 
             if submitted:
-                if not username or not password or not email:
+                if not username or not password or not phone or not email:
                     st.warning("All fields are required.")
+                elif db.get_user_by_username(username=username.strip().lower()):
+                    st.warning("Username already exists. Please choose a different username.")
+                elif not helper.is_valid_password(password=password):
+                    st.warning("Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.")
+                elif not helper.validate_phone(phone=phone):
+                    st.warning("Invalid phone number format.")  
                 else:
                     try:
                         encrypted_pw = password
@@ -42,15 +50,16 @@ class CreateAppUser:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, email, role)
-                                    VALUES (:id, :username, :password, :email, :role)
+                                    INSERT INTO app_user (id, username, password, email, role, phone)
+                                    VALUES (:id, :username, :password, :email, :role, :phone)
                                 """),
                                 {
                                     "id": user_id,
                                     "username": username.lower(),
                                     "password": encrypted_pw,
                                     "email": email.lower(),
-                                    "role": role
+                                    "role": role,
+                                    "phone": phone
                                 }
                             )
                         st.success(f"User '{username}' created successfully.")

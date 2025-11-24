@@ -13,7 +13,7 @@ import navigation
 class Dashboard:
     def __init__(self):
         # st.set_page_config(page_title="Dashboard")
-        st.set_page_config(page_title=f"Dashboard |",page_icon="🏠",layout="wide")
+        st.set_page_config(page_title=f"Dashboard", page_icon="🏠",layout="wide")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()

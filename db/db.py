@@ -70,3 +70,72 @@ def save_feedback(bro: str, star: int, remarks: str = "") -> None:
     finally:
         cur.close()
         conn.close()
+
+
+def change_password(username: str, current_password: str, new_password: str) -> bool:
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # 1) Check if current password is correct
+        cur.execute(
+            """
+            SELECT password 
+            FROM app_user 
+            WHERE username = %s;
+            """,
+            (username.lower().strip(),)
+        )
+        row = cur.fetchone()
+
+        if not row:
+            return False  # user not found
+
+        stored_password = row[0]
+
+        if stored_password != current_password:
+            return False  # invalid current password
+
+        # 2) Update the password
+        cur.execute(
+            """
+            UPDATE app_user
+            SET password = %s
+            WHERE username = %s;
+            """,
+            (new_password, username.lower().strip())
+        )
+        conn.commit()
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+def change_user_info(username: str, password:str, phone: str, email: str) -> bool:
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # Update the user information
+        cur.execute(
+            """
+            UPDATE app_user
+            SET password = %s, phone = %s, email = %s
+            WHERE username = %s;
+            """,
+            (password.strip(), phone.strip(), email.strip(), username.lower().strip())
+        )
+        conn.commit()
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cur.close()
+        conn.close()
