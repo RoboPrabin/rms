@@ -18,9 +18,6 @@ class LtpExtractor:
         data = {}
         for tr in table.find('tbody').find_all('tr'):
             tds = [td.text.strip() for td in tr.find_all('td')]
-            # print(tds[1])
-            # print(tds[0])
-            # print(tds)
             if len(tds) >= 3:
                 symbol = tds[0]           # e.g. 'NABIL', 'NTC', etc.
                 ltp = tds[1].replace(',', '')

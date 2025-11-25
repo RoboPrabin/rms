@@ -1,3 +1,4 @@
+from time import sleep
 from db import db
 import app_state
 import pandas as pd
@@ -16,7 +17,6 @@ class CreateAppUser:
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
 
-
         render_sidebar()
         helper.adjust_ui()
         st.title("👤 Create App User", anchor=False)
@@ -24,13 +24,16 @@ class CreateAppUser:
         self.df_users : pd.DataFrame= None
 
     def show_creation_form(self):
-
         with st.form("create_user_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password", help="Password field is case sensitive.")
             phone = st.text_input("Phone")
             email = st.text_input("Email")
-            role = st.selectbox("Role", ["MANAGER", "BRO", "ADMIN"])
+            if self.role == "ADMIN":
+                role = st.selectbox("Role", ["MANAGER", "BRO", "ADMIN"])
+            else:
+                role = st.selectbox("Role", ["MANAGER", "BRO"])
+
             submitted = st.form_submit_button("Create User")
 
             if submitted:
@@ -69,12 +72,16 @@ class CreateAppUser:
 
     def show_all_app_users(self):
         st.markdown("---")
-        st.subheader("📋 All App Users")
+        st.subheader("📋 All App Users", anchor=False)
 
         # Fetch users
         try:
             df_users = pd.read_sql('SELECT * FROM app_user ORDER BY username;', con=self.engine)
-            df_users_display = df_users.drop(columns=["id"])  # Hide UUID column
+            df_users.columns = df_users.columns.str.capitalize()
+            if self.role != "ADMIN":
+                df_users_display = df_users.drop(columns=["Id", "Password"])  # Hide UUID column
+            else:
+                df_users_display = df_users.drop(columns=["Id"])  # Hide UUID column
             search_query = st.text_input("Search in table")
 
             if search_query:
@@ -90,15 +97,13 @@ class CreateAppUser:
     def show_update_delete_function(self):
         st.markdown("---")
         st.subheader("✏️ Update or ❌ Delete User")
-
-        selected_user = st.selectbox("Select a user to modify",self.df_users["username"].tolist())
-
+        selected_user = st.selectbox("Select a user to modify",self.df_users["Username"].tolist())
         action = st.radio("Action", ["Update", "Delete"])
 
         if action == "Update":
-            new_email = st.text_input("New Email", value=self.df_users.loc[self.df_users["username"] == selected_user, "email"].values[0])
+            new_email = st.text_input("New Email", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Email"].values[0])
             new_role = st.selectbox("New Role", ["MANAGER", "BRO", "ADMIN"])
-            new_password = st.text_input("New Password", type="password", value=self.df_users.loc[self.df_users["username"] == selected_user, "password"].values[0])
+            new_password = st.text_input("New Password", type="password", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Password"].values[0])
 
             if st.button("Update User"):
                 try:

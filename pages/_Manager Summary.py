@@ -23,14 +23,14 @@ class ManagerSummaryPage:
         df = df.round(2)
         df = helper.format_negative_numbers(df)
         df = helper.format_dataframe(df)
-
+        
         df.rename(columns={"Used Limit": "Assigned Limit", "Total Ledger Balance": "Used Limit" , "Unrealised Profit Loss" : "Unrealised Profit (Loss)"}, inplace=True)
         search_query = st.text_input("Search in table")
 
         if search_query:
             df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
 
-        df.index += 1
+        # df.index += 1
         st.dataframe(df, width='stretch')
 
 
@@ -38,12 +38,12 @@ class ManagerSummaryPage:
         engine = create_engine(helper.get_holding_engine())
         with engine.begin() as conn:
             conn.execute(text("""
-                UPDATE manager_summary2
+                UPDATE manager_summary
                 SET 
                     "totalLimit" = bl."totalLimit",
                     "usedLimit" = bl."usedLimit"
                 FROM bro_limit bl
-                WHERE manager_summary2.bro = bl."broCode"
+                WHERE manager_summary.bro = bl."broCode"
             """))
 
     @st.cache_data(ttl=helper.default_ttl())
@@ -53,7 +53,7 @@ class ManagerSummaryPage:
         # Sync limits from bro_limit
         _self.sync_limits_to_manager_summary()
 
-        df = pd.read_sql("SELECT * FROM manager_summary2", engine)
+        df = pd.read_sql("SELECT * FROM manager_summary", engine)
         df.reset_index(drop=True, inplace=True)
         df.index = df.index + 1  
         return df

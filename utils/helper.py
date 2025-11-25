@@ -40,9 +40,23 @@ def is_valid_password(password: str) -> bool:
     pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$'
     return bool(re.match(pattern, password))
 
+# def format_negative_numbers(df):
+#     df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)
+#     return df
+
+
 def format_negative_numbers(df):
-    df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)
+    def fmt(x):
+        if isinstance(x, (int, float)):
+            return f"({abs(x):,})" if x < 0 else f"{x:,}"
+        return x
+    
+    for col in df.columns:
+        if col.lower() != "boid":       # skip boid intelligently
+            df[col] = df[col].map(fmt)
+    
     return df
+
 
 def adjust_ui():
     st.markdown("""

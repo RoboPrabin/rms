@@ -26,7 +26,7 @@ class Dashboard:
     # ---------------------------------------------------------
     # LOAD DATA
     # ---------------------------------------------------------
-    @st.cache_data(ttl=helper.default_ttl())
+    # @st.cache_data(ttl=helper.default_ttl())
     def load_data(_self):
         engine = sqlalchemy.create_engine(get_holding_engine())
         df = pd.read_sql("SELECT * FROM holdings", engine)
@@ -34,8 +34,6 @@ class Dashboard:
 
     def show_header(_self):
         helper.adjust_ui()
-
-
         st.markdown("""
             <style>
                 .header-container { 
@@ -95,6 +93,7 @@ class Dashboard:
                 'Bro', 'Name', 'Boid', 'Client Code', 'Ledger Balance',
                 'Script', 'Ltp', 'Market Value', 'Profit Loss', 'Profit Loss Percentage'
             ]
+            df = df.round(2)
             df = helper.format_negative_numbers(df)
             df :pd.DataFrame= df[column_order + [c for c in df.columns if c not in column_order]]
             df.rename(columns={"Profit Loss": "Profit (Loss)", "Profit Loss Percentage": "Profit (Loss) Percentage"}, inplace=True)

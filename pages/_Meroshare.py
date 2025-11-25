@@ -1,3 +1,4 @@
+from time import sleep
 import app_state
 from navigation import render_sidebar
 import pandas as pd
@@ -75,7 +76,8 @@ class Meroshare:
                                 }
                             )
                             st.success("✅ MeroShare account info added successfully!")
-                            
+                            # sleep(1)
+                            # st.rerun()
 
                 except Exception as e:
                     st.error(f"❌ Failed to insert data: {e}")

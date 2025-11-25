@@ -1,7 +1,10 @@
+
 #db.py
 
 import psycopg2
 import psycopg2.extras
+import pandas as pd
+
 
 def get_connection():
     return psycopg2.connect(
@@ -12,6 +15,7 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
@@ -20,6 +24,24 @@ def get_user_by_username(username):
     cur.close()
     conn.close()
     return row
+
+
+def get_meroshare_accounts():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM meroshare_acc")
+    rows = cur.fetchall()
+
+    # Get column names from cursor description
+    columns = [desc[0] for desc in cur.description]
+
+    cur.close()
+    conn.close()
+
+    # Convert to DataFrame
+    df = pd.DataFrame(rows, columns=columns)
+    return df
+
 
 def has_given_feedback(bro: str) -> bool:
     conn = get_connection()
@@ -41,8 +63,6 @@ def has_given_remarks(bro: str) -> bool:
     cur.close()
     conn.close()
     return result is not None
-
-
 
 
 def save_feedback(bro: str, star: int, remarks: str = "") -> None:
@@ -139,3 +159,5 @@ def change_user_info(username: str, password:str, phone: str, email: str) -> boo
     finally:
         cur.close()
         conn.close()
+
+

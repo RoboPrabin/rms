@@ -4,22 +4,23 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import psycopg2
 from datetime import datetime
+from db import db
 class LiveUpdater:
     def __init__(self):
         pass
         
     # 🧠 Database connection
-    def get_connection(self):
-        return psycopg2.connect(
-            host="localhost",
-            database="client_holdings",
-            user="postgres",
-            password="admin"
-        )
+    # def get_connection(self):
+    #     return psycopg2.connect(
+    #         host="localhost",
+    #         database="client_holdings",
+    #         user="postgres",
+    #         password="admin"
+    #     )
 
     # 🔍 Fetch all client scripts from DB
     def get_all_scripts(self):
-        conn = self.get_connection()
+        conn = db.get_connection()
         cur = conn.cursor()
         cur.execute("SELECT DISTINCT script FROM client_holdings;")
         scripts = [row[0] for row in cur.fetchall()]
@@ -57,6 +58,9 @@ class LiveUpdater:
     # 🧾 Update live_price and valuation in DB
     def update_prices(self):
         live_data = self.fetch_live_market()
+        print(live_data)
+        import time
+        time.sleep(1000000)
         if not live_data:
             print("No live data fetched.")
             return
@@ -77,7 +81,7 @@ class LiveUpdater:
                         marketValue = "currentBalance" * %s,
                         lastUpdated = %s
                     WHERE script = %s;
-                """, (ltp, ltp, datetime.now(), script))
+                """, (ltp, ltp, datetime.now().strftime("%Y-%m-%d %I:%M:%S"), script))
                 updated_count += 1
 
         conn.commit()

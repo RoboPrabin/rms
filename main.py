@@ -1,3 +1,7 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module='streamlit')
+
+
 from ledger_balance_extractor import LedgerBalanceExtractor
 from ltp_extractor import LtpExtractor
 from db_updater import DBUpdater
@@ -10,7 +14,7 @@ from config import config
 import pandas as pd
 import requests
 from wacc_calculator import WaccCalculator
-
+from db import db
 
 class MeroshareBot:
     def __init__(self):
@@ -170,25 +174,23 @@ class MeroshareBot:
         return holdings
 
     def process_data(self):
-        df_client_data = pd.read_excel(config.CLIENT_DATA_FILEPATH)
-        df_client_data["PASSWORD_EXPIRED"] = None
-        df_client_data["ACCOUNT_EXPIRED"] = None
-        df_client_data["DEMAT_EXPIRED"] = None
-        df_client_data["LOGIN_MESSAGE"] = None
-
+        # df_client_data = pd.read_excel(config.CLIENT_DATA_FILEPATH)
+        df_client_data = db.get_meroshare_accounts()
+        print(df_client_data)
         client_bot = CapitalId()
 
         for index, row in df_client_data.iterrows():
-            dp_id = str(row["DP"]) + "00"
-            username = str(row["USERNAME"])
-            password = str(row["PASSWORD"])
+            dp_id = str(row["dp"]) + "00"
+            username = str(row["username"])
+            password = str(row["password"])
+            client_name = str(row['clientName'])
             client_id = client_bot.get_dp_id(dp_id)
             if client_id == 0:
                 print(f"Client ID not found for DP ID: {dp_id}")
                 continue
 
             json_data = self.get_json_data(client_id, username, password)
-            print(f"[{index+1}] Authenticating for DP ID: {dp_id}, Username: {username}")
+            print(f"[{index+1}] Authenticating for: {client_name.upper()} , DP ID: {dp_id}, Username: {username}")
 
             response = requests.post(
                 "https://webbackend.cdsc.com.np/api/meroShare/auth/",
@@ -198,16 +200,16 @@ class MeroshareBot:
             if response.status_code == 200:
                 print(f" > Successfully authenticated.")
                 self.authorization_token = response.headers.get("Authorization", None)
-                df_client_data.at[index, "LOGIN_MESSAGE"] = response.json().get(
+                df_client_data.at[index, "login_message"] = response.json().get(
                     "message", ""
                 )
-                df_client_data.at[index, "PASSWORD_EXPIRED"] = response.json().get(
+                df_client_data.at[index, "password_expired"] = response.json().get(
                     "passwordExpired", ""
                 )
-                df_client_data.at[index, "ACCOUNT_EXPIRED"] = response.json().get(
+                df_client_data.at[index, "account_expired"] = response.json().get(
                     "accountExpired", ""
                 )
-                df_client_data.at[index, "DEMAT_EXPIRED"] = response.json().get(
+                df_client_data.at[index, "demat_expired"] = response.json().get(
                     "dematExpired", ""
                 )
                 sleep(1)
@@ -233,6 +235,7 @@ class MeroshareBot:
         while True:
             try:
                 df_holdings.to_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL, index=False)
+                print(f"Holdings data written at {config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL}")
                 break
             except PermissionError:
                 print(f"[Alert] Please close the file ASAP. Thank you ! !")
@@ -244,16 +247,22 @@ class MeroshareBot:
     
 if __name__ == "__main__":
     MeroshareBot().process_data()
-    live_data = LtpExtractor().fetch_live_market()
-    WaccCalculator().start_calulation(live_data=live_data)
     LedgerBalanceExtractor().extract_balance()
+
+    from live_db_updater.nepal_stock_exchange import NepalStockExchange
+
+    live_data = NepalStockExchange().start_bot()
+    print(live_data)
+    print("\n\n\n\n")
+    # live_data = LtpExtractor().fetch_live_market()
+    WaccCalculator().start_calulation(live_data=live_data)
 
     from holding_summary_with_bro import BroExtractor
     BroExtractor().extract_bro()
     DBUpdater().push_data_to_db()
 
-    from bro_summary_calc import BroSummaryExtractor
-    BroSummaryExtractor().extract_bro_summary()
+    from client_summary_calc import ClientSummaryExtractor
+    ClientSummaryExtractor().extract_client_summary()
 
     from manager_summary_calc import ManagerSummaryExtractor
     ManagerSummaryExtractor().extract_manager_summary()

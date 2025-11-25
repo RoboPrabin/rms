@@ -73,6 +73,8 @@ class NepalStockExchange:
         self.driver.quit()
 
      # 🧾 Update live_price and valuation in DB
+    
+    
     def update_prices(self, live_data:dict):
         if not live_data:
             print("No live data fetched.")
@@ -104,15 +106,23 @@ class NepalStockExchange:
 
     def start_bot(self):
         self.execute_browser()
-        while True:
-            print("\n\n[+] Ready to fetch latest data.")
-            self.extract_auth_token()
-            data = self.fetch_live_market_data()
-            print(data)
-            self.update_prices(live_data=data)
-            print(f"\n\nWaiting for 10 seconds . . . . .")
-            time.sleep(self.refresh_time_in_seconds)
-            self.driver.refresh()
+        print("\n\n[+] Ready to fetch latest data.")
+        self.extract_auth_token()
+        data = self.fetch_live_market_data()
+        return data
+    
+
+    # def start_bot(self):
+    #     self.execute_browser()
+    #     while True:
+    #         print("\n\n[+] Ready to fetch latest data.")
+    #         self.extract_auth_token()
+    #         data = self.fetch_live_market_data()
+    #         print(data)
+    #         self.update_prices(live_data=data)
+    #         print(f"\n\nWaiting for 10 seconds . . . . .")
+    #         time.sleep(self.refresh_time_in_seconds)
+    #         self.driver.refresh()
             
 
 

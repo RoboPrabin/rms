@@ -3,8 +3,8 @@ import pandas as pd
 from sqlalchemy import create_engine
 from config import config
 
-class BroSummaryExtractor:
-    def extract_bro_summary(self):
+class ClientSummaryExtractor:
+    def extract_client_summary(self):
         # Step 1: Load holdings_FINAL.xlsx
         file_path = config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL
         # file_path = r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\holdings_FINAL.xlsx"
@@ -54,10 +54,13 @@ class BroSummaryExtractor:
 
         # Step 7: Save to Excel
         output_path = r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\bro_summary.xlsx"
+        df_cleaned['assignedLimit'] = 0.00
+        df_cleaned['category'] = "CRED"
+
         df_cleaned.to_excel(output_path, index=False)
         engine_holding_db = create_engine(helper.get_holding_engine())
         # Step 8: Push to bro_summary table
-        df_cleaned.to_sql("bro_summary", engine_holding_db, if_exists="replace", index=False)
+        df_cleaned.to_sql("client_summary", engine_holding_db, if_exists="replace", index=False)
 
         print("✅ Summary file with Bro name created and pushed to DB!")
 

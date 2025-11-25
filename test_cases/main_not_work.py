@@ -1,7 +1,7 @@
 import json
 from wacc_calculator import WaccCalculator
 import subprocess
-from live_updater import LiveUpdater
+from live_updater_niu import LiveUpdater
 import uuid
 import pandas as pd
 from time import sleep

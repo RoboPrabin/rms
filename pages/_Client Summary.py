@@ -23,13 +23,15 @@ class BroSummaryPage:
         df = df.round(2)
         df = helper.format_negative_numbers(df)
         df = helper.format_dataframe(df)
+        # st.badge(f"{len(df)}", color="blue")
+        
         df.rename(columns={"Profit Loss Percentage": "Profit (Loss) Percentage", "Profit Loss Amount" : "Profit (Loss) Amount"}, inplace=True)
         search_query = st.text_input("Search in table")
 
         if search_query:
             df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
 
-        df.index += 1
+        # df.index += 1
         st.dataframe(df, width='stretch')
         # st.dataframe(df, width='stretch')
 

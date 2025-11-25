@@ -45,7 +45,7 @@ class ManagerSummaryExtractor:
         df_merged['bro'] = df_merged['rm_name'].fillna('N/A') + ' ' + df_merged['rm_fname'].fillna('')
 
         # Step 6: Aggregate by BRO
-        bro_summary = df_merged.groupby('bro').agg({
+        manager_summary = df_merged.groupby('bro').agg({
             'clientCode': 'nunique',
             'assetsUnderCustody': 'sum',
             'currentMarketValue': 'sum',
@@ -53,37 +53,37 @@ class ManagerSummaryExtractor:
             'totalLedgerBalance': 'sum',
         }).reset_index()
 
-        bro_summary.rename(columns={
+        manager_summary.rename(columns={
             'clientCode': 'totalClients'
         }, inplace=True)
 
         # Step 7: Save to Excel
         output_path = r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\manager_summary.xlsx"
-        bro_summary.to_excel(output_path, index=False)
+        # manager_summary['usedLimit'] = 0
+        # manager_summary['totalLimit'] = 0
+        # manager_summary['availableLimit'] = 0
+        manager_summary.to_excel(output_path, index=False)
         print("✅ Manager summary with BRO-level aggregation created successfully!")
 
         # Step 8: Push to DB
         engine = create_engine(helper.get_holding_engine())
 
-        bro_summary.to_sql("manager_summary2", engine, if_exists="replace", index=False)
+        manager_summary.to_sql("manager_summary", engine, if_exists="replace", index=False)
         print("✅ Summary file pushed to manager_summary table in client_holdings DB!")
 
         engine = create_engine(helper.get_holding_engine())
-
         with engine.begin() as conn:
-            # Step 1: Drop the columns
             conn.execute(text("""
-                ALTER TABLE manager_summary2
-                DROP COLUMN "usedLimit",
-                DROP COLUMN "totalLimit",
-                DROP COLUMN "availableLimit";
+                ALTER TABLE manager_summary
+                ADD COLUMN "usedLimit" NUMERIC DEFAULT 0,
+                ADD COLUMN "totalLimit" NUMERIC DEFAULT 0;
             """))
 
-            # Step 2: Add generated column
             conn.execute(text("""
-                ALTER TABLE manager_summary2
+                ALTER TABLE manager_summary
                 ADD COLUMN "availableLimit" NUMERIC GENERATED ALWAYS AS ("totalLimit" - "usedLimit") STORED;
             """))
+
 
         print("✅ Columns dropped and 'availableLimit' added as a generated column.")
 

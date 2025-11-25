@@ -29,14 +29,7 @@ class Settings:
         st.markdown("----")
 
 
-    def change_password(self):
-        # STEP 1: Handle incoming clear-flag before showing the form
-        # if st.session_state.get("clear_password_form"):
-        #     st.session_state.current_password = ""
-        #     st.session_state.new_password = ""
-        #     st.session_state.confirm_password = ""
-        #     st.session_state.clear_password_form = False
-        # STEP 0: Handle reset flag before drawing toggle
+    def update_information(self):
         if st.session_state.get("reset_toggle"):
             st.session_state.feature_toggle = False
             st.session_state.reset_toggle = False
@@ -57,7 +50,7 @@ class Settings:
             )
             role = st.text_input(
                 "Role",
-                key="role",
+                # key="role",
                 value=self.role,
                 disabled=True
             )
@@ -101,7 +94,7 @@ class Settings:
 
     def render_dashboard(self):
         self.header()
-        self.change_password()
+        self.update_information()
         
         # _self.hide_download_csv_button()
 
