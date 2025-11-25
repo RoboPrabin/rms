@@ -1,6 +1,6 @@
 import streamlit as st
-from navigation import render_sidebar
-import app_state
+from streamlit_bridge.navigation import render_sidebar
+import streamlit_bridge.app_state as app_state
 from db import db
 
 

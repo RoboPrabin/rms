@@ -123,7 +123,7 @@
 #Login.py
 import time
 import streamlit as st
-import app_state
+import streamlit_bridge.app_state as app_state
 from db.db import get_user_by_username
 from utils import page_url
 from utils import security

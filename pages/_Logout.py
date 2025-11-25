@@ -5,5 +5,5 @@ from utils import page_url
 from time import sleep
 
 st.session_state.clear()
-st.switch_page("Login.py")
+st.switch_page(page_url.login_url)
 st.stop()

@@ -4,9 +4,9 @@ from utils import helper
 warnings.filterwarnings("ignore", category=UserWarning, module='streamlit')
 
 
-from ledger_balance_extractor import LedgerBalanceExtractor
-from niu_ltp_extractor import LtpExtractor
-from db_updater import DBUpdater
+from extractor.ledger_balance_extractor import LedgerBalanceExtractor
+from test_cases.niu_ltp_extractor import LtpExtractor
+from live_db_updater.db_updater import DBUpdater
 import subprocess
 import uuid
 import pandas as pd
@@ -251,14 +251,14 @@ class MeroshareBot:
 
 
     
-if __name__ == "__main__":
-    MeroshareBot().process_data()
-    LedgerBalanceExtractor().extract_balance()
-    from live_db_updater.nepal_stock_exchange import NepalStockExchange
+# if __name__ == "__main__":
+#     # MeroshareBot().process_data()
+#     LedgerBalanceExtractor().extract_balance()
+#     from live_db_updater.niu_nepal_stock_exchange import NepalStockExchange
 
-    live_data = NepalStockExchange().start_live_bot()
-    print(live_data)
-    print("\n\n\n\n")
+#     live_data = NepalStockExchange().start_live_bot()
+#     print(live_data)
+#     print("\n\n\n\n")
 
     # live_data = LtpExtractor().fetch_live_market()
     # from wacc_calculator import WaccCalculator

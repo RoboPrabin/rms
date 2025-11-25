@@ -2,7 +2,7 @@
 # navigation.py
 import streamlit as st
 # from app_state import is_logged_in, current_user, logout_user
-import app_state
+import streamlit_bridge.app_state as app_state
 from utils import page_url
 def render_sidebar():
     """

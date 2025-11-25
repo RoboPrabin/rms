@@ -3,8 +3,8 @@ import pandas as pd
 import sqlalchemy
 from config import config
 from utils import helper
-from navigation import render_sidebar
-import app_state
+from streamlit_bridge.navigation import render_sidebar
+import streamlit_bridge.app_state as app_state
 
 class BroSummaryPage:
     def __init__(self):

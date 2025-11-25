@@ -117,5 +117,5 @@ class WaccCalculator:
 
 if __name__ == "__main__":
     wcc = WaccCalculator()
-    from niu_ltp_extractor import LtpExtractor
+    from test_cases.niu_ltp_extractor import LtpExtractor
     wcc.calculate(live_market_data=LtpExtractor().fetch_live_market())

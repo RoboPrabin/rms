@@ -1,8 +1,8 @@
 import warnings
 warnings.filterwarnings("ignore", message="Thread 'MainThread': missing ScriptRunContext")
 
-from ledger_balance_extractor import LedgerBalanceExtractor
-from meroshare import MeroshareBot
+from extractor.ledger_balance_extractor import LedgerBalanceExtractor
+from extractor.meroshare_bot import MeroshareBot
 from utils import helper
 import json
 from datetime import datetime
@@ -124,7 +124,7 @@ class NepalStockExchange:
 
     def start_live_bot(self):
         from calculation.wacc_calculator import WaccCalculator
-        from holding_summary_with_bro import BroExtractor
+        from extractor.holding_summary_with_bro import BroExtractor
         from calculation.client_summary_calc import ClientSummaryExtractor
         from calculation.manager_summary_calc import ManagerSummaryExtractor
 

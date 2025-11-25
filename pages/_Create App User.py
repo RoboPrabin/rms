@@ -1,12 +1,12 @@
 from time import sleep
 from db import db
-import app_state
+import streamlit_bridge.app_state as app_state
 import pandas as pd
 import streamlit as st
 import uuid
 from sqlalchemy import create_engine, text
 from utils import helper 
-from navigation import render_sidebar
+from streamlit_bridge.navigation import render_sidebar
 
 
 class CreateAppUser:

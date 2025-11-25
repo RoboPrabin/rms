@@ -1,6 +1,6 @@
 from time import sleep
-import app_state
-from navigation import render_sidebar
+import streamlit_bridge.app_state as app_state
+from streamlit_bridge.navigation import render_sidebar
 import pandas as pd
 import streamlit as st
 import sqlalchemy

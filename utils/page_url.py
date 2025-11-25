@@ -1,5 +1,5 @@
 base_path = f"pages/"
-login_url = "Login.py"
+login_url = "streamlit_login_page.py"
 dashbord_url = base_path + "_Dashboard.py"
 client_summary_url = base_path + "_Client Summary.py"
 bro_limit_url = base_path + "_Bro Limit.py"
