@@ -112,7 +112,33 @@ class NepalStockExchange:
         return data
     
 
-    # def start_bot(self):
+    def start_live_bot(self):
+        self.execute_browser()
+        from wacc_calculator import WaccCalculator
+        from holding_summary_with_bro import BroExtractor
+        from db_updater import DBUpdater
+        from client_summary_calc import ClientSummaryExtractor
+        from manager_summary_calc import ManagerSummaryExtractor
+
+        while True:
+            print("\n\n[+] Ready to fetch latest data.")
+            self.extract_auth_token()
+            live_data = self.fetch_live_market_data()
+            print(live_data)
+
+            
+            WaccCalculator().start_calulation(live_data=live_data)
+            BroExtractor().extract_bro()
+            DBUpdater().push_data_to_db()
+
+            ClientSummaryExtractor().extract_client_summary()
+
+            ManagerSummaryExtractor().extract_manager_summary()
+            print(f"\n\nWaiting for 10 seconds . . . . .")
+            time.sleep(self.refresh_time_in_seconds)
+            self.driver.refresh()
+            
+    # def start_live_bot(self):
     #     self.execute_browser()
     #     while True:
     #         print("\n\n[+] Ready to fetch latest data.")

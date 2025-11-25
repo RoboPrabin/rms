@@ -1,10 +1,8 @@
-
 #db.py
-
 import psycopg2
 import psycopg2.extras
 import pandas as pd
-
+from utils import helper
 
 def get_connection():
     return psycopg2.connect(
@@ -161,3 +159,133 @@ def change_user_info(username: str, password:str, phone: str, email: str) -> boo
         conn.close()
 
 
+
+def ensure_holdings_columns_exist():
+    column_types = {
+        "pendingWaccValuation": "NUMERIC",
+        "pendingWaccTotalQuantity": "NUMERIC",
+        "totalPurchaseCost": "NUMERIC",
+        "calculatedWacc": "NUMERIC",
+        "ltp": "NUMERIC",
+        "marketValue": "NUMERIC",
+        "averageBrokerCommission": "NUMERIC",
+        "sebon": "NUMERIC",
+        "dpFee": "NUMERIC",
+        "capitalGain": "NUMERIC",
+        "estimatedCapitalGainTax": "NUMERIC",
+        "profitLoss": "NUMERIC",
+        "profitLossPercentage": "NUMERIC",
+        "lastUpdated": "TIMESTAMP"     # ← FIXED HERE
+    }
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        for col, coltype in column_types.items():
+            alter_sql = f'''
+                ALTER TABLE holdings 
+                ADD COLUMN IF NOT EXISTS "{col}" {coltype};
+            '''
+            cursor.execute(alter_sql)
+
+        conn.commit()
+        # print("[Column Check] All required columns verified/created.")
+
+    except Exception as e:
+        conn.rollback()
+        # print("Column creation failed:", str(e))
+        raise
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+def update_holdings_in_db(df):
+    update_query = """
+        UPDATE holdings
+        SET 
+            "pendingWaccValuation" = %s,
+            "pendingWaccTotalQuantity" = %s,
+            "totalPurchaseCost" = %s,
+            "calculatedWacc" = %s,
+            "ltp" = %s,
+            "marketValue" = %s,
+            "averageBrokerCommission" = %s,
+            "sebon" = %s,
+            "dpFee" = %s,
+            "capitalGain" = %s,
+            "estimatedCapitalGainTax" = %s,
+            "profitLoss" = %s,
+            "profitLossPercentage" = %s,
+            "lastUpdated" = %s
+        WHERE boid = %s AND script = %s
+    """
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        records = []
+        for _, row in df.iterrows():
+            records.append((
+                row["pendingWaccValuation"],
+                row["pendingWaccTotalQuantity"],
+                row["totalPurchaseCost"],
+                row["calculatedWacc"],
+                row["ltp"],
+                row["marketValue"],
+                row["averageBrokerCommission"],
+                row["sebon"],
+                row["dpFee"],
+                row["capitalGain"],
+                row["estimatedCapitalGainTax"],
+                row["profitLoss"],
+                row["profitLossPercentage"],
+                row["lastUpdated"],
+                row["boid"],        # WHERE clause
+                row["script"]       # WHERE clause
+            ))
+
+        psycopg2.extras.execute_batch(cursor, update_query, records)
+        conn.commit()
+        # print("[999999999] PostgreSQL updated successfully.")
+
+    except Exception as e:
+        conn.rollback()
+        # print("DB update failed:", str(e))
+        raise
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
+def update_meroshare_accounts_status(df_client_data: pd.DataFrame):
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                for _, row in df_client_data.iterrows():
+                    cur.execute("""
+                        UPDATE meroshare_acc
+                        SET 
+                            login_message = %s,
+                            password_expired = %s,
+                            account_expired = %s,
+                            demat_expired = %s
+                        WHERE username = %s;
+                    """, (
+                        row['login_message'],
+                        row['password_expired'],
+                        row['account_expired'],
+                        row['demat_expired'],
+                        row['username']
+                    ))
+        helper.show_message("[DB] Meroshare_acc updated successfully.", color='green')
+    finally:
+        conn.close()

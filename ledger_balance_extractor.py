@@ -5,6 +5,7 @@ import requests
 from api.dg.shared_api_dg import get_headers
 from config import config
 from ui.login_dg import login_dg
+from utils import helper
 
 class LedgerBalanceExtractor:
     def __init__(self):
@@ -52,9 +53,8 @@ class LedgerBalanceExtractor:
 
         unique_boids = df.loc[df['ledgerFetched'] != 'YES', 'boid'].unique()
 
-        for boid in unique_boids:
-            print(f"Processing BOID -> {boid}")
-
+        for index, boid in enumerate(unique_boids):
+            helper.show_message(f"{index+1}/{len(unique_boids)} Processing BOID : {boid}")
             response = requests.get(
                 "https://dgtrade.trishakti.com.np:8080/bom/api/customer/customer-registration/find-client-info",
                 params={"name": boid},
@@ -76,7 +76,7 @@ class LedgerBalanceExtractor:
                     except (ValueError, TypeError):
                         ledger_balance = 0.0  
 
-                    print(f"Fetched -> {boid} | acCode: {ac_code} | balance: {ledger_balance} | TMS: {tms_code_value}")
+                    helper.show_message(f"Fetched -> {boid} | acCode: {ac_code} | balance: {ledger_balance} | TMS: {tms_code_value}")
 
                     df.loc[df['boid'] == boid, ['ledgerBalance', 'ledgerFetched', 'clientCode']] = [
                         ledger_balance,
@@ -98,9 +98,9 @@ class LedgerBalanceExtractor:
                         worksheet.set_column('A:AZ', 18, money_fmt)
 
                 else:
-                    print(f"⚠️ No data found for BOID: {boid}")
+                    helper.show_message(f"⚠️ No data found for BOID: {boid}", color='yellow')
                 sleep(3)
             else:
-                print(f"❌ Status Code: {response.status_code}, re-logging...")
+                helper.show_message(f"❌ Status Code: {response.status_code}, re-logging...", color='red')
                 login_dg()
-        print("✅ All BOIDs processed successfully!")
+        helper.show_message("✅ All BOIDs processed successfully!", color='green')

@@ -1,7 +1,7 @@
 from time import sleep
 import streamlit as st
 import pandas as pd
-import sqlalchemy
+from sqlalchemy import text,create_engine
 import io
 from utils import page_url
 from utils.helper import camel_to_title, format_with_comma, hide_components, get_holding_engine
@@ -27,10 +27,22 @@ class Dashboard:
     # LOAD DATA
     # ---------------------------------------------------------
     # @st.cache_data(ttl=helper.default_ttl())
+    # def load_data(_self):
+    #     engine = sqlalchemy.create_engine(get_holding_engine())
+    #     df = pd.read_sql(f"SELECT * FROM holdings WHERE bro={_self.username}", engine)
+    #     if len(df) >=1:
+    #         # df = pd.read_sql("SELECT * FROM holdings", engine)
+    #         df = None
+    #         return df
+    #     return df
+
     def load_data(_self):
-        engine = sqlalchemy.create_engine(get_holding_engine())
-        df = pd.read_sql("SELECT * FROM holdings", engine)
-        return df
+        engine = create_engine(get_holding_engine())
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT * FROM holdings"))
+            # result = conn.execute(text("SELECT * FROM holdings WHERE bro = :username"), {"username": _self.username})
+            df = pd.DataFrame(result.fetchall(), columns=result.keys())
+        return df if not df.empty else None
 
     def show_header(_self):
         helper.adjust_ui()
@@ -56,7 +68,12 @@ class Dashboard:
             </style>
 
             <div class="header-container">
-                <h1><span class="glow-text">Live</span> Client Holdings</h1>
+                <h1 style="margin:0; display:inline;">
+                    <span class="glow-text">Live</span> Client Holdings
+                   <small style="font-style:italic; color:#888; margin-left:5px; font-size:0.4em; font-weight:normal;">
+                        (updates every 5 seconds)
+                    </small>
+                </h1>
             </div>
             """, unsafe_allow_html=True)
 
@@ -69,7 +86,7 @@ class Dashboard:
         """, unsafe_allow_html=True)
 
     def show_holdings(_self):
-        with st.spinner("Loading holdings data..."):
+        with st.spinner("Loading data. Please wait ..."):
             # sleep(5)
             df:pd.DataFrame = _self.load_data()
             df.rename(columns=lambda x: camel_to_title(x), inplace=True)
@@ -153,13 +170,55 @@ class Dashboard:
         </style>
         """, unsafe_allow_html=True)
 
-    def render_dashboard(_self):
-        _self.show_header()
-        _self.show_holdings()
-        _self.show_download_button()
-        _self.show_search_box()
+    # def render_dashboard(_self):
+    #     if _self.role in helper.get_hero_role():
+    #         _self.show_header()
+    #         while True:
+    #             _self.show_holdings()
+    #             _self.show_download_button()
+    #             _self.show_search_box()
+    #             print("Auto-refreshing dashboard...")
+    #             sleep(5)
+    #             st.rerun()
+    #     if _self.df is not None:
+    #         _self.show_header()
+    #         while True:
+    #             _self.show_holdings()
+    #             _self.show_download_button()
+    #             _self.show_search_box()
+    #             print("Auto-refreshing dashboard...")
+    #             sleep(5)
+    #             st.rerun()
+    #     else:
+    #         st.warning("⚠️ No holdings data found for your BRO ID.")
+    #         if st.button("Add Meroshare Account"):
+    #             st.switch_page(page_url.meroshare_url)
+    #         st.stop()
+                # app_state.clear_session_state()
+                # app_state.sync_query_params_from_session()
+                # st.experimental_rerun()
+        
         # _self.hide_download_csv_button()
+    def render_dashboard(_self):
+        # Check access
+        if _self.role not in helper.get_hero_role() and _self.df is None:
+            st.warning("No holdings data found for your BRO ID.", icon="⚠️")
+            st.warning("Please add client's Meroshare account to know current holdings.", icon="⚠️")
+            if st.button("➕ Add Meroshare Account"):
+                st.switch_page(page_url.meroshare_url)
+            st.stop()
 
+        # Show header once
+        _self.show_header()
+
+        # Auto-refresh loop
+        while True:
+            _self.show_holdings()
+            _self.show_download_button()
+            _self.show_search_box()
+            print("Auto-refreshing dashboard...")
+            sleep(5)
+            st.rerun()
 
 
 if __name__ == "__main__":

@@ -14,6 +14,11 @@ from cryptography.fernet import Fernet
 import re
 
 
+
+# def show_message(message: str, color: str='white'):
+#     current_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")  
+#     print(termcolor.colored(f" [{current_time}] {message.upper()}", color))
+
 def validate_phone(phone: str) -> bool:
     """
     Validate a phone number:

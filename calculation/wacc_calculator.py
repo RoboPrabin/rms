@@ -5,7 +5,7 @@ from config import config
 class WaccCalculator:
 
     def __init__(self):
-        print("[+] Initilizing Wacc Calculator . . .")
+        pass
 
     def calculate(self, live_market_data):
         ltp_dict = live_market_data
@@ -35,12 +35,9 @@ class WaccCalculator:
         df['profitLossPercentage'] = 0.0
         df['ledgerBalance'] = 0.0
 
-        # df["ltp"] = 0.0
-        # df["marketValue"] = 0.0
-        df["lastUpdated"] = datetime.now()
-        # Iterate through rows
 
-        
+        df["lastUpdated"] = datetime.now().strftime("%Y-%m-%d %I:%M:%S")
+        # Iterate through rows
         for index, row in df.iterrows():
             pending_wacc_rate = str(row['pendingWaccRate']).replace(" ", "")
             pending_wacc_qty = str(row['pendingWaccQuantity']).replace(" ", "")
@@ -110,11 +107,15 @@ class WaccCalculator:
             worksheet = writer.sheets['Result']
             money_fmt = workbook.add_format({'num_format': '#,##0.00'})
             worksheet.set_column('A:AZ', 18, money_fmt)
+        from db import db
+        db.ensure_holdings_columns_exist()
+        db.update_holdings_in_db(df)
+        # print("[1] Wacc calculated successfully.")
 
-    def start_calulation(self, live_data:dict):
-        self.calculate(live_market_data=live_data)
+    # def start_calulation(self, live_data:dict):
+    #     self.calculate(live_market_data=live_data)
 
 if __name__ == "__main__":
     wcc = WaccCalculator()
-    from ltp_extractor import LtpExtractor
+    from niu_ltp_extractor import LtpExtractor
     wcc.calculate(live_market_data=LtpExtractor().fetch_live_market())

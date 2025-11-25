@@ -53,16 +53,17 @@ class ClientSummaryExtractor:
         ]]
 
         # Step 7: Save to Excel
-        output_path = r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\bro_summary.xlsx"
+        df_cleaned = df_cleaned.copy()
         df_cleaned['assignedLimit'] = 0.00
         df_cleaned['category'] = "CRED"
 
-        df_cleaned.to_excel(output_path, index=False)
+        # output_path = r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\bro_summary.xlsx"
+        # df_cleaned.to_excel(output_path, index=False)
         engine_holding_db = create_engine(helper.get_holding_engine())
         # Step 8: Push to bro_summary table
         df_cleaned.to_sql("client_summary", engine_holding_db, if_exists="replace", index=False)
 
-        print("✅ Summary file with Bro name created and pushed to DB!")
+        helper.show_message("[4] Summary file with Bro name created and pushed to DB!")
 
 
 

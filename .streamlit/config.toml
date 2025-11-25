@@ -2,5 +2,9 @@
 showErrorDetails = false
 toolbarMode = "minimal"
 
+[logger]
+level="error"
+
+
 #[ui]
 #hideTopBar = true

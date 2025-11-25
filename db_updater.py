@@ -27,6 +27,10 @@ class DBUpdater:
         engine = create_engine(helper.get_holding_engine())
         df = pd.read_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL)
         # df: pd.DataFrame = self.__create_columns()
-        df['bro'] = df['bro'].fillna("N/A")
+        # df['bro'] = df['bro'].fillna("N/A")
+        for col in ['bro_x', 'bro_y']:
+            if col in df.columns:
+                df = df.drop(columns=[col])
+
         df.to_sql("holdings", engine, if_exists="replace", index=False)
         print("✅ Data successfully dumped into DB.")

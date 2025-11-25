@@ -1,315 +1,177 @@
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module='streamlit')
-
+warnings.filterwarnings("ignore", message="Thread 'MainThread': missing ScriptRunContext")
 
 from ledger_balance_extractor import LedgerBalanceExtractor
-from ltp_extractor import LtpExtractor
-from db_updater import DBUpdater
-import subprocess
-import uuid
-import pandas as pd
-from time import sleep
-from api.capital import CapitalId
-from config import config
-import pandas as pd
+from meroshare import MeroshareBot
+from utils import helper
+import json
+from datetime import datetime
 import requests
-from wacc_calculator import WaccCalculator
-from db import db
+from seleniumwire import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+import time
 
-class MeroshareBot:
+class NepalStockExchange:
     def __init__(self):
-        self.authorization_token = None
-        self.stock_holdings = []
-        self.total_holdings_count = 0
-        self.demat = None
-        pass
+        self.refresh_time_in_seconds = 10
+        self.url = "https://nepalstock.com.np/live-market"
+        self.auth_token = None
+        self.driver = None
+        
 
-    def get_headers(self, authorization_token="null"):
+    def headers(self, authorization:str):
         headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Authorization": authorization_token,
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Content-Type": "application/json",
-            "Origin": "https://meroshare.cdsc.com.np",
-            "Pragma": "no-cache",
-            "Referer": "https://meroshare.cdsc.com.np/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-site",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
-            "sec-ch-ua": '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Authorization': authorization,
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Pragma': 'no-cache',
+            'Referer': 'https://nepalstock.com.np/live-market',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+            'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
         }
         return headers
 
-    def get_json_data(self, client_id, username, password):
-        json_data = {
-            "clientId": client_id,
-            "username": username,
-            "password": password,
-        }
-        return json_data
+    def setup_chrome(self):
+        # --- Chrome Options ---
+        chrome_options = Options()
+        # chrome_options.add_argument('--incognito')
+        # chrome_options.add_argument('--headless')
+        chrome_options.add_experimental_option("excludeSwitches", ['enable-automation', 'enable-logging'])
+        return chrome_options
+    
+    def execute_browser(self):
+        driver = webdriver.Chrome(options=self.setup_chrome())
+        self.driver = driver
+        target_url = self.url
+        print("Opening page…")
+        driver.get(target_url)
 
-    def get_stock_holding(self, client_dp_code: str, username: str):
-        print(f" > Fetching stock holdings.")
-        boid, name = self.get_boid_and_name()
-        self.demat = boid
-        json_data = {
-            "sortBy": "CCY_SHORT_NAME",
-            "demat": [boid],
-            "clientCode": client_dp_code,
-            "page": 1,
-            "size": 200,
-            "sortAsc": True,
-        }
+    def extract_auth_token(self):
+        time.sleep(1)
+        for req in self.driver.requests:
+            if req.response:
+                if "api/nots" in req.url:
+                    if 'Authorization' in req.headers:
+                        self.auth_token = req.headers['Authorization']
+                        if self.auth_token:
+                            print(f"Token found: " + self.auth_token)
+                            break
+    
 
-        response = requests.post(
-            "https://webbackend.cdsc.com.np/api/meroShareView/myShare/",
-            headers=self.get_headers(authorization_token=self.authorization_token),
-            json=json_data,
-        )
-        if response.status_code == 200:
-            try:
-                holdings = response.json()["meroShareDematShare"]
-                for h in holdings:
-                    h["name"] = name
-                    h["boid"] = boid
-                    h["dp"] = client_dp_code
-                    h["username"] = username
-                print(f" > Total holdings fetched: {len(holdings)}")
-                return holdings
-            except KeyError:
-                return []
+    def fetch_live_market_data(self):
+        self.execute_browser()
+        self.extract_auth_token()
+        response = requests.get('https://nepalstock.com.np/api/nots/lives-market', headers=self.headers(authorization=self.auth_token), verify=False)
+        if response.status_code != 200:
+            print("Failed:", response.status_code)
+            return None
 
-    def get_boid_and_name(self):
-        sleep(1)
-        response = requests.get(
-            "https://webbackend.cdsc.com.np/api/meroShare/ownDetail/",
-            headers=self.get_headers(authorization_token=self.authorization_token),
-        )
-        if response.status_code == 200:
-            try:
-                return response.json().get("demat", ""), response.json().get("name", "")
-            except KeyError:
-                return "", ""
+        data = response.json()
 
-    def get_all_scripts(self):
-        json_data = {
-            "isFilterByAllScript": True,
-        }
+        symbol_ltp_dict = {item["symbol"]: item["lastTradedPrice"] for item in data}
+        return symbol_ltp_dict
 
-        response = requests.post(
-            "https://webbackend.cdsc.com.np/api/myPurchase/share/",
-            headers=self.get_headers(authorization_token=self.authorization_token),
-            json=json_data,
-        )
-        if response.status_code == 200:
-            # print(response.json())
-            return response.json()
+    def quit_driver(self):
+        self.driver.quit()
 
-    def get_wacc(self, holdings):
-        # print(json.dumps(holdings, indent=4))
-        list_of_scripts = self.get_all_scripts()
-        # print("\n\n")
-        sleep(1)
-        average_buy_rate = 0
-        total_cost = 0
-        total_qty = 0
-        for index, script in enumerate(list_of_scripts):
-            print(f"   [{index+1}/{len(list_of_scripts)}] Processing {script}")
-            json_data = {"demat": self.demat, "scrip": script}
+     # 🧾 Update live_price and valuation in DB
+    
+    
+    def update_prices(self, live_data:dict):
+        if not live_data:
+            print("No live data fetched.")
+            return
 
-            response = requests.post(
-                "https://webbackend.cdsc.com.np/api/myPurchase/search/wacc/",
-                headers=self.get_headers(self.authorization_token),
-                json=json_data,
-                timeout=10,
-            )
-            if response.status_code == 200:
-                data = response.json()
-                # print(json.dumps(data, indent=4))
-                # print("\n")
-                try:
-                    wacc = data["waccSummaryResponse"]
-                    if len(wacc) > 0:
-                        average_buy_rate = wacc['averageBuyRate']
-                        total_cost = wacc['totalCost']
-                        total_qty = wacc['totalQuantity']
-                except Exception:
-                    pass
+        conn = self.get_connection()
+        cur = conn.cursor()
 
-                has_pending_wacc = False
-                if len(response.json()['waccUpdateResponse']) > 0:
-                    wacc_update_response = response.json()['waccUpdateResponse']
-                    pending_wacc_rate = ", ".join(str(item["rate"]) for item in data["waccUpdateResponse"])
-                    pending_wacc_qty = ", ".join(str(item["transactionQuantity"]) for item in data["waccUpdateResponse"])
-                    # pending_wacc_rate = max(item["rate"] for item in wacc_update_response)
-                    sources = ", ".join(item["purchaseSource"] for item in data["waccUpdateResponse"])
-                    has_pending_wacc = True
+        cur.execute("SELECT DISTINCT script FROM holdings;")
+        scripts = [row[0] for row in cur.fetchall()]
 
-                for h in holdings:
-                    if h['script'] == script:
-                        h['waccCalculatedQuantity'] = total_qty
-                        h['waccRate'] = average_buy_rate
-                        h['totalCostOfCapital'] = total_cost
-                        if has_pending_wacc:
-                            h['pendingWaccQuantity'] = pending_wacc_qty
-                            h['pendingWaccRate'] = pending_wacc_rate
-                            h['pendingWaccCount'] = len(wacc_update_response)
-                            h['pendingWacc'] = True
-                            h['pendingWaccSource'] = sources
-                            has_pending_wacc = False
-                        else:
-                            h['pendingWaccQuantity'] = 0
-                            h['pendingWaccRate'] = 0
-                            h['pendingWaccCount'] = 0
-                            h['pendingWacc'] = False
-                            h['pendingWaccSource'] = "N/A"
+        updated_count = 0
+        for script in scripts:
+            if script in live_data:
+                ltp = live_data[script]
+                cur.execute("""
+                    UPDATE holdings
+                    SET ltp = %s,
+                        marketValue = "currentBalance" * %s,
+                        lastUpdated = %s
+                    WHERE script = %s;
+                """, (ltp, ltp, datetime.now(), script))
+                updated_count += 1
 
-                sleep(2)
-               
-        return holdings
+        conn.commit()
+        cur.close()
+        conn.close()
+        print(f"✅ Updated {updated_count} scripts at {datetime.now()}")
 
-    def process_data(self):
-        # df_client_data = pd.read_excel(config.CLIENT_DATA_FILEPATH)
-        df_client_data = db.get_meroshare_accounts()
-        print(df_client_data)
-        client_bot = CapitalId()
+    def start_bot(self):
+        self.execute_browser()
+        print("\n\n[+] Ready to fetch latest data.")
+        self.extract_auth_token()
+        data = self.fetch_live_market_data()
+        return data
+    
 
-        for index, row in df_client_data.iterrows():
-            dp_id = str(row["dp"]) + "00"
-            username = str(row["username"])
-            password = str(row["password"])
-            client_name = str(row['clientName'])
-            client_id = client_bot.get_dp_id(dp_id)
-            if client_id == 0:
-                print(f"Client ID not found for DP ID: {dp_id}")
-                continue
+    def start_live_bot(self):
+        from calculation.wacc_calculator import WaccCalculator
+        from holding_summary_with_bro import BroExtractor
+        from calculation.client_summary_calc import ClientSummaryExtractor
+        from calculation.manager_summary_calc import ManagerSummaryExtractor
 
-            json_data = self.get_json_data(client_id, username, password)
-            print(f"[{index+1}] Authenticating for: {client_name.upper()} , DP ID: {dp_id}, Username: {username}")
 
-            response = requests.post(
-                "https://webbackend.cdsc.com.np/api/meroShare/auth/",
-                headers=self.get_headers(),
-                json=json_data,
-            )
-            if response.status_code == 200:
-                print(f" > Successfully authenticated.")
-                self.authorization_token = response.headers.get("Authorization", None)
-                df_client_data.at[index, "login_message"] = response.json().get(
-                    "message", ""
-                )
-                df_client_data.at[index, "password_expired"] = response.json().get(
-                    "passwordExpired", ""
-                )
-                df_client_data.at[index, "account_expired"] = response.json().get(
-                    "accountExpired", ""
-                )
-                df_client_data.at[index, "demat_expired"] = response.json().get(
-                    "dematExpired", ""
-                )
-                sleep(1)
-                holdings = self.get_stock_holding(
-                    client_dp_code=dp_id, username=username
-                )
-                holdings = self.get_wacc(holdings=holdings)
-                self.stock_holdings.extend(holdings)
-                print("\n")
-                sleep(3)
 
-        df_client_data.to_excel(config.CLIENT_DATA_FILEPATH, index=False)
+        # MeroshareBot().process_data()
+        # LedgerBalanceExtractor().extract_balance()  
+        # Target Time
+        # target_time = datetime.now().replace(hour=15, minute=0, second=0, microsecond=0)
 
-        df_holdings = pd.DataFrame(self.stock_holdings)
-
-        df_holdings["id"] = [str(uuid.uuid4()) for _ in range(len(df_holdings))]
-        desired_order = ["id", "name", "username", "dp", "boid"] + [
-            col
-            for col in df_holdings.columns
-            if col not in ["id", "name", "username", "dp", "boid"]
-        ]
-        df_holdings = df_holdings[desired_order]
         while True:
-            try:
-                df_holdings.to_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL, index=False)
-                print(f"Holdings data written at {config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL}")
-                break
-            except PermissionError:
-                print(f"[Alert] Please close the file ASAP. Thank you ! !")
-                sleep(3)
-        
-        # WaccCalculator().calculate()
+            now = datetime.now()
+            # if now >= target_time:
+                # print("\n\n[-] It's 3 PM! Exiting LIVE DP HOLDING PROGRAM.")
+                # break
 
 
-    
+
+
+            BroExtractor().extract_and_update_bro()
+            helper.show_message("[2] Ready to fetch latest data.")
+            # live_data = self.fetch_live_market_data()
+            live_data:dict = None
+            with open("market_data.txt" , 'r') as file:
+                live_data = file.read()
+                live_data = json.loads(str(live_data).replace("'", '"'))
+                helper.show_message("[3] Live data fetched successfully. [www.nepalstock.com.np]")
+
+            
+            # print(live_data)
+
+            # time.sleep(100000)
+            WaccCalculator().calculate(live_market_data=live_data)
+            # time.sleep(1000000)
+
+            ClientSummaryExtractor().extract_client_summary()
+            ManagerSummaryExtractor().extract_manager_summary()
+            helper.show_message("[INFO] Waiting for 15 seconds . . . . .", color='yellow')
+            time.sleep(self.refresh_time_in_seconds)
+
+            # self.driver.refresh()
+
+
 if __name__ == "__main__":
-    MeroshareBot().process_data()
-    LedgerBalanceExtractor().extract_balance()
-
-    from live_db_updater.nepal_stock_exchange import NepalStockExchange
-
-    live_data = NepalStockExchange().start_bot()
-    print(live_data)
-    print("\n\n\n\n")
-    # live_data = LtpExtractor().fetch_live_market()
-    WaccCalculator().start_calulation(live_data=live_data)
-
-    from holding_summary_with_bro import BroExtractor
-    BroExtractor().extract_bro()
-    DBUpdater().push_data_to_db()
-
-    from client_summary_calc import ClientSummaryExtractor
-    ClientSummaryExtractor().extract_client_summary()
-
-    from manager_summary_calc import ManagerSummaryExtractor
-    ManagerSummaryExtractor().extract_manager_summary()
-    
-
-
-    # subprocess.Popen(["streamlit", "run", "streamlit\\login.py"], cwd=config.PROJECT_PATH)
+    NepalStockExchange().start_live_bot()
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # live_updater = LiveUpdater()
-    # # wacc_calc = WaccCalculator()
-    # has_url_opened = False
-    # while True:
-    #     live_updater.update_prices()
-    #     if not has_url_opened:
-    #         subprocess.Popen(["streamlit", "run", "app.py"], cwd=config.PROJECT_PATH)
-    #         has_url_opened = True
-    #     print(f"Sleeping for 30 seconds . . . | has_url_opened={has_url_opened}")
-    #     sleep(config._REFRESH_TIME_IN_SECONDS)
