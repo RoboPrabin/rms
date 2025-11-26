@@ -1,3 +1,4 @@
+from config import config
 from time import sleep
 import streamlit as st
 import pandas as pd
@@ -19,7 +20,9 @@ class Dashboard:
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
 
-        
+        print(self.username, self.role)
+
+        self.refresh_sec = config.REFRESH_TIME_IN_SECONDS + 1  
         navigation.render_sidebar() 
         self.df: pd.DataFrame = None
 
@@ -38,44 +41,58 @@ class Dashboard:
 
     def load_data(_self):
         engine = create_engine(get_holding_engine())
+        result = None
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT * FROM holdings"))
+            if _self.role.strip().upper() not in [r.upper() for r in helper.get_hero_role()]:
+                print("Loading data for BRO:", _self.username)
+                result = conn.execute(
+                    text("SELECT * FROM holdings WHERE bro = :username"), 
+                    {"username": _self.username.upper()}
+                )
+            else:
+                result = conn.execute(text("SELECT * FROM holdings"))
+
             # result = conn.execute(text("SELECT * FROM holdings WHERE bro = :username"), {"username": _self.username})
             df = pd.DataFrame(result.fetchall(), columns=result.keys())
+            _self.df = df
         return df if not df.empty else None
 
     def show_header(_self):
         helper.adjust_ui()
-        st.markdown("""
+
+
+        st.markdown(
+            f"""
             <style>
-                .header-container { 
+                .header-container {{ 
                     display:flex; 
                     justify-content:space-between; 
                     align-items:center; 
-                }
+                }}
 
-                /* Pulsing Glow */
-                .glow-text {
+                .glow-text {{
                     color: red;
                     animation: glowPulse 1.5s ease-in-out infinite;
-                }
+                }}
 
-                @keyframes glowPulse {
-                    0% { text-shadow: 0 0 5px rgba(255,0,0,0.4), 0 0 10px rgba(255,0,0,0.3); }
-                    50% { text-shadow: 0 0 12px rgba(255,0,0,0.7), 0 0 20px rgba(255,0,0,0.5); }
-                    100% { text-shadow: 0 0 5px rgba(255,0,0,0.4), 0 0 10px rgba(255,0,0,0.3); }
-                }
+                @keyframes glowPulse {{
+                    0% {{ text-shadow: 0 0 5px rgba(255,0,0,0.4), 0 0 10px rgba(255,0,0,0.3); }}
+                    50% {{ text-shadow: 0 0 12px rgba(255,0,0,0.7), 0 0 20px rgba(255,0,0,0.5); }}
+                    100% {{ text-shadow: 0 0 5px rgba(255,0,0,0.4), 0 0 10px rgba(255,0,0,0.3); }}
+                }}
             </style>
 
             <div class="header-container">
                 <h1 style="margin:0; display:inline;">
                     <span class="glow-text">Live</span> Client Holdings
-                   <small style="font-style:italic; color:#888; margin-left:5px; font-size:0.4em; font-weight:normal;">
-                        (updates every 5 seconds)
+                    <small style="font-style:italic; color:#888; margin-left:5px; font-size:0.4em; font-weight:normal;">
+                        (updates every {_self.refresh_sec} seconds)
                     </small>
                 </h1>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True
+        )
 
         st.markdown("""
         <style>
@@ -106,18 +123,31 @@ class Dashboard:
 
             df = df.sort_values(by="Name").reset_index(drop=True)
 
+            # column_order = [
+            #     'Bro', 'Name', 'Boid', 'Client Code', 'Ledger Balance',
+            #     'Script', 'Ltp', 'Market Value', 'Profit Loss', 'Profit Loss Percentage'
+            # ]
+            # df :pd.DataFrame= df[column_order + [c for c in df.columns if c not in column_order]]
+
             column_order = [
                 'Bro', 'Name', 'Boid', 'Client Code', 'Ledger Balance',
                 'Script', 'Ltp', 'Market Value', 'Profit Loss', 'Profit Loss Percentage'
             ]
+
+            # Keep only existing columns
+            existing_columns = [c for c in column_order if c in df.columns]
+            df = df[existing_columns + [c for c in df.columns if c not in existing_columns]]
+
+
+
             df = df.round(2)
             df = helper.format_negative_numbers(df)
-            df :pd.DataFrame= df[column_order + [c for c in df.columns if c not in column_order]]
             df.rename(columns={"Profit Loss": "Profit (Loss)", "Profit Loss Percentage": "Profit (Loss) Percentage"}, inplace=True)
             df = helper.format_dataframe(df)
             df.index = df.index + 1
+            # df = _self.add_total_row_to_top(df) 
             _self.df = df
-            sleep(1.3)
+            # sleep(1.3)
 
 
     def show_download_button(_self):
@@ -156,7 +186,7 @@ class Dashboard:
         # st.dataframe(styled_df, width="content")
         # st.table(_self.df.style.apply(highlight_rows, axis=1))
 
-        st.dataframe(df_filtered, width='content')
+        st.dataframe(df_filtered, width='stretch')
 
     def hide_download_csv_button():
         # ---------------------------------------------------------
@@ -170,38 +200,15 @@ class Dashboard:
         </style>
         """, unsafe_allow_html=True)
 
-    # def render_dashboard(_self):
-    #     if _self.role in helper.get_hero_role():
-    #         _self.show_header()
-    #         while True:
-    #             _self.show_holdings()
-    #             _self.show_download_button()
-    #             _self.show_search_box()
-    #             print("Auto-refreshing dashboard...")
-    #             sleep(5)
-    #             st.rerun()
-    #     if _self.df is not None:
-    #         _self.show_header()
-    #         while True:
-    #             _self.show_holdings()
-    #             _self.show_download_button()
-    #             _self.show_search_box()
-    #             print("Auto-refreshing dashboard...")
-    #             sleep(5)
-    #             st.rerun()
-    #     else:
-    #         st.warning("⚠️ No holdings data found for your BRO ID.")
-    #         if st.button("Add Meroshare Account"):
-    #             st.switch_page(page_url.meroshare_url)
-    #         st.stop()
-                # app_state.clear_session_state()
-                # app_state.sync_query_params_from_session()
-                # st.experimental_rerun()
         
         # _self.hide_download_csv_button()
+    
     def render_dashboard(_self):
         # Check access
-        if _self.role not in helper.get_hero_role() and _self.df is None:
+        # print(len(_self.role))
+        _self.load_data()
+
+        if  _self.df.empty and _self.role.strip() == "BRO":
             st.warning("No holdings data found for your BRO ID.", icon="⚠️")
             st.warning("Please add client's Meroshare account to know current holdings.", icon="⚠️")
             if st.button("➕ Add Meroshare Account"):
@@ -213,13 +220,81 @@ class Dashboard:
 
         # Auto-refresh loop
         while True:
+            helper.show_message("Data just got refreshed ...", "yellow")
             _self.show_holdings()
             _self.show_download_button()
             _self.show_search_box()
-            print("Auto-refreshing dashboard...")
-            sleep(5)
+            _self.show_totals(_self.df)
+            sleep(_self.refresh_sec)
             st.rerun()
+            
 
+
+
+    def show_totals(_self, df: pd.DataFrame):
+        # Columns you want to summarize
+        target_cols = [
+            "Market Value",
+            "Profit (Loss)",
+            "Profit (Loss) Percentage",
+            "Current Balance",
+            "Ledger Balance",      # Your "Current Balance"
+            "Free Balance",
+            "Pledge Balance",
+            "Total Purchase Cost",
+            "Calculated Wacc"
+        ]
+
+        # Some may not exist depending on df → filter safe
+        target_cols = [c for c in target_cols if c in df.columns]
+
+        if not target_cols:
+            return
+
+        # Convert all numbers to float safely
+        def to_float(x):
+            if pd.isna(x):
+                return 0.0
+
+            x = str(x).replace(",", "").strip()
+
+            # Convert (1,233.22) -> -1233.22
+            if x.startswith("(") and x.endswith(")"):
+                x = "-" + x[1:-1]
+
+            try:
+                return float(x)
+            except:
+                return 0.0
+
+        clean_df = df[target_cols].map(to_float)
+
+        # Summation
+        totals = clean_df.sum()
+
+        # Build output row
+        total_df = pd.DataFrame([totals])
+        total_df.insert(0, "Summary", ["TOTAL"])
+
+        # Format beautification
+        def fmt(v):
+            if isinstance(v, float):
+                if v < 0:
+                    return f"({abs(v):,.2f})"
+                else:
+                    return f"{v:,.2f}"
+
+            return v
+
+
+        total_df = total_df.map(fmt)
+        st.markdown("### 📌 Summary Totals", unsafe_allow_html=True)
+        st.dataframe(total_df, width='stretch', hide_index=True)
+
+
+   
+    
+    
 
 if __name__ == "__main__":
     dashboad = Dashboard()

@@ -1,8 +1,11 @@
+
 #db.py
+from psycopg2 import sql
 import psycopg2
 import psycopg2.extras
 import pandas as pd
 from utils import helper
+from psycopg2.extras import execute_batch
 
 def get_connection():
     return psycopg2.connect(
@@ -12,6 +15,25 @@ def get_connection():
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
     )
+
+
+
+def get_table_holdings_in_df():
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM holdings;")
+        rows = cur.fetchall()
+
+        # Read column names
+        cols = [desc[0] for desc in cur.description]
+
+        # Build DataFrame
+        df = pd.DataFrame(rows, columns=cols)
+        return df
+    finally:
+        conn.close()
+
 
 
 def get_user_by_username(username):
@@ -201,8 +223,6 @@ def ensure_holdings_columns_exist():
         cursor.close()
         conn.close()
 
-
-
 def update_holdings_in_db(df):
     update_query = """
         UPDATE holdings
@@ -262,9 +282,6 @@ def update_holdings_in_db(df):
         cursor.close()
         conn.close()
 
-
-
-
 def update_meroshare_accounts_status(df_client_data: pd.DataFrame):
     conn = get_connection()
     try:
@@ -287,5 +304,40 @@ def update_meroshare_accounts_status(df_client_data: pd.DataFrame):
                         row['username']
                     ))
         helper.show_message("[DB] Meroshare_acc updated successfully.", color='green')
+        print("\n")
+    finally:
+        conn.close()
+
+
+
+def update_ledger_table(df: pd.DataFrame, table_name: str = "holdings"):
+    """
+    Updates the 'holding' table in PostgreSQL with ledgerBalance, clientCode, ledgerFetched
+    based on BOID from the given DataFrame.
+    """
+    conn = get_connection()  # your existing connection function
+    update_query = sql.SQL("""
+        UPDATE {table}
+        SET
+            "ledgerBalance" = %s,
+            "clientCode" = %s,
+            "ledgerFetched" = %s
+        WHERE "boid" = %s
+    """).format(table=sql.Identifier(table_name))
+
+    # Prepare data for batch update
+    update_data = [
+        (row['ledgerBalance'], row['clientCode'], row['ledgerFetched'], row['boid'])
+        for _, row in df.iterrows()
+    ]
+
+    try:
+        with conn.cursor() as cur:
+            execute_batch(cur, update_query, update_data)
+        conn.commit()
+        # helper.show_message(f"✅ Table '{table_name}' updated successfully with {len(update_data)} records.")
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Failed to update table '{table_name}': {e}")
     finally:
         conn.close()

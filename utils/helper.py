@@ -118,6 +118,7 @@ def get_holding_engine()->str:
 
 @st.cache_resource
 def get_intranet_engine()->str:
+    # return f"postgresql+psycopg2://{config.postgresql_config['db_user']}:{config.postgresql_config['db_password']}@172.17.26.6:{config.postgresql_config['db_port']}/{'trishakti_db'}"
     return f"postgresql+psycopg2://{config.postgresql_config['db_user']}:{config.postgresql_config['db_password']}@{config.postgresql_config['db_host']}:{config.postgresql_config['db_port']}/{'trishakti_db'}"
 
 def hide_components():

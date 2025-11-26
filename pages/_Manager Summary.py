@@ -46,7 +46,7 @@ class ManagerSummaryPage:
                 WHERE manager_summary.bro = bl."broCode"
             """))
 
-    @st.cache_data(ttl=helper.default_ttl())
+    # @st.cache_data(ttl=helper.default_ttl())
     def load_data(_self):
         engine = create_engine(helper.get_holding_engine())
         

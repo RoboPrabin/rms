@@ -47,9 +47,9 @@ class BroExtractor:
                 SET bro = 'N/A'
                 WHERE bro IS NULL;
             """))
+        
 
-
-        helper.show_message("[1] BRO column updated successfully.")
+        # helper.show_message("[1] BRO column updated successfully.")
 
     # def extract_bro(self):
     #     # Step 1: Read Excel

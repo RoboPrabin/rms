@@ -12,7 +12,7 @@ class BroSummaryPage:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
-        
+        self.username, self.role =app_state.get_current_user_info()
         helper.adjust_ui()
         render_sidebar()
 
@@ -36,13 +36,25 @@ class BroSummaryPage:
         # st.dataframe(df, width='stretch')
 
 
-    @st.cache_data(ttl=helper.default_ttl())
-    def load_data(_self):
+    # @st.cache_data(ttl=helper.default_ttl())
+    def load_data(self):
         engine = sqlalchemy.create_engine(helper.get_holding_engine())
-        df = pd.read_sql("SELECT * FROM client_summary", engine)
+        df = None
+        
+        if self.role.upper() == "BRO":
+            # Use safe f-string with quoting handled by SQLAlchemy text()
+            from sqlalchemy import text
+            query = text("SELECT * FROM client_summary WHERE bro = :bro")
+            df = pd.read_sql(query, engine, params={"bro": self.username.upper()})
+        else:
+            # Fetch all if not BRO
+            df = pd.read_sql("SELECT * FROM client_summary", engine)
+
         df.reset_index(drop=True, inplace=True)
         df.index = df.index + 1  
         return df
+
+
 
 
 

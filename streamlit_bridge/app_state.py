@@ -1,11 +1,11 @@
 import streamlit as st
 import time
 from utils.security import decrypt_data, encrypt_data
-
+from utils import helper
 
 def restore_state_from_query_params():
     params = st.query_params
-    print("Restoring state from query params:", params)
+    helper.show_message("Restoring state from query params:" + str(params))
     if "sid" not in params:
         return
 

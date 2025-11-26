@@ -127,6 +127,7 @@ import streamlit_bridge.app_state as app_state
 from db.db import get_user_by_username
 from utils import page_url
 from utils import security
+
 class LoginPage:
     def __init__(self):
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")

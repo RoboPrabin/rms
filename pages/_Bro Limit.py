@@ -25,13 +25,13 @@ class BroLimitManager:
             st.error(f"Query error: {e}")
             return pd.DataFrame()
         
-    @st.cache_data(ttl=helper.default_ttl())
+    # @st.cache_data(ttl=helper.default_ttl())
     def get_bro_codes(_self):
         df = _self._query('SELECT "broCode" FROM bro_limit ORDER BY "broCode"')
         return df["broCode"].tolist()
 
     
-    @st.cache_data(ttl=helper.default_ttl())
+    # @st.cache_data(ttl=helper.default_ttl())
     def get_login_bro_code(_self, username: str):
         return _self._query('SELECT "clientCode", "clientName" FROM client_summary WHERE bro = :username', {"username": username})
         # return self._query('SELECT "clientCode", "clientName" FROM client_summary WHERE TRIM(bro) = :username', {"username": username})
@@ -141,7 +141,7 @@ print(f"Logged in as: {manager.username} with role: {manager.role}")
 if manager.role in ['MANAGER', 'ADMIN']:
     st.title("🧮 Bro Limit Manager", anchor=False)
 
-    bro_codes = manager.    get_bro_codes()
+    bro_codes = manager.get_bro_codes()
     selected_bro = st.selectbox("Select Bro Code", bro_codes)
 
     new_limit = st.number_input("Enter New Total Limit", min_value=0.0, step=0.01)
@@ -172,7 +172,8 @@ else:
     )
     if selected_type == "Cred Clients":
         # bro_code_df = manager.get_login_bro_code(username="N/A ")
-        bro_code_df = manager.get_login_bro_code(username=manager.username)
+        bro_code_df = manager.get_login_bro_code(username="YUBARAJ")
+        # bro_code_df = manager.get_login_bro_code(username=manager.username)
         if bro_code_df.empty:
             st.warning("No clients found for your BRO code.")
         else:
