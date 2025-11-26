@@ -172,8 +172,8 @@ else:
     )
     if selected_type == "Cred Clients":
         # bro_code_df = manager.get_login_bro_code(username="N/A ")
-        bro_code_df = manager.get_login_bro_code(username="YUBARAJ")
-        # bro_code_df = manager.get_login_bro_code(username=manager.username)
+        # bro_code_df = manager.get_login_bro_code(username="YUBARAJ")
+        bro_code_df = manager.get_login_bro_code(username=manager.username)
         if bro_code_df.empty:
             st.warning("No clients found for your BRO code.")
         else:

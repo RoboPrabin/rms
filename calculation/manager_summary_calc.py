@@ -1,3 +1,4 @@
+from db import db
 import pandas as pd
 from sqlalchemy import create_engine, text
 from config import config
@@ -6,8 +7,10 @@ from utils import helper
 class ManagerSummaryExtractor:
     def extract_manager_summary(self):
         # Step 1: Load holdings_FINAL.xlsx
-        holdings_path = config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL
-        df_holdings = pd.read_excel(holdings_path)
+        # holdings_path = config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL
+        # df_holdings = pd.read_excel(holdings_path)
+
+        df_holdings = db.get_table_holdings_in_df()
 
         # Step 2: Connect to PostgreSQL
         engine = create_engine(helper.get_intranet_engine())
@@ -16,7 +19,7 @@ class ManagerSummaryExtractor:
 
         # Step 3: Aggregate client-level data
         df_holdings['username'] = df_holdings['username'].astype(str)
-        grouped = df_holdings.groupby(['name', 'username']).agg({
+        grouped = df_holdings.groupby(['name', 'username', 'clientCode']).agg({
             'marketValue': 'sum',
             'profitLoss': 'sum',
             'profitLossPercentage': 'sum',
@@ -56,7 +59,7 @@ class ManagerSummaryExtractor:
         manager_summary.rename(columns={
             'clientCode': 'totalClients'
         }, inplace=True)
-
+        # print(manager_summary)
         # Step 7: Save to Excel
         # manager_summary['usedLimit'] = 0
         # manager_summary['totalLimit'] = 0
