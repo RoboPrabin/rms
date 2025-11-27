@@ -98,19 +98,19 @@ def logout_if_unauthorized():
         st.stop()
         
 # Load key from environment
-key = os.getenv("SECRET_KEY")
-if not key:
-    raise ValueError("SECRET_KEY not found in environment variables")
+# key = os.getenv("SECRET_KEY")
+# if not key:
+#     raise ValueError("SECRET_KEY not found in environment variables")
 
-cipher = Fernet(key.encode())
+# cipher = Fernet(key.encode())
 
-def encrypt_password(password: str) -> str:
-    encrypted = cipher.encrypt(password.encode())
-    return encrypted.decode()
+# def encrypt_password(password: str) -> str:
+#     encrypted = cipher.encrypt(password.encode())
+#     return encrypted.decode()
 
-def decrypt_password(encrypted_password: str) -> str:
-    decrypted = cipher.decrypt(encrypted_password.encode())
-    return decrypted.decode()
+# def decrypt_password(encrypted_password: str) -> str:
+#     decrypted = cipher.decrypt(encrypted_password.encode())
+#     return decrypted.decode()
 
 @st.cache_resource
 def get_holding_engine()->str:

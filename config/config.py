@@ -1,5 +1,5 @@
 from pathlib import Path
-PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
+PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
 
 CLIENT_DATA_FILEPATH = PROJECT_PATH + r"\data\input\client_data.xlsx"
 OUTPUT_CLIENT_DATA_FILEPATH = PROJECT_PATH + r"\data\output\holdings.xlsx"
@@ -10,7 +10,7 @@ MEROSHARE_URL = "https://meroshare.cdsc.com.np/#/login"
 # Create output directory
 output_folder_path = PROJECT_PATH + r"\data\output"
 
-REFRESH_TIME_IN_SECONDS = 11
+REFRESH_TIME_IN_SECONDS = 20
 
 postgresql_config = {
     "db_user": "postgres",

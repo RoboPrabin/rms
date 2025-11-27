@@ -5,6 +5,8 @@ toolbarMode = "minimal"
 [logger]
 level="error"
 
+#[browser]
+#gatherUsageStats = false
 
 #[ui]
 #hideTopBar = true

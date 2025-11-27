@@ -1,4 +1,6 @@
 
+import os
+os.system("")
 import warnings
 warnings.filterwarnings("ignore", message="Thread 'MainThread': missing ScriptRunContext")
 import logging
@@ -72,8 +74,8 @@ class NepalStockExchange:
                     ltp = 0.0  # fallback if parsing fails
                 data_dict[symbol] = ltp
 
-            print(data_dict)
-            print("\n")
+            # print(data_dict)
+            # print("\n")
             return data_dict
 
         except KeyboardInterrupt:
@@ -125,11 +127,14 @@ class NepalStockExchange:
 
 
 
-        MeroshareBot().process_data()
+        flag = MeroshareBot().process_data()
+        if flag == 0:
+            helper.show_message("Exiting live bot due to no Meroshare accounts.", color='red')
+            return
         LedgerBalanceExtractor().extract_balance()  
         # Target Time
         # target_time = datetime.now().replace(hour=15, minute=0, second=0, microsecond=0)
-        # self.execute_browser()
+        self.execute_browser()
         helper.show_message("[INFO] Starting live tracking of Symbol + LTP...", "green")
         print("\n")
         while True:
@@ -139,8 +144,8 @@ class NepalStockExchange:
                 # break
 
 
-            # live_data = self.start_live_tracking()
-            live_data = self.dummy_market_data()
+            live_data = self.start_live_tracking()
+            # live_data = self.dummy_market_data()
             helper.show_message("Live data fetched successfully. [www.nepalstock.com.np]", "green")
             self.update_prices(live_data=live_data)
 

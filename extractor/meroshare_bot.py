@@ -176,6 +176,9 @@ class MeroshareBot:
 
     def process_data(self):
         df_client_data = db.get_meroshare_accounts()
+        if len(df_client_data) == 0:
+            helper.show_message("No Meroshare accounts found to process.", color='red')
+            return 0
         # print(df_client_data)
         client_bot = CapitalId()
         helper.show_message(f"Total Meroshare accounts to process: {len(df_client_data)}", color='green')

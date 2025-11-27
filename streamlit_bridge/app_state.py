@@ -5,7 +5,7 @@ from utils import helper
 
 def restore_state_from_query_params():
     params = st.query_params
-    helper.show_message("Restoring state from query params:" + str(params))
+    # helper.show_message("Restoring state from query params:" + str(params))
     if "sid" not in params:
         return
 

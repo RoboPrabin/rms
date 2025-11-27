@@ -9,7 +9,7 @@ from utils import helper
 
 class Meroshare:
     def __init__(self):
-        st.set_page_config(page_title="Meroshare", layout="wide", page_icon="✨")
+        st.set_page_config(page_title="Meroshare", layout="wide", page_icon="📝")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()

@@ -59,7 +59,7 @@ class ManagerSummaryExtractor:
         manager_summary.rename(columns={
             'clientCode': 'totalClients'
         }, inplace=True)
-        print(manager_summary)
+        # print(manager_summary)
         # Step 7: Save to Excel
         # manager_summary['usedLimit'] = 0
         # manager_summary['totalLimit'] = 0

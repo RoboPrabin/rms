@@ -20,7 +20,7 @@ class Dashboard:
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
 
-        print(self.username, self.role)
+        # print(self.username, self.role)
 
         self.refresh_sec = config.REFRESH_TIME_IN_SECONDS + 1  
         navigation.render_sidebar() 
@@ -44,7 +44,7 @@ class Dashboard:
         result = None
         with engine.connect() as conn:
             if _self.role.strip().upper() not in [r.upper() for r in helper.get_hero_role()]:
-                print("Loading data for BRO:", _self.username)
+                # print("Loading data for BRO:", _self.username)
                 result = conn.execute(
                     text("SELECT * FROM holdings WHERE bro = :username"), 
                     {"username": _self.username.upper()}
@@ -106,6 +106,7 @@ class Dashboard:
         with st.spinner("Loading data. Please wait ..."):
             # sleep(5)
             df:pd.DataFrame = _self.load_data()
+            
             df.rename(columns=lambda x: camel_to_title(x), inplace=True)
 
             columns_to_drop = [
@@ -207,7 +208,14 @@ class Dashboard:
         # Check access
         # print(len(_self.role))
         _self.load_data()
-
+        if _self.df.empty:
+            _self.df = pd.DataFrame()
+            st.warning("No holdings data found.", icon="⚠️")
+            st.warning("Add some Meroshare accounts to view Live Holdings.", icon="⚠️")
+            if st.button("➕ Add Meroshare Account"):
+                st.switch_page(page_url.meroshare_url)
+            st.stop()
+            return
         if  _self.df.empty and _self.role.strip() == "BRO":
             st.warning("No holdings data found for your BRO ID.", icon="⚠️")
             st.warning("Please add client's Meroshare account to know current holdings.", icon="⚠️")
