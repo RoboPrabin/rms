@@ -14,6 +14,68 @@ from cryptography.fernet import Fernet
 import re
 
 
+import socket
+import requests
+
+from streamlit_javascript import st_javascript
+
+# def get_user_agent() -> str:
+#     js = """
+#     <script>
+#     const userAgent = navigator.userAgent;
+#     document.querySelector('body').setAttribute('data-user-agent', userAgent);
+#     </script>
+#     """
+#     st.markdown(js, unsafe_allow_html=True)
+    
+#     # Try to read back via query params (requires page reload if complex)
+#     try:
+#         user_agent = st.session_state.get("user_agent", None)
+#         if user_agent:
+#             return user_agent
+#     except Exception:
+#         pass
+    
+#     # fallback
+#     return "Unknown"
+
+
+def get_user_agent():
+    user_agent = st_javascript("navigator.userAgent")
+    return user_agent
+
+
+
+def get_client_ip() -> str:
+    try:
+        # Attempt 1: Streamlit server info (works in some deployments)
+        server_info = st.runtime.scriptrunner.get_script_run_ctx()
+        if server_info and hasattr(server_info, 'session_info'):
+            # Some Streamlit deployments may expose session info
+            ip = server_info.session_info.user_ip
+            if ip:
+                return ip
+    except Exception:
+        pass
+
+    try:
+        # Attempt 2: External service (works if internet available)
+        ip = requests.get("https://api.ipify.org").text
+        return ip
+    except Exception:
+        pass
+
+    try:
+        # Attempt 3: Local IP fallback
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        return ip
+    except Exception:
+        pass
+
+    # Default if everything fails
+    return "0.0.0.0"
+
 
 # def show_message(message: str, color: str='white'):
 #     current_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")  

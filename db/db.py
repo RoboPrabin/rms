@@ -1,4 +1,5 @@
 
+
 #db.py
 from psycopg2 import sql
 import psycopg2
@@ -6,6 +7,8 @@ import psycopg2.extras
 import pandas as pd
 from utils import helper
 from psycopg2.extras import execute_batch
+from datetime import datetime
+
 
 def get_connection():
     return psycopg2.connect(
@@ -339,5 +342,123 @@ def update_ledger_table(df: pd.DataFrame, table_name: str = "holdings"):
     except Exception as e:
         conn.rollback()
         print(f"❌ Failed to update table '{table_name}': {e}")
+    finally:
+        conn.close()
+
+
+def update_login_status(username: str, success: bool) -> int:
+    """
+    Update login status for a user.
+    Returns remaining attempts if failed login.
+    """
+    MAX_ATTEMPTS = 3
+    now = datetime.now()
+    conn = get_connection()
+    remaining = 0
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                if success:
+                    cur.execute("""
+                        UPDATE app_user
+                        SET failed_attempts = 0,
+                            last_failed_at = NULL,
+                            status = 'ACTIVE'
+                        WHERE username = %s
+                    """, (username,))
+                else:
+                    # increment failed attempts
+                    cur.execute("""
+                        UPDATE app_user
+                        SET failed_attempts = failed_attempts + 1,
+                            last_failed_at = %s,
+                            status = CASE
+                                WHEN failed_attempts + 1 >= 3 THEN 'BLOCKED'
+                                ELSE status
+                            END,
+                            blocked_at = CASE
+                                WHEN failed_attempts + 1 >= 3 THEN %s
+                                ELSE blocked_at
+                            END
+                        WHERE username = %s
+                        RETURNING failed_attempts
+                    """, (now, now, username))
+                    row = cur.fetchone()
+                    if row:
+                        remaining = MAX_ATTEMPTS - row["failed_attempts"]
+                        remaining = max(remaining, 0)
+    finally:
+        conn.close()
+    return remaining
+
+
+def create_session(username: str) -> str:
+    """
+    Create a new user session or update an existing session for the given username.
+    Returns the session UUID as a string.
+    """
+    session_id = None
+    conn = get_connection()
+    now = datetime.now()
+    ip_address = helper.get_client_ip()
+    user_agent = helper.get_user_agent()
+    
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                # Check if a session exists for this username
+                cur.execute("""
+                    SELECT id FROM user_session
+                    WHERE LOWER(username) = %s
+                    LIMIT 1
+                """, (username.lower(),))
+                row = cur.fetchone()
+                
+                if row:
+                    # Update existing session
+                    session_id = row[0]
+                    cur.execute("""
+                        UPDATE user_session
+                        SET login_time = %s,
+                            ip_address = %s,
+                            user_agent = %s,
+                            session_status = 'ACTIVE'
+                        WHERE id = %s
+                    """, (now, ip_address, user_agent, session_id))
+                else:
+                    # Insert new session
+                    cur.execute("""
+                        INSERT INTO user_session (username, login_time, session_status, ip_address, user_agent)
+                        VALUES (%s, %s, 'ACTIVE', %s, %s)
+                        RETURNING id
+                    """, (username.lower(), now, ip_address, user_agent))
+                    row = cur.fetchone()
+                    if row:
+                        session_id = row[0]
+    finally:
+        conn.close()
+    
+    return str(session_id)  # Return UUID as string
+
+
+
+def end_session(username: str):
+    """
+    Mark all active sessions of the given username as logged out.
+    """
+    conn = get_connection()
+    now = datetime.now()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE user_session
+                    SET logout_time = %s,
+                        session_status = 'LOGGED_OUT'
+                    WHERE LOWER(username) = %s
+                      AND session_status = 'ACTIVE'
+                    RETURNING id
+                """, (now, username.lower()))
+                cur.fetchall()
     finally:
         conn.close()
