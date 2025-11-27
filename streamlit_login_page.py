@@ -144,32 +144,9 @@ class LoginPage:
             password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Login")
 
-            # if submitted:
-            #     user = get_user_by_username(username)
-            #     if user and password == user["password"]:
-            #         payload = {
-            #             "auth": True,
-            #             "user": user["username"].upper(),
-            #             "role": user["role"].upper()
-            #         }
-
-            #         encrypted = security.encrypt_data(payload)
-
-            #         st.session_state.authenticated = True
-            #         st.session_state.username = payload["user"]
-            #         st.session_state.role = payload["role"]
-
-            #         st.query_params["sid"] = encrypted
-
-            #         st.success("Login successful! 👍. Redirecting .....")
-            #         # st.toast("Login successful! 👍",icon="✅")
-            #         time.sleep(0.5)
-            #         st.switch_page("pages/_Dashboard.py")
-            #     else:
-            #         st.error("Invalid username or password !", icon="❌")
-
             if submitted:
                 user = get_user_by_username(username)
+                print(user)
                 if user and user["status"] == "BLOCKED":
                     st.error("Your account is blocked after multiple failed login attempts! ❌")
                 elif user and password == user["password"]:
@@ -203,7 +180,7 @@ class LoginPage:
                             st.warning(f"Invalid username or password! You have {remaining} attempts remaining.", icon="⚠️")
                             # st.toast(f"Invalid username or password! You have {remaining} attempts remaining.", icon="⚠️")
                     else:
-                        st.error("Invalid username or password!", icon="❌")
+                        st.error("You are not register yet. Please contact admin.", icon="❌")
 
 
 
