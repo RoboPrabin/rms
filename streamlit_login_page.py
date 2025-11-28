@@ -140,8 +140,8 @@ class LoginPage:
     def show_login_form(self):
         st.title("🔐Login Portal", anchor=False)
         with st.form("login_form"):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
+            username = st.text_input("Username", icon="🧑🏻‍🦱")
+            password = st.text_input("Password", type="password", icon="🔑")
             submitted = st.form_submit_button("Login")
 
             if submitted:
