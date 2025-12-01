@@ -154,10 +154,10 @@ def render_sidebar():
         if role in ["MANAGER", "ADMIN"]:
             st.sidebar.page_link(page_url.manager_summary_url, label="‎‎ ‎ Manager Summary", icon="👨‍💼")
         if role == "BRO":
-            st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑‍🦱")
+            st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
             st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         else:
-            st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Bro Limit", icon="🧑‍🦱")
+            st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Bro Limit", icon="🧑")
             st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
             st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
     

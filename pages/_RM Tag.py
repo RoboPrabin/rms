@@ -44,18 +44,24 @@ class RMTag:
                         st.caption("Total Clients : " + str(len(client_df)))
                     client_df.drop(columns=['assignAt'], inplace=True)
                     client_df = client_df.map(lambda x: x.upper() if isinstance(x, str) else x)
-
+                    client_df.sort_values(by='clientName', inplace=True)
+                    client_df.reset_index(drop=True,inplace=True)
+                    client_df.index = client_df.index + 1   
                     client_df.rename(columns={'clientName':'Client Name', 'clientCode':'Client Code', 'assignBy':'Assign By'}, inplace=True)
                     st.dataframe(client_df)
                     
             elif mode == "Tag RM":
                 # Dropdown for Client
                 client_df = pd.read_sql('SELECT id, clientfullname, clientmembercode FROM kyc', self.conn)
+                client_df.sort_values(by='clientfullname', inplace=True)
                 client_df["display"] = client_df["clientmembercode"] + " - " + client_df["clientfullname"]
+                # client_df["display"].sort_values(by="clientfullname", inplace=True)
+            
                 selected_client = st.selectbox("Select Client", client_df["display"].tolist())
 
                 # Dropdown for RM (broCode + fullName)
                 rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm', self.conn)
+                rm_df.sort_values(by='broCode', inplace=True)
                 rm_df["display"] = rm_df["broCode"] + " - " + rm_df["fullName"]
                 selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
 
