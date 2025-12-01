@@ -1,313 +1,185 @@
-from config import config
-from time import sleep
+import numpy as np
 import streamlit as st
 import pandas as pd
-from sqlalchemy import text,create_engine
-import io
-from utils import page_url
-from utils.helper import camel_to_title, format_with_comma, hide_components, get_holding_engine
 from utils import helper
+from datetime import datetime, timedelta
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 
-
-class Dashboard:
+class RMAchievement:
     def __init__(self):
-        # st.set_page_config(page_title="Dashboard")
-        st.set_page_config(page_title=f"Dashboard", page_icon="🏠",layout="wide")
+        st.set_page_config("BRO Performance", page_icon="Chart", layout='wide')
+
+        # Authentication & User Info
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
+        navigation.render_sidebar()
 
-        # print(self.username, self.role)
+        # DB Connection
+        self.holding_engine = helper.get_holding_engine()
 
-        self.refresh_sec = config.REFRESH_TIME_IN_SECONDS + 1  
-        navigation.render_sidebar() 
-        self.df: pd.DataFrame = None
+        # Data placeholders
+        self.df_floorsheet = None
+        self.df_client_summary_map = None
+        self.df_floorsheet_summary = None
+        self.bro_yearly_target = None
 
-    # ---------------------------------------------------------
-    # LOAD DATA
-    # ---------------------------------------------------------
-    # @st.cache_data(ttl=helper.default_ttl())
-    # def load_data(_self):
-    #     engine = sqlalchemy.create_engine(get_holding_engine())
-    #     df = pd.read_sql(f"SELECT * FROM holdings WHERE bro={_self.username}", engine)
-    #     if len(df) >=1:
-    #         # df = pd.read_sql("SELECT * FROM holdings", engine)
-    #         df = None
-    #         return df
-    #     return df
+        # Load static data
+        self.fetch_client_rm_map_db()
+        self.fetch_bro_yearly_target_db()
 
-    def load_data(_self):
-        engine = create_engine(get_holding_engine())
-        result = None
-        with engine.connect() as conn:
-            if _self.role.strip().upper() not in [r.upper() for r in helper.get_hero_role()]:
-                # print("Loading data for BRO:", _self.username)
-                result = conn.execute(
-                    text("SELECT * FROM holdings WHERE bro = :username"), 
-                    {"username": _self.username.upper()}
-                )
-            else:
-                result = conn.execute(text("SELECT * FROM holdings"))
+    def fetch_client_rm_map_db(self):
+        self.df_client_summary_map = pd.read_sql("SELECT * FROM client_rm_map", self.holding_engine)
 
-            # result = conn.execute(text("SELECT * FROM holdings WHERE bro = :username"), {"username": _self.username})
-            df = pd.DataFrame(result.fetchall(), columns=result.keys())
-            _self.df = df
-        return df if not df.empty else None
+    def fetch_bro_yearly_target_db(self):
+        self.bro_yearly_target = pd.read_sql("SELECT * FROM bro_yearly_target", self.holding_engine)
 
-    def show_header(_self):
-        helper.adjust_ui()
+    def fetch_floorsheet_db(self, period):
+        conditions = {
+            "Today":      '"uploaded_at"::timestamp::date = CURRENT_DATE',
+            "Yesterday":  '"uploaded_at"::timestamp::date = CURRENT_DATE - INTERVAL \'1 day\'',
+            "1 Week":     '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'7 days\'',
+            "1 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'1 month\'',
+            "3 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'3 months\'',
+            "6 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'6 months\'',
+            "YTD":        '"uploaded_at"::timestamp >= DATE_TRUNC(\'year\', CURRENT_DATE)'
+        }
 
+        query = f'SELECT * FROM "floorsheet" WHERE {conditions[period]}'
+        self.df_floorsheet = pd.read_sql(query, self.holding_engine)
 
-        st.markdown(
-            f"""
-            <style>
-                .header-container {{ 
-                    display:flex; 
-                    justify-content:space-between; 
-                    align-items:center; 
-                }}
+    def extract_each_client_summary(self):
+        df = self.df_floorsheet
+        if df.empty:
+            self.df_floorsheet_summary = pd.DataFrame()
+            return
 
-                .glow-text {{
-                    color: red;
-                    animation: glowPulse 1.5s ease-in-out infinite;
-                }}
+        summary = (df
+            .assign(
+                buy_qty=np.where(df['transaction_type'].str.upper() == 'BUY', df['quantity'], 0),
+                sell_qty=np.where(df['transaction_type'].str.upper() == 'SELL', df['quantity'], 0),
+                buy_amt=np.where(df['transaction_type'].str.upper() == 'BUY', df['amount'], 0),
+                sell_amt=np.where(df['transaction_type'].str.upper() == 'SELL', df['amount'], 0)
+            )
+            .groupby('clientcode', as_index=False)
+            .agg(
+                total_buy=('buy_qty', 'sum'),
+                total_sell=('sell_qty', 'sum'),
+                total_buy_amount=('buy_amt', 'sum'),
+                total_sell_amount=('sell_amt', 'sum'),
+                total_commission=('stockcomm', 'sum')
+            )
+            .assign(total_turnover=lambda x: x['total_buy_amount'] + x['total_sell_amount'])
+            [['clientcode', 'total_buy', 'total_sell', 'total_buy_amount',
+              'total_sell_amount', 'total_turnover', 'total_commission']]
+        )
+        summary.rename(columns={'clientcode': 'client_code'}, inplace=True)
+        self.df_floorsheet_summary = summary
 
-                @keyframes glowPulse {{
-                    0% {{ text-shadow: 0 0 5px rgba(255,0,0,0.4), 0 0 10px rgba(255,0,0,0.3); }}
-                    50% {{ text-shadow: 0 0 12px rgba(255,0,0,0.7), 0 0 20px rgba(255,0,0,0.5); }}
-                    100% {{ text-shadow: 0 0 5px rgba(255,0,0,0.4), 0 0 10px rgba(255,0,0,0.3); }}
-                }}
-            </style>
+    def extract_rm_sales_summary(self, period):
+        self.fetch_floorsheet_db(period)
+        self.extract_each_client_summary()
 
-            <div class="header-container">
-                <h1 style="margin:0; display:inline;">
-                    <span class="glow-text">Live</span> Client Holdings
-                    <small style="font-style:italic; color:#888; margin-left:5px; font-size:0.4em; font-weight:normal;">
-                        (updates every {_self.refresh_sec} seconds)
-                    </small>
-                </h1>
-            </div>
-            """,
-            unsafe_allow_html=True
+        if self.df_floorsheet_summary is None or self.df_floorsheet_summary.empty:
+            return pd.DataFrame()
+
+        df_final = (self.df_floorsheet_summary
+            .merge(self.df_client_summary_map[['clientCode', 'rmName']],
+                   left_on='client_code', right_on='clientCode', how='left')
+            .drop(columns='clientCode', errors='ignore')
+            [['client_code', 'rmName', 'total_buy', 'total_sell',
+              'total_buy_amount', 'total_sell_amount', 'total_turnover', 'total_commission']]
+            .dropna(subset=['rmName'])
         )
 
-        st.markdown("""
-        <style>
-        button[aria-label="Download as CSV"], button[aria-label="Search"] {
-            display:none !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        if df_final.empty:
+            return pd.DataFrame()
 
-    def show_holdings(_self):
-        with st.spinner("Loading data. Please wait ..."):
-            # sleep(5)
-            df:pd.DataFrame = _self.load_data()
+        rm_summary = (df_final
+            .groupby('rmName', as_index=False)
+            .agg({
+                'total_turnover': 'sum',
+                'total_buy_amount': 'sum',
+                'total_sell_amount': 'sum',
+                'total_commission': 'sum',
+                'client_code': 'nunique'
+            })
+            .rename(columns={
+                'rmName': 'BRO',
+                'total_turnover': 'Total Turnover',
+                'total_buy_amount': 'Total Buy Amount',
+                'total_sell_amount': 'Total Sell Amount',
+                'total_commission': 'Total Commission Gain',
+                'client_code': 'Total Traders'
+            })
+        )
+
+        # ROLE-BASED FILTERING: Only show own data if not Manager/Admin
+        if self.role not in ['MANAGER', 'ADMIN']:
+            rm_summary = rm_summary[rm_summary['BRO'].str.upper() == self.username.upper()]
+            if rm_summary.empty:
+                return pd.DataFrame()
+
+        # Merge Yearly Target
+        if self.bro_yearly_target is not None and not self.bro_yearly_target.empty:
+            target_df = self.bro_yearly_target[['bro_code', 'target_amt']].copy()
+            target_df.rename(columns={'bro_code': 'BRO'}, inplace=True)
             
-            df.rename(columns=lambda x: camel_to_title(x), inplace=True)
+            rm_summary = rm_summary.merge(target_df, on='BRO', how='left')
+            rm_summary['Total Target'] = rm_summary['target_amt'].fillna(0).astype(float)
 
-            columns_to_drop = [
-                'Id', 'Username', 'Dp', 'Isin', 'REMARKS', 'SCRIPTDESC', 'Demat Pending',
-                'Freeze Balance', 'Locking Balance', 'Remarks', 'Wacc Calculated Quantity',
-                'Wacc Rate', 'Total Cost Of Capital', 'Pending Wacc Quantity',
-                'Pending Wacc Rate', 'Pending Wacc', 'Pending Wacc Count',
-                'Pending Wacc Valuation', 'Pending Wacc Total Quantity',
-                'Pending Wacc Source', 'Script Desc', 'Average Broker Commission',
-                'Sebon', 'Dp Fee', 'Capital Gain', 'Estimated Capital Gain Tax',
-                'Ledger Fetched'
-            ]
+            # Achievement %
+            rm_summary['Achievement %'] = (
+                rm_summary['Total Turnover'] / rm_summary['Total Target'].replace(0, np.nan) * 100
+            ).fillna(0).round(2)
+            rm_summary['Achievement %'] = rm_summary['Achievement %'].astype(str) + '%'
+            rm_summary['Achievement %'] = rm_summary['Achievement %'].replace('0.0%', '0%')
 
-            df = df.drop(columns=columns_to_drop, errors="ignore")
-
-            df = df.sort_values(by="Name").reset_index(drop=True)
-
-            # column_order = [
-            #     'Bro', 'Name', 'Boid', 'Client Code', 'Ledger Balance',
-            #     'Script', 'Ltp', 'Market Value', 'Profit Loss', 'Profit Loss Percentage'
-            # ]
-            # df :pd.DataFrame= df[column_order + [c for c in df.columns if c not in column_order]]
-
-            column_order = [
-                'Bro', 'Name', 'Boid', 'Client Code', 'Ledger Balance',
-                'Script', 'Ltp', 'Market Value', 'Profit Loss', 'Profit Loss Percentage'
-            ]
-
-            # Keep only existing columns
-            existing_columns = [c for c in column_order if c in df.columns]
-            df = df[existing_columns + [c for c in df.columns if c not in existing_columns]]
-
-
-
-            df = df.round(2)
-            df = helper.format_negative_numbers(df)
-            df.rename(columns={"Profit Loss": "Profit (Loss)", "Profit Loss Percentage": "Profit (Loss) Percentage"}, inplace=True)
-            df = helper.format_dataframe(df)
-            df.index = df.index + 1
-            # df = _self.add_total_row_to_top(df) 
-            _self.df = df
-            # sleep(1.3)
-
-
-    def show_download_button(_self):
-        # ---------------------------------------------------------
-        # DOWNLOAD BUTTON + NAV BUTTONS
-        # ---------------------------------------------------------
-        output = io.BytesIO()
-        _self.df.to_excel(output, index=False, engine="openpyxl")
-        output.seek(0)
-
-        role = _self.role
-        if role in helper.get_hero_role():
-            st.download_button("📥 Download XLSX", data=output, file_name="client_holdings_TSL.xlsx", width='content')
-
-    def show_search_box(_self):
-        # ---------------------------------------------------------
-        # SEARCH
-        # ---------------------------------------------------------
-        search = st.text_input("Search in table", "").strip()
-
-        if search:
-            mask = _self.df.astype(str).apply(lambda x: x.str.contains(search, case=False, na=False)).any(axis=1)
-            df_filtered = _self.df[mask]
-            df_filtered.index = df_filtered.index + 1
+            rm_summary.drop(columns=['target_amt'], inplace=True, errors='ignore')
         else:
-            df_filtered = _self.df
+            rm_summary['Total Target'] = 0
+            rm_summary['Achievement %'] = '0%'
 
-        # def highlight_rows(row):
-        #     if "(" in str(row.get("Profit Loss", "")):
-        #         return ["background-color: #ffcccc; color: black"] * len(row)  # light red
-        #     else:
-        #         return [""] * len(row)
+        # Final formatting
+        rm_summary = rm_summary.sort_values('Total Turnover', ascending=False)
+        rm_summary.reset_index(drop=True, inplace=True)
+        rm_summary.index = rm_summary.index + 1
 
-        # styled_df = _self.df.style.apply(highlight_rows, axis=1)
+        cols_order = ['BRO', 'Total Turnover', 'Total Buy Amount', 'Total Sell Amount',
+                      'Total Commission Gain', 'Total Traders', 'Total Target', 'Achievement %']
+        rm_summary = rm_summary[[c for c in cols_order if c in rm_summary.columns]]
 
-        # st.dataframe(styled_df, width="content")
-        # st.table(_self.df.style.apply(highlight_rows, axis=1))
+        return helper.format_dataframe(rm_summary)
 
-        st.dataframe(df_filtered, width='stretch')
+    def show(self):
+        st.title("BRO Performance Dashboard")
 
-    def hide_download_csv_button():
-        # ---------------------------------------------------------
-        # CSS cleanup
-        # ---------------------------------------------------------
-        st.markdown("""
-        <style>
-        button[aria-label="Download as CSV"], button[aria-label="Search"] {
-            display:none !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        view_mode = st.radio(
+            "Select Period",
+            ["Today", "Yesterday", "1 Week", "1 Month", "3 Month", "6 Month", "YTD"],
+            horizontal=True,
+            key="period_selection"
+        )
 
-        
-        # _self.hide_download_csv_button()
-    
-    def render_dashboard(_self):
-        # Check access
-        # print(len(_self.role))
-        _self.load_data()
-        if _self.df.empty:
-            _self.df = pd.DataFrame()
-            st.warning("No holdings data found.", icon="⚠️")
-            st.warning("Add some Meroshare accounts to view Live Holdings.", icon="⚠️")
-            if st.button("➕ Add Meroshare Account"):
-                st.switch_page(page_url.meroshare_url)
-            st.stop()
-            return
-        if  _self.df.empty and _self.role.strip() == "BRO":
-            st.warning("No holdings data found for your BRO ID.", icon="⚠️")
-            st.warning("Please add client's Meroshare account to know current holdings.", icon="⚠️")
-            if st.button("➕ Add Meroshare Account"):
-                st.switch_page(page_url.meroshare_url)
+        with st.spinner(f"Loading {view_mode} data..."):
+            rm_summary = self.extract_rm_sales_summary(view_mode)
+
+        if rm_summary.empty:
+            if self.role in ['MANAGER', 'ADMIN']:
+                st.warning(f"No floorsheet data found for **{view_mode}**.")
+            else:
+                st.info(f"You have no trading activity in **{view_mode}**.")
             st.stop()
 
-        # Show header once
-        _self.show_header()
+        # Dynamic title based on role
+        title = ("BROs Performance" 
+                 if self.role in ['MANAGER', 'ADMIN'] 
+                 else f"Your Performance - {self.username.upper()}")
 
-        # Auto-refresh loop
-        while True:
-            helper.show_message("Data just got refreshed ...", "yellow")
-            _self.show_holdings()
-            _self.show_download_button()
-            _self.show_search_box()
-            _self.show_totals(_self.df)
-            sleep(_self.refresh_sec)
-            st.rerun()
-            
-
-
-
-    def show_totals(_self, df: pd.DataFrame):
-        # Columns you want to summarize
-        target_cols = [
-            "Market Value",
-            "Profit (Loss)",
-            "Profit (Loss) Percentage",
-            "Current Balance",
-            "Ledger Balance",      # Your "Current Balance"
-            "Free Balance",
-            "Pledge Balance",
-            "Total Purchase Cost",
-            "Calculated Wacc"
-        ]
-
-        # Some may not exist depending on df → filter safe
-        target_cols = [c for c in target_cols if c in df.columns]
-
-        if not target_cols:
-            return
-
-        # Convert all numbers to float safely
-        def to_float(x):
-            if pd.isna(x):
-                return 0.0
-
-            x = str(x).replace(",", "").strip()
-
-            # Convert (1,233.22) -> -1233.22
-            if x.startswith("(") and x.endswith(")"):
-                x = "-" + x[1:-1]
-
-            try:
-                return float(x)
-            except:
-                return 0.0
-
-        clean_df = df[target_cols].map(to_float)
-
-        # Summation
-        totals = clean_df.sum()
-
-        # Build output row
-        total_df = pd.DataFrame([totals])
-        total_df.insert(0, "Summary", ["TOTAL"])
-
-        # Format beautification
-        def fmt(v):
-            if isinstance(v, float):
-                if v < 0:
-                    return f"({abs(v):,.2f})"
-                else:
-                    return f"{v:,.2f}"
-
-            return v
-
-
-        total_df = total_df.map(fmt)
-        st.markdown("### 📌 Summary Totals", unsafe_allow_html=True)
-        st.dataframe(total_df, width='stretch', hide_index=True)
-
-
-   
-    
-    
+        st.subheader(f"{title} • {view_mode}")
+        st.dataframe(rm_summary, use_container_width=True)
 
 if __name__ == "__main__":
-    dashboad = Dashboard()
-    dashboad.render_dashboard()
-    
-
-
-    
+    RMAchievement().show()
