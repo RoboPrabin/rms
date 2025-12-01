@@ -124,9 +124,6 @@ class NepalStockExchange:
             return live_data
 
     def start_live_bot(self):
-
-
-
         flag = MeroshareBot().process_data()
         if flag == 0:
             helper.show_message("Exiting live bot due to no Meroshare accounts.", color='red')

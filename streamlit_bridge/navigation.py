@@ -163,6 +163,7 @@ def render_sidebar():
     
         st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
+        st.sidebar.page_link(page_url.rm_achievement_url, label="‎‎ ‎ RM Achievement", icon="🎉")
 
 
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
