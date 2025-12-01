@@ -1,3 +1,4 @@
+from utils import page_url
 import streamlit as st
 import time
 from utils.security import decrypt_data, encrypt_data
@@ -27,7 +28,7 @@ def check_authenticaiton_state():
         st.warning("Please log in via the Login page to access the dashboard.")
         if st.button("Go to Login Page"):
             st.info("Redirecting to Login page...")
-            st.switch_page("Login.py")
+            st.switch_page(page_url.login_url)
         st.stop()
 
 def sync_query_params_from_session():

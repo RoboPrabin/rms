@@ -3,10 +3,18 @@ import streamlit as st
 import pandas as pd
 from utils import helper
 from datetime import datetime
+import streamlit_bridge.app_state as app_state
+import streamlit_bridge.navigation as navigation
 
 class RMAchievement:
     def __init__(self):
         st.set_page_config("BRO Performance", page_icon="BRO", layout='wide')
+
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
+        navigation.render_sidebar() 
         self.holding_engine = helper.get_holding_engine()
         self.df_floorsheet = None
         self.df_client_summary_map = None
@@ -120,7 +128,8 @@ class RMAchievement:
             st.subheader(f"BRO Summary - {view_mode}", anchor=False)
             st.dataframe(rm_summary, use_container_width=True)
         else:
-            st.warning("Floorsheet has not uploaded yet.", icon="⚠️")
+            today_date = datetime.now().strftime("%Y-%m-%d (%A)")
+            st.warning(f"Floorsheet has not uploaded yet as of date : {today_date}", icon="⚠️")
 
 
 if __name__ == "__main__":
