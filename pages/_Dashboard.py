@@ -53,6 +53,7 @@ class RMAchievement:
             "Today":      '"uploaded_at"::timestamp::date = CURRENT_DATE',
             "Yesterday":  '"uploaded_at"::timestamp::date = CURRENT_DATE - INTERVAL \'1 day\'',
             "1 Week":     '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'7 days\'',
+            "15 Days":     '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'15 days\'',
             "1 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'1 month\'',
             "3 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'3 months\'',
             "6 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'6 months\'',
@@ -168,7 +169,7 @@ class RMAchievement:
 
         view_mode = st.radio(
             "Select Period",
-            ["Today", "Yesterday", "1 Week", "1 Month", "3 Month", "6 Month", "YTD"],
+            ["Today", "Yesterday", "1 Week", "15 Days", "1 Month", "3 Month", "6 Month", "YTD"],
             horizontal=True,
             key="period_selection"
         )
@@ -189,7 +190,7 @@ class RMAchievement:
         st.dataframe(rm_display, use_container_width=True)
 
         # TODAY'S TARGET PROGRESS — 220 trading days
-                # TODAY'S TARGET PROGRESS — Smart Version
+        # TODAY'S TARGET PROGRESS — Smart Version
         if view_mode == "Today":
             st.markdown("---")
             st.subheader("🎯 Today's Target (220 Trading Days/Year)", anchor=False)
