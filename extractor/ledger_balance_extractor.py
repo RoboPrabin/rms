@@ -100,7 +100,7 @@ class LedgerBalanceExtractor:
                             money_fmt = workbook.add_format({'num_format': '#,##0.00'})
                             worksheet.set_column('A:AZ', 18, money_fmt)
                     else:
-                        helper.show_message(f"⚠️ No data found for BOID: {boid}", color='yellow')
+                        helper.show_message(f"    ⚠️ No data found for BOID: {boid}", color='yellow')
                     break
                 else:
                     helper.show_message(f"❌ Status Code: {response.status_code}, re-logging...", color='red')

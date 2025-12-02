@@ -4,7 +4,9 @@ from db import db
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 import uuid
-
+from sqlalchemy import create_engine
+from datetime import datetime
+from utils import helper
 
 class RMTag:
     def __init__(self):
@@ -17,8 +19,61 @@ class RMTag:
         st.title("🏷️ RM Tag", anchor=False)
         self.conn = db.get_connection()
 
+
+    def get_rm_list(self):
+        df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm', self.conn)
+        return df
+
+    def insert_rm(self, rm_data: dict):
+        pd.DataFrame([rm_data]).to_sql("rm", helper.get_holding_engine(), if_exists="append", index=False)
+
+    def add_new_rm_form(self):
+        st.subheader("➕ Add New RM", anchor=False)
+
+
+        bro_code = st.text_input("Bro Code")
+        full_name = st.text_input("Full Name")
+        phone = st.text_input("Phone")
+        email = st.text_input("Email")
+        citizenship_no = st.text_input("Citizenship No")
+
+        # rmType radio button (only 2 options)
+        rm_type = st.selectbox("RM Type", ["INTERNAL", "EXTERNAL"])
+
+        # onboardedBy can be null or chosen from rm table
+        rm_list = self.get_rm_list()
+        onboarded_by = st.selectbox(
+            "Onboarded By (optional)",
+            options=["None"] + rm_list["broCode"].tolist()
+        )
+        if onboarded_by == "None":
+            onboarded_by = None
+
+        created_at = datetime.now()
+
+        if st.button("Save RM"):
+            existing = self.get_rm_list()
+            if bro_code in existing["broCode"].values:
+                st.error(f"❌ BroCode '{bro_code}' already exists. Please use a unique code.")
+                return
+
+            new_rm = {
+                "broCode": bro_code,
+                "fullName": full_name,
+                "phone": phone,
+                "email": email,
+                "citizenshipNo": citizenship_no,
+                "rmType": rm_type,
+                "onboardedBy": onboarded_by,
+                "createdAt": created_at,
+                "createdBy": self.username.upper(),
+            }
+
+            self.insert_rm(new_rm)
+            st.success("✅ RM created successfully!")
+
     def render_ui(self):
-        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client"], horizontal=True, index=0)
+        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client", "Add New RM"], horizontal=True, index=0)
 
         with st.spinner("Loading data . . . ."):
             if mode == "Show RM Clients":
@@ -105,27 +160,7 @@ class RMTag:
 
                         st.success(f"Client {client_code} successfully assigned to RM {rm_brocode} - {rm_fullname}.")
 
-            else:
-                # client_code = st.text_input("Enter client code", icon="🏷️").upper()
-
-                # if client_code.strip():  # only run if something entered
-                #     query = """
-                #         SELECT "rmName", "rmFullName"
-                #         FROM client_rm_map
-                #         WHERE "clientCode" = %s
-                #     """
-                #     with self.conn.cursor() as cur:
-                #         cur.execute(query, (client_code.strip(),))
-                #         result = cur.fetchone()
-
-                #     if result:
-                #         rm_name, rm_fullname = result
-                #         st.success(f"Client {client_code} is tagged to RM: {rm_name} - {rm_fullname}", icon='👍')
-                #     else:
-                #         st.warning(f"No RM assigned for client code {client_code}.", icon='⚠️')
-
-
-
+            elif mode == "Search Tagged Client":
                 client_code = st.text_input("Enter client code", icon="🏷️").upper()
 
                 if client_code.strip():  # only run if something entered
@@ -162,5 +197,9 @@ class RMTag:
                             f"No RM assigned for client code starting with {client_code}.",
                             icon="⚠️"
                         )
+            
+            else:
+                self.add_new_rm_form()
+                
 if __name__ == "__main__":
     RMTag().render_ui()

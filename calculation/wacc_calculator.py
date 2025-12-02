@@ -1,39 +1,42 @@
 from datetime import datetime
 import pandas as pd
 from config import config
+from db.db import get_table_holdings_in_df
+
 
 class WaccCalculator:
 
     def __init__(self):
         pass
 
-    def calculate(self, live_market_data):
+    def calculate(self, live_market_data, run_flag):
         ltp_dict = live_market_data
 
         # Load Excel
-        df = pd.read_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL)
-        
-        # Initialize columns
-        df['pendingWaccValuation'] = 0.0
-        df['pendingWaccTotalQuantity'] = 0.0
-        df['totalPurchaseCost'] = 0.0
-        df['calculatedWacc'] = 0.0
+        # df = pd.read_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL)
+        df = get_table_holdings_in_df()
+        if int(run_flag) == 0:
+            # Initialize columns
+            df['pendingWaccValuation'] = 0.0
+            df['pendingWaccTotalQuantity'] = 0.0
+            df['totalPurchaseCost'] = 0.0
+            df['calculatedWacc'] = 0.0
 
-        # --- Update LTP and Market Value ---
-        df['ltp'] = df['script'].map(ltp_dict)  # or use correct column name
-        df['ltp'] = df['ltp'].fillna(0.0)  # handle missing LTP
+            # --- Update LTP and Market Value ---
+            df['ltp'] = df['script'].map(ltp_dict)  # or use correct column name
+            df['ltp'] = df['ltp'].fillna(0.0)  # handle missing LTP
 
-        # marketValue = currentBalance * ltp
-        df['marketValue'] = df.apply(lambda row: float(row['currentBalance']) * float(row['ltp']),axis=1)
+            # marketValue = currentBalance * ltp
+            df['marketValue'] = df.apply(lambda row: float(row['currentBalance']) * float(row['ltp']),axis=1)
 
-        df['averageBrokerCommission'] = 0.0
-        df['sebon'] = 0.0
-        df['dpFee'] = 25.0  # default value
-        df['capitalGain'] = 0.0
-        df['estimatedCapitalGainTax'] = 0.0
-        df['profitLoss'] = 0.0
-        df['profitLossPercentage'] = 0.0
-        df['ledgerBalance'] = 0.0
+            df['averageBrokerCommission'] = 0.0
+            df['sebon'] = 0.0
+            df['dpFee'] = 25.0  # default value
+            df['capitalGain'] = 0.0
+            df['estimatedCapitalGainTax'] = 0.0
+            df['profitLoss'] = 0.0
+            df['profitLossPercentage'] = 0.0
+            # df['ledgerBalance'] = 0.0
 
 
         df["lastUpdated"] = datetime.now().strftime("%Y-%m-%d %I:%M:%S")

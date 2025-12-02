@@ -87,6 +87,9 @@ class CreateAppUser:
             if search_query:
                 df_users_display = df_users_display[df_users_display.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
 
+
+            if self.role in ["MANAGER", "BRO"]:
+                df_users_display.drop(columns=["Status", "Failed_attempts", "Last_failed_at", "Blocked_at"], inplace=True)
             df_users_display.index += 1
             self.df_users = df_users_display
             st.dataframe(df_users_display, width='stretch')

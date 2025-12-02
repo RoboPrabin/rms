@@ -11,10 +11,10 @@ class BroExtractor:
         holding_engine = create_engine(helper.get_holding_engine())
 
         # === STEP 1: Read Excel ===
-        df_excel = pd.read_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL)
+        # df_excel = pd.read_excel(config.OUTPUT_CLIENT_DATA_FILEPATH_FINAL)
 
         # Replace holdings table
-        df_excel.to_sql("holdings", holding_engine, if_exists="replace", index=False)
+        # df_excel.to_sql("holdings", holding_engine, if_exists="replace", index=False)
 
         # === STEP 2: Fetch RM data from intranet DB ===
         df_client_rm = pd.read_sql("SELECT client_code, rm_id FROM client_rm", intranet_engine)

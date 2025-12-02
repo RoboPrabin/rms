@@ -141,7 +141,7 @@ class Dashboard:
 
 
 
-            df = df.round(2)
+            # df = df.round(2)
             df = helper.format_negative_numbers(df)
             df.rename(columns={"Profit Loss": "Profit (Loss)", "Profit Loss Percentage": "Profit (Loss) Percentage"}, inplace=True)
             df = helper.format_dataframe(df)
@@ -236,9 +236,6 @@ class Dashboard:
             sleep(_self.refresh_sec)
             st.rerun()
             
-
-
-
     def show_totals(_self, df: pd.DataFrame):
         # Columns you want to summarize
         target_cols = [

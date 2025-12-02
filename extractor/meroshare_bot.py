@@ -57,34 +57,39 @@ class MeroshareBot:
 
     def get_stock_holding(self, client_dp_code: str, username: str):
         helper.show_message(f" > Fetching stock holdings.")
-        boid, name = self.get_boid_and_name()
-        self.demat = boid
-        json_data = {
-            "sortBy": "CCY_SHORT_NAME",
-            "demat": [boid],
-            "clientCode": client_dp_code,
-            "page": 1,
-            "size": 200,
-            "sortAsc": True,
-        }
-
-        response = requests.post(
-            "https://webbackend.cdsc.com.np/api/meroShareView/myShare/",
-            headers=self.get_headers(authorization_token=self.authorization_token),
-            json=json_data,
-        )
-        if response.status_code == 200:
+        while True:
             try:
-                holdings = response.json()["meroShareDematShare"]
-                for h in holdings:
-                    h["name"] = name
-                    h["boid"] = boid
-                    h["dp"] = client_dp_code
-                    h["username"] = username
-                helper.show_message(f" > Total holdings: {len(holdings)}")
-                return holdings
-            except KeyError:
-                return []
+                boid, name = self.get_boid_and_name()
+                self.demat = boid
+                json_data = {
+                    "sortBy": "CCY_SHORT_NAME",
+                    "demat": [boid],
+                    "clientCode": client_dp_code,
+                    "page": 1,
+                    "size": 200,
+                    "sortAsc": True,
+                }
+
+                response = requests.post(
+                    "https://webbackend.cdsc.com.np/api/meroShareView/myShare/",
+                    headers=self.get_headers(authorization_token=self.authorization_token),
+                    json=json_data,
+                )
+                if response.status_code == 200:
+                    try:
+                        holdings = response.json()["meroShareDematShare"]
+                        for h in holdings:
+                            h["name"] = name
+                            h["boid"] = boid
+                            h["dp"] = client_dp_code
+                            h["username"] = username
+                        helper.show_message(f" > Total holdings: {len(holdings)}")
+                        return holdings
+                    except KeyError:
+                        return []
+            except Exception as e:
+                helper.show_message(f" > Error, Retrying . . . .", color='red')
+                sleep(3)
 
     def get_boid_and_name(self):
         sleep(1)
@@ -120,57 +125,64 @@ class MeroshareBot:
         total_cost = 0
         total_qty = 0
         for index, script in enumerate(list_of_scripts):
-            helper.show_message(f" > [{index+1}/{len(list_of_scripts)}] Processing {script}")
-            json_data = {"demat": self.demat, "scrip": script}
-
-            response = requests.post(
-                "https://webbackend.cdsc.com.np/api/myPurchase/search/wacc/",
-                headers=self.get_headers(self.authorization_token),
-                json=json_data,
-                timeout=10,
-            )
-            if response.status_code == 200:
-                data = response.json()
-                # print(json.dumps(data, indent=4))
-                # print("\n")
+            while True:
                 try:
-                    wacc = data["waccSummaryResponse"]
-                    if len(wacc) > 0:
-                        average_buy_rate = wacc['averageBuyRate']
-                        total_cost = wacc['totalCost']
-                        total_qty = wacc['totalQuantity']
-                except Exception:
-                    pass
+                    helper.show_message(f" > [{index+1}/{len(list_of_scripts)}] Processing {script}")
+                    json_data = {"demat": self.demat, "scrip": script}
 
-                has_pending_wacc = False
-                if len(response.json()['waccUpdateResponse']) > 0:
-                    wacc_update_response = response.json()['waccUpdateResponse']
-                    pending_wacc_rate = ", ".join(str(item["rate"]) for item in data["waccUpdateResponse"])
-                    pending_wacc_qty = ", ".join(str(item["transactionQuantity"]) for item in data["waccUpdateResponse"])
-                    # pending_wacc_rate = max(item["rate"] for item in wacc_update_response)
-                    sources = ", ".join(item["purchaseSource"] for item in data["waccUpdateResponse"])
-                    has_pending_wacc = True
+                    response = requests.post(
+                        "https://webbackend.cdsc.com.np/api/myPurchase/search/wacc/",
+                        headers=self.get_headers(self.authorization_token),
+                        json=json_data,
+                        timeout=10,
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        # print(json.dumps(data, indent=4))
+                        # print("\n")
+                        try:
+                            wacc = data["waccSummaryResponse"]
+                            if len(wacc) > 0:
+                                average_buy_rate = wacc['averageBuyRate']
+                                total_cost = wacc['totalCost']
+                                total_qty = wacc['totalQuantity']
+                        except Exception:
+                            pass
 
-                for h in holdings:
-                    if h['script'] == script:
-                        h['waccCalculatedQuantity'] = total_qty
-                        h['waccRate'] = average_buy_rate
-                        h['totalCostOfCapital'] = total_cost
-                        if has_pending_wacc:
-                            h['pendingWaccQuantity'] = pending_wacc_qty
-                            h['pendingWaccRate'] = pending_wacc_rate
-                            h['pendingWaccCount'] = len(wacc_update_response)
-                            h['pendingWacc'] = True
-                            h['pendingWaccSource'] = sources
-                            has_pending_wacc = False
-                        else:
-                            h['pendingWaccQuantity'] = 0
-                            h['pendingWaccRate'] = 0
-                            h['pendingWaccCount'] = 0
-                            h['pendingWacc'] = False
-                            h['pendingWaccSource'] = "N/A"
+                        has_pending_wacc = False
+                        if len(response.json()['waccUpdateResponse']) > 0:
+                            wacc_update_response = response.json()['waccUpdateResponse']
+                            pending_wacc_rate = ", ".join(str(item["rate"]) for item in data["waccUpdateResponse"])
+                            pending_wacc_qty = ", ".join(str(item["transactionQuantity"]) for item in data["waccUpdateResponse"])
+                            # pending_wacc_rate = max(item["rate"] for item in wacc_update_response)
+                            sources = ", ".join(item["purchaseSource"] for item in data["waccUpdateResponse"])
+                            has_pending_wacc = True
 
-                sleep(2)
+                        for h in holdings:
+                            if h['script'] == script:
+                                h['waccCalculatedQuantity'] = total_qty
+                                h['waccRate'] = average_buy_rate
+                                h['totalCostOfCapital'] = total_cost
+                                if has_pending_wacc:
+                                    h['pendingWaccQuantity'] = pending_wacc_qty
+                                    h['pendingWaccRate'] = pending_wacc_rate
+                                    h['pendingWaccCount'] = len(wacc_update_response)
+                                    h['pendingWacc'] = True
+                                    h['pendingWaccSource'] = sources
+                                    has_pending_wacc = False
+                                else:
+                                    h['pendingWaccQuantity'] = 0
+                                    h['pendingWaccRate'] = 0
+                                    h['pendingWaccCount'] = 0
+                                    h['pendingWacc'] = False
+                                    h['pendingWaccSource'] = "N/A"
+
+                        sleep(2)
+                        break
+                except Exception as e:
+                    helper.show_message(f" > Error, Retrying . . . .", color='red')
+                    sleep(3)
+
                
         return holdings
 

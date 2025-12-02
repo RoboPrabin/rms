@@ -106,11 +106,15 @@ class Meroshare:
             df.index = df.index + 1  
                 
             df.drop(columns=['id'], inplace=True)
-            column_order = ['clientName', 'category','dp', 'username', 'password','hasVerifiedCredentials', 'bro']
+            column_order = ['clientName', 'category','dp', 'username', 'password','hasVerifiedCredentials', 'bro', 'password_expired', 'account_expired', 'demat_expired' ,'login_message']
             total_count = len(df)
             self.total_accounts = total_count 
             df = df[column_order]
             df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
+            df.rename(columns={"Login_Message":"Login Message", "Password_Expired":"Password Expired", "Account_Expired":"Account Expired", "Demat_Expired":"Demat Expired"}, inplace=True)
+            # df.rename(columns={""})
+
+
             if self.role != "MANAGER":
                 st.markdown("<hr>", unsafe_allow_html=True)
                 st.markdown(f"<h3>👥 Total MeroShare Accounts : {total_count}</h3>", unsafe_allow_html=True)

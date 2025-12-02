@@ -42,6 +42,13 @@ class RMAchievement:
         self.fetch_client_rm_map_db()
         self.fetch_bro_yearly_target_db()
 
+    def is_trading_hours(self):
+        """Returns True only between 11:00 AM and 3:00 PM (Nepal market time)"""
+        now = datetime.now()
+        start_time = now.replace(hour=11, minute=0, second=0, microsecond=0)
+        end_time = now.replace(hour=15, minute=0, second=0, microsecond=0)
+        return start_time <= now <= end_time
+
     def fetch_client_rm_map_db(self):
         self.df_client_summary_map = pd.read_sql("SELECT * FROM client_rm_map", self.holding_engine)
 
@@ -164,8 +171,10 @@ class RMAchievement:
 
         return rm_summary_display, rm_summary_numeric
 
+
+
     def show(self):
-        st.title("📈 BRO Performance - " + str(self.today_np_date), anchor=False)
+        st.title(f"📈 BRO Performance - {self.today_np_date}", anchor=False)
 
         view_mode = st.radio(
             "Select Period",
@@ -174,84 +183,164 @@ class RMAchievement:
             key="period_selection"
         )
 
+        # Load performance data (may be empty on "Today" morning)
         with st.spinner(f"Loading {view_mode} data..."):
             rm_display, rm_numeric = self.extract_rm_sales_summary(view_mode)
 
-        if rm_numeric.empty:
-            if self.role in ['MANAGER', 'ADMIN']:
-                st.warning(f"No floorsheet data found for **{view_mode}**.")
-            else:
-                st.info(f"You have no trading activity in **{view_mode}**.")
+        # Always load yearly targets (even if no floorsheet)
+        target_df = self.bro_yearly_target[['bro_code', 'target_amt']].copy()
+        if target_df.empty:
+            st.error("No yearly targets found in database!")
             st.stop()
+        target_df.rename(columns={'bro_code': 'BRO'}, inplace=True)
+        target_df['Total Target'] = pd.to_numeric(target_df['target_amt'], errors='coerce').fillna(0)
+        target_df['Daily Target'] = (target_df['Total Target'] / 220).round(2)
 
-        title = ("All BROs Performance" if self.role in ['MANAGER', 'ADMIN'] else f"{self.username.upper()}'s Performance")
-        st.subheader(f"{title} • {view_mode}")
-        rm_display.index = rm_display.index + 1
-        st.dataframe(rm_display, use_container_width=True)
+        # Role-based filtering for targets
+        if self.role not in ['MANAGER', 'ADMIN']:
+            target_df = target_df[target_df['BRO'].str.upper() == self.username.upper()]
+            if target_df.empty:
+                st.error("Your BRO code not found in target list!")
+                st.stop()
 
-        # TODAY'S TARGET PROGRESS — 220 trading days
-        # TODAY'S TARGET PROGRESS — Smart Version
+        # Show main summary (if any activity)
+        if not rm_numeric.empty:
+            title = ("All BROs Performance" if self.role in ['MANAGER', 'ADMIN'] else f"{self.username.upper()}'s Performance")
+            st.subheader(f"{title} • {view_mode}")
+            rm_display.index = rm_display.index + 1
+            st.dataframe(rm_display, use_container_width=True)
+        else:
+            if view_mode != "Today":
+                st.info(f"No trading activity found for **{view_mode}**.")
+
+        # TODAY'S TARGET SECTION — ALWAYS SHOWS
         if view_mode == "Today":
             st.markdown("---")
             st.subheader("🎯 Today's Target (220 Trading Days/Year)", anchor=False)
 
-            # Always calculate daily target from yearly target
-            target_df = rm_numeric[['BRO', 'Total Target']].copy()
-            target_df['Daily Target'] = (target_df['Total Target'] / 220).round(2)
+            # Check if we have turnover today
+            has_turnover_today = not rm_numeric.empty and (rm_numeric['Total Turnover'] > 0).any()
 
-            # Check if we have today's turnover data
-            if not rm_numeric.empty and 'Total Turnover' in rm_numeric.columns:
-                # Floorsheet uploaded → show full performance
+            if has_turnover_today:
+                # Merge actual performance
                 progress = rm_numeric[['BRO', 'Total Turnover', 'Total Target']].copy()
-                progress['Daily Target'] = (progress['Total Target'] / 220).round(2)
+                progress = progress.merge(target_df[['BRO', 'Daily Target']], on='BRO', how='left')
                 progress['Today %'] = ((progress['Total Turnover'] / progress['Daily Target']) * 100).round(2)
                 progress['Remaining'] = (progress['Daily Target'] - progress['Total Turnover']).clip(lower=0).round(2)
 
-                # Full table
                 full_df = pd.DataFrame({
                     'BRO': progress['BRO'],
-                    'Daily Target': progress['Daily Target'].apply(lambda x: f"{x:,.2f}"),
-                    'Today Turnover': progress['Total Turnover'].apply(lambda x: f"{x:,.2f}"),
+                    'Daily Target (₹)': progress['Daily Target'].apply(lambda x: f"{x:,.2f}"),
+                    'Today Turnover (₹)': progress['Total Turnover'].apply(lambda x: f"{x:,.2f}"),
                     'Achieved Today': progress['Today %'].astype(str) + '%',
-                    'Remaining': progress['Remaining'].apply(lambda x: f"{x:,.2f}")
+                    'Remaining (₹)': progress['Remaining'].apply(lambda x: f"{x:,.2f}")
                 })
 
-                st.success(f"Floorsheet uploaded — Today's performance: {self.today_np_date}")
+                st.success("Floorsheet uploaded — Here's today's performance:")
                 st.dataframe(full_df, use_container_width=True)
 
             else:
-                # No floorsheet yet → show only targets (motivation mode)
-                target_only = pd.DataFrame({
-                    'BRO': target_df['BRO'],
-                    'Your Daily Target': target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
-                })
+                if self.role in ["MANAGER", "ADMIN"]:
+                    target_only = pd.DataFrame({
+                        "BRO": target_df['BRO'],
+                        "BRO's Target": target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
+                    })
+                else:
+                    target_only = pd.DataFrame({
+                        "BRO": target_df['BRO'],
+                        "Your Today's Target": target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
+                    })
 
-                st.info("Floorsheet not uploaded yet — Here are today's targets:")
+                # Show motivational message ONLY during trading hours (11 AM - 3 PM)
+                if self.is_trading_hours():
+                    if self.role == "BRO":
+                        st.success("🔴 Market is LIVE — Crush your daily target today!")
+                else:
+                    if self.role in ["MANAGER", "ADMIN"]:
+                        st.info("👇 Here is BRO's daily target for today:")
+                    else:
+                        st.info("👇 Here is your daily target for today:")
+                target_only.sort_values(by="BRO", inplace=True)
+                target_only = target_only.reset_index(drop=True)
+                target_only.index = target_only.index + 1
                 st.dataframe(target_only, use_container_width=True)
-                st.caption("Come back after market close to see your performance!")
-       
-       
-       
-       
-        # if view_mode == "Today" and not rm_numeric.empty:
-        #     st.markdown("---")
-        #     st.subheader("Today's Target (220 Trading Days/Year)")
+                st.caption("*✍️ Performance will appear automatically after floorsheet upload.*")
 
-        #     progress = rm_numeric[['BRO', 'Total Turnover', 'Total Target']].copy()
-        #     progress['Daily Target'] = (progress['Total Target'] / 220).round(2)
-        #     progress['Today %'] = ((progress['Total Turnover'] / progress['Daily Target']) * 100).round(2)
-        #     progress['Remaining'] = (progress['Daily Target'] - progress['Total Turnover']).clip(lower=0).round(2)
 
-        #     # Clean, simple table
-        #     simple_df = pd.DataFrame({
-        #         'BRO': progress['BRO'],
-        #         'Daily Target': progress['Daily Target'].apply(lambda x: f"{x:,.2f}"),
-        #         'Today Turnover': progress['Total Turnover'].apply(lambda x: f"{x:,.2f}"),
-        #         'Achieved Today (%)': progress['Today %'].astype(str) + '%',
-        #         'Remaining': progress['Remaining'].apply(lambda x: f"{x:,.2f}")
-        #     })
 
-        #     st.dataframe(simple_df, use_container_width=True)
+
+
+
+    # def show(self):
+    #     st.title("📈 BRO Performance - " + str(self.today_np_date), anchor=False)
+
+    #     view_mode = st.radio(
+    #         "Select Period",
+    #         ["Today", "Yesterday", "1 Week", "15 Days", "1 Month", "3 Month", "6 Month", "YTD"],
+    #         horizontal=True,
+    #         key="period_selection"
+    #     )
+
+    #     with st.spinner(f"Loading {view_mode} data..."):
+    #         rm_display, rm_numeric = self.extract_rm_sales_summary(view_mode)
+
+    #     if rm_numeric.empty:
+    #         if self.role in ['MANAGER', 'ADMIN']:
+    #             st.warning(f"No floorsheet data found for **{view_mode}**.")
+    #         else:
+    #             st.info(f"You have no trading activity in **{view_mode}**.")
+    #         st.stop()
+
+    #     title = ("All BROs Performance" if self.role in ['MANAGER', 'ADMIN'] else f"{self.username.upper()}'s Performance")
+    #     st.subheader(f"{title} • {view_mode}")
+    #     rm_display.index = rm_display.index + 1
+    #     st.dataframe(rm_display, use_container_width=True)
+
+    #     # TODAY'S TARGET PROGRESS — 220 trading days
+
+    #     if view_mode == "Today":
+    #         st.markdown("---")
+    #         st.subheader("🎯 Today's Target (220 Trading Days/Year)", anchor=False)
+
+    #         # Always calculate daily target from yearly target
+    #         target_df = rm_numeric[['BRO', 'Total Target']].copy()
+    #         target_df['Daily Target'] = (target_df['Total Target'] / 220).round(2)
+
+    #         # Check if we have today's turnover data
+    #         if not rm_numeric.empty and 'Total Turnover' in rm_numeric.columns:
+    #             # Floorsheet uploaded → show full performance
+    #             progress = rm_numeric[['BRO', 'Total Turnover', 'Total Target']].copy()
+    #             progress['Daily Target'] = (progress['Total Target'] / 220).round(2)
+    #             progress['Today %'] = ((progress['Total Turnover'] / progress['Daily Target']) * 100).round(2)
+    #             progress['Remaining'] = (progress['Daily Target'] - progress['Total Turnover']).clip(lower=0).round(2)
+
+    #             # Full table
+    #             full_df = pd.DataFrame({
+    #                 'BRO': progress['BRO'],
+    #                 'Daily Target': progress['Daily Target'].apply(lambda x: f"{x:,.2f}"),
+    #                 'Today Turnover': progress['Total Turnover'].apply(lambda x: f"{x:,.2f}"),
+    #                 'Achieved Today': progress['Today %'].astype(str) + '%',
+    #                 'Remaining': progress['Remaining'].apply(lambda x: f"{x:,.2f}")
+    #             })
+
+    #             st.success(f"Floorsheet uploaded — Today's performance: {self.today_np_date}")
+    #             st.dataframe(full_df, use_container_width=True)
+
+    #         else:
+    #             # No floorsheet yet → show only targets (motivation mode)
+    #             target_only = pd.DataFrame({
+    #                 'BRO': target_df['BRO'],
+    #                 'Your Daily Target': target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
+    #             })
+
+    #             st.info("Floorsheet not uploaded yet — Here are today's targets:")
+    #             st.dataframe(target_only, use_container_width=True)
+    #             st.caption("Come back after market close to see your performance!")
+       
+       
+       
+       
+
 
 if __name__ == "__main__":
     RMAchievement().show()
