@@ -29,8 +29,6 @@ class RMTag:
 
     def add_new_rm_form(self):
         st.subheader("➕ Add New RM", anchor=False)
-
-
         bro_code = st.text_input("Bro Code")
         full_name = st.text_input("Full Name")
         phone = st.text_input("Phone")
@@ -87,12 +85,19 @@ class RMTag:
             st.success("✅ RM created successfully!")
 
     def render_ui(self):
-        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client", "Add New RM"], horizontal=True, index=0)
+        if self.role not in ["MANAGER", "ADMIN"]:
+            mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client"], horizontal=True, index=0)
+        else:
+            mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client", "Add New RM"], horizontal=True, index=0)
 
         with st.spinner("Loading data . . . ."):
             if mode == "Show RM Clients":
                 # Fetch RM list
-                rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm', self.conn)
+                if self.role == "BRO":
+                    rm_code = self.username.upper()
+                    rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm WHERE "broCode" = %s', self.conn, params=[rm_code])
+                else:
+                    rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm', self.conn)
                 rm_df["display"] = rm_df["broCode"] + " - " + rm_df["fullName"]
                 rm_df.sort_values(by='broCode', inplace=True)
                 selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
@@ -128,8 +133,12 @@ class RMTag:
             
                 selected_client = st.selectbox("Select Client", client_df["display"].tolist())
 
-                # Dropdown for RM (broCode + fullName)
-                rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm', self.conn)
+                if self.role == "BRO":
+                    rm_code = self.username.upper()
+                    rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm WHERE "broCode" = %s', self.conn, params=[rm_code])
+                else:
+                    # Dropdown for RM (broCode + fullName)
+                    rm_df = pd.read_sql('SELECT id, "broCode", "fullName" FROM rm', self.conn)
                 rm_df.sort_values(by='broCode', inplace=True)
                 rm_df["display"] = rm_df["broCode"] + " - " + rm_df["fullName"]
                 selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
