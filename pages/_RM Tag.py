@@ -34,7 +34,7 @@ class RMTag:
         bro_code = st.text_input("Bro Code")
         full_name = st.text_input("Full Name")
         phone = st.text_input("Phone")
-        email = st.text_input("Email")
+        email = st.text_input("Email").lower()
         citizenship_no = st.text_input("Citizenship No")
 
         # rmType radio button (only 2 options)
@@ -51,11 +51,25 @@ class RMTag:
 
         created_at = datetime.now()
 
-        if st.button("Save RM"):
+        if st.button("Add RM", icon="➕"):
             existing = self.get_rm_list()
-            if bro_code in existing["broCode"].values:
+
+            if not bro_code or not full_name or not phone or not email or not citizenship_no or not rm_type:
+                st.warning("⚠️ Please fill in all required fields before saving.")
+                return
+
+            elif bro_code in existing["broCode"].values:
                 st.error(f"❌ BroCode '{bro_code}' already exists. Please use a unique code.")
                 return
+            
+            elif not helper.validate_phone(phone=phone):
+                st.warning("Invalid Phone number", icon="⚠️")
+                return
+
+            elif not helper.is_valid_email(email=email):
+                st.warning("Please enter a valid email address.", icon="⚠️")
+                return
+
 
             new_rm = {
                 "broCode": bro_code,

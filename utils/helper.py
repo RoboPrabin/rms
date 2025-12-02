@@ -111,6 +111,18 @@ def is_valid_password(password: str) -> bool:
 #     df = df.map(lambda x: f"({abs(x):,})" if isinstance(x, (int, float)) and x < 0 else f"{x:,}" if isinstance(x, (int, float)) else x)
 #     return df
 
+def is_valid_email(email: str) -> bool:
+    """
+    Validate an email address using regex.
+    Returns True if valid, False otherwise.
+    """
+    if not email:
+        return False
+
+    # Basic RFC 5322 compliant regex for email validation
+    pattern = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    return re.match(pattern, email) is not None
+
 
 def format_negative_numbers(df):
     def fmt(x):
