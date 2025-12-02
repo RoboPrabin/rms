@@ -12,6 +12,8 @@ output_folder_path = PROJECT_PATH + r"\data\output"
 
 REFRESH_TIME_IN_SECONDS = 30
 
+FLOORSHEET_UPLOAD_TIIME = "03:14 PM"
+
 postgresql_config = {
     "db_user": "postgres",
     "db_password" : "admin",

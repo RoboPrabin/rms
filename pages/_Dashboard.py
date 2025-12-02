@@ -9,7 +9,7 @@ from utils import helper
 from datetime import datetime, timedelta
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
-
+from config import config
 class RMAchievement:
     def __init__(self):
         st.set_page_config("BRO Performance", page_icon="📈", layout='wide')
@@ -265,7 +265,20 @@ class RMAchievement:
                 target_only = target_only.reset_index(drop=True)
                 target_only.index = target_only.index + 1
                 st.dataframe(target_only, use_container_width=True)
-                st.caption("*✍️ Performance will appear automatically after floorsheet upload.*")
+                st.caption(f"*✍️ Performance will update automatically once the floorsheet upload completes ({config.FLOORSHEET_UPLOAD_TIIME}).*")
 
+<<<<<<< HEAD
+=======
+
+
+
+
+
+       
+       
+       
+
+
+>>>>>>> 8f322465061ffd37b1339b7cb666ec5ad7d278f5
 if __name__ == "__main__":
     RMAchievement().show()
