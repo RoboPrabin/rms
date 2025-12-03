@@ -17,8 +17,10 @@ class Settings:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
+
+
         self.username, self.role = app_state.get_current_user_info()
-        self.user =db.get_user_by_username(username=self.username.lower())
+        self.user =db.get_user_by_username(username=self.username)
         navigation.render_sidebar() 
         self.df: pd.DataFrame = None
 
@@ -53,6 +55,12 @@ class Settings:
                 value=self.role,
                 disabled=True
             )
+            citizenship = st.text_input(
+                "Citizenship",
+                key="citizenship",
+                value=self.user['citizenship'],
+                disabled=not requested_change
+            )
             password = st.text_input(
                 "Password",
                 type="password",
@@ -78,12 +86,13 @@ class Settings:
                     username=self.username,
                     password=password,
                     phone=phone,
-                    email=email
+                    email=email,
+                    citizenship=citizenship
                 )
                 st.success("Information updated successfully.")
                 st.balloons()
                 st.session_state.reset_toggle = True
-                sleep(1.6)
+                sleep(0.8)
                 st.rerun()
 
            

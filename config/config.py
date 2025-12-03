@@ -10,7 +10,7 @@ MEROSHARE_URL = "https://meroshare.cdsc.com.np/#/login"
 # Create output directory
 output_folder_path = PROJECT_PATH + r"\data\output"
 
-REFRESH_TIME_IN_SECONDS = 30
+REFRESH_TIME_IN_SECONDS = 50000
 
 FLOORSHEET_UPLOAD_TIIME = "03:14 PM"
 

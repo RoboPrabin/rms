@@ -163,6 +163,7 @@ def render_sidebar():
             st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
     
         st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
+        st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         # st.sidebar.page_link(page_url.rm_achievement_url, label="‎‎ ‎ RM Achievement", icon="🎉")
 

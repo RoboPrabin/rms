@@ -136,7 +136,7 @@ manager = BroLimitManager()
 
 # 🔐 Session info
 
-print(f"Logged in as: {manager.username} with role: {manager.role}")
+# print(f"Logged in as: {manager.username} with role: {manager.role}")
 # 🧮 Admin/Manager View
 if manager.role in ['MANAGER', 'ADMIN']:
     st.title("🧮 Bro Limit Manager", anchor=False)

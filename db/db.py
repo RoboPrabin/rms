@@ -19,6 +19,17 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def get_user_roles():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT role_type FROM app_user_role ORDER BY role_type;")
+            rows = cur.fetchall()
+            # Extract just the role_type values into a list
+            roles = [row["role_type"] for row in rows]
+        return roles
+    finally:
+        conn.close()
 
 
 def get_table_holdings_in_df():
@@ -42,7 +53,7 @@ def get_table_holdings_in_df():
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM app_user WHERE username = %s", (username,))
+    cur.execute("SELECT username, role, password, status, citizenship, phone, email FROM app_user WHERE username = %s", (username.upper(),))
     row = cur.fetchone()
     cur.close()
     conn.close()
@@ -159,7 +170,7 @@ def change_password(username: str, current_password: str, new_password: str) -> 
         conn.close()
 
 
-def change_user_info(username: str, password:str, phone: str, email: str) -> bool:
+def change_user_info(username: str, password:str, phone: str, email: str, citizenship:str) -> bool:
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -167,10 +178,10 @@ def change_user_info(username: str, password:str, phone: str, email: str) -> boo
         cur.execute(
             """
             UPDATE app_user
-            SET password = %s, phone = %s, email = %s
+            SET password = %s, phone = %s, email = %s, citizenship = %s
             WHERE username = %s;
             """,
-            (password.strip(), phone.strip(), email.strip(), username.lower().strip())
+            (password.strip(), phone.strip(), email.strip(), citizenship.lower().strip() ,username.lower().strip())
         )
         conn.commit()
         return True
@@ -411,7 +422,7 @@ def create_session(username: str) -> str:
                     SELECT id FROM user_session
                     WHERE LOWER(username) = %s
                     LIMIT 1
-                """, (username.lower(),))
+                """, (username.upper(),))
                 row = cur.fetchone()
                 
                 if row:
@@ -431,7 +442,7 @@ def create_session(username: str) -> str:
                         INSERT INTO user_session (username, login_time, session_status, ip_address, user_agent)
                         VALUES (%s, %s, 'ACTIVE', %s, %s)
                         RETURNING id
-                    """, (username.lower(), now, ip_address, user_agent))
+                    """, (username.upper(), now, ip_address, user_agent))
                     row = cur.fetchone()
                     if row:
                         session_id = row[0]

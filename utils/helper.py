@@ -44,6 +44,17 @@ def get_user_agent():
     user_agent = st_javascript("navigator.userAgent")
     return user_agent
 
+def prettify_columns(df: pd.DataFrame) -> pd.DataFrame:
+    def convert(col: str) -> str:
+        # Replace underscores with spaces
+        col = col.replace("_", " ")
+        # Insert space before capital letters (camelCase → camel Case)
+        col = re.sub(r'(?<!^)(?=[A-Z])', ' ', col)
+        # Title case the whole string
+        return col.strip().title()
+    
+    df = df.rename(columns={col: convert(col) for col in df.columns})
+    return df
 
 
 def get_client_ip() -> str:

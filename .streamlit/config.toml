@@ -1,9 +1,15 @@
 [client]
 showErrorDetails = false
-toolbarMode = "minimal"
+#toolbarMode = "minimal"
 
 [logger]
 level="error"
+
+
+
+
+
+
 
 #[browser]
 #gatherUsageStats = false

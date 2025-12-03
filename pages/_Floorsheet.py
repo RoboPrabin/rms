@@ -34,16 +34,22 @@ class Floorsheet:
     def render_ui(self):
         st.title("📄 Floorsheet Records")
 
-        selected_date = st.date_input(
-            label="Select Date",
-            value=date.today(),
-            help="Floorsheet entries will load based on this date."
-        )
+        # selected_date = st.date_input(
+        #     label="Select Date",
+        #     value=date.today(),
+        #     help="Floorsheet entries will load based on this date."
+        # )
 
-        search_term = st.text_input(
-            label="Search",
-            placeholder="Type to filter (symbol, client name, etc.)"
-        )
+        # search_term = st.text_input(
+        #     label="Search",
+        #     placeholder="Type to filter (symbol, client name, etc.)"
+        # )
+
+        col1, col2 = st.columns([2, 5])
+        with col1:
+            selected_date = st.date_input("Select Date", value=date.today())
+        with col2:
+            search_term = st.text_input("Search", placeholder="Symbol, client name, etc.")
 
         st.markdown("---")
 
@@ -101,7 +107,9 @@ class Floorsheet:
                             "sales_turnover": g.loc[sell, "amount"].sum(),
                             "total": g["amount"].sum(),
                         })
-                    display_df = df.groupby("branch").apply(branch_summary_func).reset_index()
+                    display_df = df.groupby("branch", group_keys=False).apply(
+                        branch_summary_func, include_groups=False
+                    ).reset_index()
                     total_turnover = display_df["total"].sum()
                     display_df["%"] = (display_df["total"] / total_turnover * 100).round(2)
                 else:
@@ -111,14 +119,11 @@ class Floorsheet:
                     display_df = df.groupby("branch")["amount"].sum().reset_index()
                     display_df.columns = ["branch", "total"]
                 else:
-                    display_df = pd.DataFrame()
+                    display_df = pd.DataFrame().copy()
             else:
                 display_df = df
 
-            # Caption right under radio button
             st.badge(f"**Total rows :** {len(display_df):,}", color="green")
-            # st.caption(f"**Total rows :** {len(display_df):,}")
-            # st.badge("hello", color="blue")
 
             # Render selected view
             if view_mode == "Floorsheet":
@@ -288,7 +293,7 @@ class Floorsheet:
                     st.info("No 'branch' column found in data.")
 
             elif view_mode == "Branch Piechart":
-                st.subheader("Branch Turnover Contribution")
+                st.subheader("Branch Turnover Contribution", anchor=False)
                 if "branch" in df.columns and not display_df.empty:
                     fig = px.pie(display_df, names="branch", values="total")
                     st.plotly_chart(fig, use_container_width=True)
