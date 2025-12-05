@@ -24,7 +24,7 @@ class ProjectRequest:
         self.user_roles = db.get_user_roles()
 
     def show_add_project_request_ui(self):
-        st.subheader("Submit Project Request", anchor=False)
+        # st.subheader("Submit Project Request", anchor=False)
 
         # Username (auto-filled, disabled)
         username = st.text_input("Username", value=self.username, disabled=True)
@@ -199,10 +199,10 @@ class ProjectRequest:
     def render_page(self):
         selected_option = st.radio(
             "Choose an option:",
-            ("Add Project Request", "View Project Requests"),
+            ("View/Edit Project Requests", "Submit Project Request"),
             horizontal=True
         )
-        if selected_option == "Add Project Request":
+        if selected_option == "Submit Project Request":
             self.show_add_project_request_ui()
         else:
             self.view_project_requests()
