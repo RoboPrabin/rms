@@ -84,43 +84,6 @@ class RMAchievement:
         summary.rename(columns={'clientcode': 'client_code'}, inplace=True)
         self.df_floorsheet_summary = summary
 
-    # def extract_rm_sales_summary(self, period):
-    #     self.fetch_floorsheet_db(period)
-    #     self.extract_each_client_summary()
-
-    #     df_final = (self.df_floorsheet_summary
-    #         .merge(self.df_client_summary_map[['clientCode', 'rmName']],
-    #                left_on='client_code', right_on='clientCode', how='left')
-    #         .drop(columns='clientCode')
-    #         [['client_code', 'rmName', 'total_buy', 'total_sell',
-    #           'total_buy_amount', 'total_sell_amount', 'total_turnover', 'total_commission']]
-    #         .dropna(subset=['rmName'])
-    #     )
-
-    #     rm_summary = (df_final
-    #         .groupby('rmName', as_index=False)
-    #         .agg({
-    #             'total_turnover': 'sum',
-    #             'total_buy_amount': 'sum',
-    #             'total_sell_amount': 'sum',
-    #             'total_commission': 'sum',
-    #             'client_code': 'nunique'
-    #         })
-    #         .rename(columns={
-    #             'rmName': 'BRO',
-    #             'total_turnover': 'Total Turnover',
-    #             'total_buy_amount': 'Total Buy Amount',
-    #             'total_sell_amount': 'Total Sell Amount',
-    #             'total_commission': 'Total Commission Gain',
-    #             'client_code': 'Total Traders'
-    #         })
-    #         # .rename(columns={'client_code': 'Total Traders'})
-    #         .sort_values('Total Turnover', ascending=False)
-    #     )
-    #     rm_summary.reset_index(inplace=True, drop=True)
-    #     rm_summary.index = rm_summary.index + 1
-    #     rm_summary = helper.format_dataframe(rm_summary)
-    #     return rm_summary
 
     def extract_rm_sales_summary(self, period):
         self.fetch_floorsheet_db(period)
@@ -204,9 +167,7 @@ class RMAchievement:
             horizontal=True,
             key="period_selection"
         )
-
-
-        with st.spinner(f"Loading {view_mode} data..."):
+        with st.spinner(f"Loading {view_mode} data...", show_time=True, width="stretch"):
             rm_summary = self.extract_rm_sales_summary(view_mode)
             if rm_summary is None or rm_summary.empty:
                 return

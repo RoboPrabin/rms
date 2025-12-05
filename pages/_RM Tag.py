@@ -77,7 +77,7 @@ class RMTag:
         client_df.index = client_df.index + 1
 
         if len(client_df) >= 1:
-            st.caption(f"Total Clients : {len(client_df)}")
+            st.badge(f"Total Clients : {len(client_df)}", color="green")
 
         client_df.drop(columns=["assignAt"], inplace=True)
         client_df = client_df.map(lambda x: x.upper() if isinstance(x, str) else x)
