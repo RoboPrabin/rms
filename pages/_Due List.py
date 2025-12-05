@@ -63,6 +63,9 @@ class DueList:
             ).any(axis=1)
             df_filtered = df_filtered[mask]
 
+        if df_filtered.empty:
+            st.warning(f"Due list not found as of date {selected_date_str}", icon="⚠️")
+            return
         # --- Format and calculate ---
         df_filtered = df_filtered.rename(columns={"rmName": "BRO"})
         df_filtered = helper.format_dataframe(df=df_filtered)

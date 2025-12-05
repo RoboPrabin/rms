@@ -1,51 +1,24 @@
-from datetime import datetime
-import pandas as pd
-import uuid
-from sqlalchemy import create_engine
+import streamlit as st
 
-# Step 1: Read CSV
-csv_path = r"C:\Users\Prabin\Downloads\rm_table.csv"
-df = pd.read_csv(csv_path)
-
-# Step 2: Add UUID column
-df["id"] = [str(uuid.uuid4()) for _ in range(len(df))]
-
-# Step 3: Add password column
-# Assuming your CSV has a column named "username"
-df["password"] = df["username"].str.title() + "@123"
-df["created_at"] = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-df["created_by"] = "SYSTEM"
-# Step 4: PostgreSQL connection
-postgresql_config = {
-    "db_user": "postgres",
-    "db_password": "admin",
-    "db_host": "localhost",
-    "db_port": "5432",
-    "db_name": "client_holdings"
+# Custom CSS to remove button border
+hide_button_border_css = """
+<style>
+/* Target the button element by its class or data-testid */
+/* You might need to inspect your button's element in the browser's developer tools
+   to find the correct class or data-testid for more specific targeting. */
+button {
+    border: none !important;
 }
 
-engine = create_engine(
-    f'postgresql+psycopg2://{postgresql_config["db_user"]}:{postgresql_config["db_password"]}'
-    f'@{postgresql_config["db_host"]}:{postgresql_config["db_port"]}/{postgresql_config["db_name"]}'
-)
+/* Optional: Remove the focus outline as well, if desired */
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+</style>
+"""
 
-# # Step 3.5: Reorder columns so 'id' comes first
-# cols = ["id"] + [col for col in df.columns if col != "id"]
-# df = df[cols]
+# Inject the CSS into the Streamlit app
+st.markdown(hide_button_border_css, unsafe_allow_html=True)
 
-# # df.to_excel("output.xlsx", index=False)
-# df.to_sql("app_user", engine, if_exists="replace", index=False)
-
-# print("Data successfully inserted into PostgreSQL!")
-
-
-
-file_path = r"C:\Users\Prabin\Desktop\RM Client Due List with Ageing_2025-12-02_Tuesday.xlsx"
-df = pd.read_excel(file_path)
-
-# --- Step 3: Append to table (create if not exists) ---
-df['uploaded_at'] =  datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-# to_sql will create the table if it doesn’t exist, and append otherwise
-df.to_sql("due_list", con=engine, if_exists="replace", index=False)
-
-print("Data successfully appended to 'due_list' table.")
+st.button("My Button")

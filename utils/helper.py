@@ -12,12 +12,10 @@ import streamlit as st
 from config import config
 from cryptography.fernet import Fernet
 import re
-
-
 import socket
 import requests
-
 from streamlit_javascript import st_javascript
+
 
 # def get_user_agent() -> str:
 #     js = """
@@ -38,6 +36,15 @@ from streamlit_javascript import st_javascript
     
 #     # fallback
 #     return "Unknown"
+
+
+def get_list_of_status_for_communication_report(role:str):
+    if role.upper() == "BRO":
+        return ["PENDING", "POSTPONED", "CANCELLED", "COMPLETED"]
+    else:
+        return ["PENDING", "APPROVED", "POSTPONED", "CANCELLED"]
+
+
 
 
 def get_user_agent():

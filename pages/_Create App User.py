@@ -12,7 +12,8 @@ from streamlit_bridge.navigation import render_sidebar
 
 class CreateAppUser:
     def __init__(self):
-        st.set_page_config(page_title="Create App User", layout="wide", page_icon="➕")
+        self.header = "Create App User"
+        st.set_page_config(page_title=self.header, layout="wide", page_icon="➕")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
@@ -20,7 +21,7 @@ class CreateAppUser:
 
         render_sidebar()
         helper.adjust_ui()
-        st.title("👤 Create App User", anchor=False)
+        st.title(f"👤 {self.header}", anchor=False)
         self.engine = create_engine(helper.get_holding_engine())
         self.df_users : pd.DataFrame= None
         self.app_user = self.get_all_app_users()
@@ -198,10 +199,52 @@ class CreateAppUser:
     
 
     def render_page(self):
-        self.show_creation_form()
-        self.show_all_app_users()
-        if self.role == "ADMIN":
-            self.show_update_delete_function()
+        # Create radio buttons with horizontal layout
+        selected_option = st.radio(
+            "Choose an option:",
+            ("Create App User", "View App Users" ,"Add New Role"),
+            horizontal=True
+        )
+
+        if selected_option == "Create App User":
+            self.show_creation_form()
+        elif selected_option == "View App Users":
+            self.show_all_app_users()
+            if self.role == "ADMIN":
+                self.show_update_delete_function()
+        else:
+            new_role = st.text_input("New Role")
+            self.header = "Create New Role"
+            # Submit button
+            if st.button("Add New Role", icon="➕"):
+                if new_role.strip():
+                    engine = create_engine(helper.get_holding_engine())
+                    with engine.begin() as conn:
+                        conn.execute(
+                            text("INSERT INTO app_user_role (role_name) VALUES (:role)"),
+                            {"role": new_role.strip()}
+                        )
+                    st.success(f"Role '{new_role}' added successfully!")
+                else:
+                    st.warning("Please enter a valid role name.", icon="⚠️")
+
+            # Show all roles from app_user_role table
+            engine = create_engine(helper.get_holding_engine())
+            with engine.begin() as conn:
+                result = conn.execute(text("SELECT role_type FROM app_user_role ORDER BY role_type"))
+                roles = [row[0] for row in result]
+
+            st.markdown("---")
+            st.subheader("👨‍💼Existing Roles", anchor=False)
+            if roles:
+                df_roles = pd.DataFrame(roles, columns=["Current Roles"])
+                df_roles.index += 1  # Start index at 1 instead of 0
+                st.dataframe(df_roles)
+
+            else:
+                st.write("No roles found.")
+
+
 
 if __name__ == "__main__":
     app_user = CreateAppUser()

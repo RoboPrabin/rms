@@ -1,4 +1,5 @@
 [client]
+showSidebarNavigation = false
 showErrorDetails = false
 #toolbarMode = "minimal"
 
