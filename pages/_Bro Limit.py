@@ -149,7 +149,7 @@ if manager.role in ['MANAGER', 'ADMIN']:
         manager.update_total_limit(selected_bro, new_limit)
 
     st.markdown("---")
-    st.subheader("📊 Current BRO Limits")
+    st.subheader("📊 Current BRO Limits", anchor=False)
     df = helper.format_dataframe(manager.fetch_all_limits())
     df.rename(columns={"Used Limit": "Assigned Limit"}, inplace=True)
 
