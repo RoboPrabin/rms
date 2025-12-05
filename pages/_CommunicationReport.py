@@ -7,6 +7,9 @@ from sqlalchemy import create_engine, text
 from utils import helper 
 from streamlit_bridge.navigation import render_sidebar
 import pandas as pd
+
+
+
 class CommunicationReport:
     def __init__(self):
         st.set_page_config(page_title="Communication Report", layout="wide", page_icon="📢")

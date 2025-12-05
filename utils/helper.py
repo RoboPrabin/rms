@@ -45,6 +45,9 @@ def get_list_of_status_for_communication_report(role:str):
         return ["PENDING", "APPROVED", "POSTPONED", "CANCELLED"]
 
 
+def get_list_of_status_for_project_request():
+    return ["PIPELINE", "IN-PROGRESS", "COMPLETED", "DROPPED"]
+
 
 
 def get_user_agent():
