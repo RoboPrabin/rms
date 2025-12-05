@@ -77,6 +77,7 @@ class CommunicationReport:
                         }
                     )
                 st.success("Communication report added successfully!", icon="ℹ️")
+                st.balloons()
                 sleep(1)
                 st.rerun()
             else:
@@ -201,7 +202,7 @@ class CommunicationReport:
     def render_page(self):
         selected_option = st.radio(
             "Choose an option:",
-            ("Add Communication Report", "View Communication Report"),
+            ("Add Communication Report", "View/Edit Communication Report"),
             horizontal=True
         )
         if selected_option == "Add Communication Report":
