@@ -1,13 +1,13 @@
 [client]
 showSidebarNavigation = false
 showErrorDetails = false
-#toolbarMode = "minimal"
+toolbarMode = "minimal"
+
+
+
 
 [logger]
 level="error"
-
-
-
 
 
 

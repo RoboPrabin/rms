@@ -199,7 +199,7 @@ class ProjectRequest:
     def render_page(self):
         selected_option = st.radio(
             "Choose an option:",
-            ("View/Edit Project Requests", "Submit Project Request"),
+            ("Submit Project Request", "View/Edit Project Requests"),
             horizontal=True
         )
         if selected_option == "Submit Project Request":
