@@ -15,7 +15,8 @@ import re
 import socket
 import requests
 from streamlit_javascript import st_javascript
-
+from datetime import datetime, timedelta
+from config.config import due_list_flag_path
 
 # def get_user_agent() -> str:
 #     js = """
@@ -36,6 +37,66 @@ from streamlit_javascript import st_javascript
     
 #     # fallback
 #     return "Unknown"
+
+
+def get_today_date():
+    today = datetime.now()
+    formatted_date = today.strftime('%Y-%m-%d')
+    return formatted_date
+
+
+def get_date_from_folderpath(folderpath):
+    # Extract the date from the folder path
+    date_str = folderpath.split("\\")[-1]  # Get the last part of the path
+    return date_str
+
+
+def update_due_list_flag(filepath:str):
+    """
+    Update the due list flag file with today's date.
+    
+    :return: None
+    """
+    # Get today's date in 'YYYY-MM-DD' format
+    # today_date = get_today_date()
+    
+    # Write today's date to the flag file
+    with open(due_list_flag_path, 'w') as file:
+        file.write(filepath)
+
+def has_downloaded_due_list_today()-> bool:
+    """
+    Check if the due list has been downloaded today.
+    
+    :return: True if the due list has been downloaded today, False otherwise.
+    """
+    # Get today's date in 'YYYY-MM-DD' format
+    today_date = datetime.now().strftime('%d-%b-%Y')
+
+    # Check if the file exists and if its name contains today's date
+    if os.path.exists(due_list_flag_path):
+        with open(due_list_flag_path, 'r') as file:
+            content = file.read()
+            return today_date in content
+    return False
+
+def get_folder_path_from_flag()-> str:
+    """
+    Get the folder path from the due list flag file.
+    
+    :return: The folder path if it exists, otherwise None.
+    """
+    if os.path.exists(due_list_flag_path):
+        with open(due_list_flag_path, 'r') as file:
+            content = file.read()
+            return content.strip()
+    return None
+
+
+def get_tplustwo_date():
+    tplustwo = datetime.now() + timedelta(days=2)
+    formatted_date = tplustwo.strftime('%Y-%m-%d')
+    return formatted_date
 
 
 def get_list_of_status_for_communication_report(role:str):

@@ -59,7 +59,16 @@ class Dashboard:
 
     def show_header(_self):
         helper.adjust_ui()
-
+        st.markdown(
+            """
+            <style>
+                h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+                    display: none !important;
+                }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
         st.markdown(
             f"""

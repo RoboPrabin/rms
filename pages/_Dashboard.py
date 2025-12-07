@@ -13,11 +13,7 @@ from config import config
 class RMAchievement:
     def __init__(self):
         st.set_page_config("BRO Performance", page_icon="📈", layout='wide')
-        # Get today's Gregorian date
-        # today_gregorian = date.today()
 
-        # Convert it to Nepali date
-        # today_nepali = nepali_date.from_datetime_date(today_gregorian)
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
 
         self.today_np_date = nepali_date.today()
@@ -266,5 +262,7 @@ class RMAchievement:
                 target_only.index = target_only.index + 1
                 st.dataframe(target_only, use_container_width=True)
                 st.caption(f"*✍️ Performance will update automatically once the floorsheet upload completes ({config.FLOORSHEET_UPLOAD_TIIME}).*")
+
+                
 if __name__ == "__main__":
     RMAchievement().show()

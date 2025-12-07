@@ -59,7 +59,7 @@ class CommunicationReport:
             options=helper.get_list_of_status_for_communication_report(role=self.role)
         )
         # Submit button
-        if st.button("Submit"):
+        if st.button("ᯓ➤ Submit"):
             if username.strip() and organization.strip():
                 with self.engine.begin() as conn:
                     conn.execute(

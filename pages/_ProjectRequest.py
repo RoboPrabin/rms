@@ -55,7 +55,7 @@ class ProjectRequest:
         project_description = st.text_area("Project Description")
 
         # Submit button
-        if st.button("Submit"):
+        if st.button("ᯓ➤ Submit"):
             if project_name.strip() and project_type.strip() and project_description.strip():
                 with self.engine.begin() as conn:
                     conn.execute(

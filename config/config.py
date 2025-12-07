@@ -7,10 +7,14 @@ OUTPUT_CLIENT_DATA_FILEPATH_FINAL = PROJECT_PATH + r"\data\output\holdings_FINAL
 
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/#/login"
 
+
+due_list_flag_path = PROJECT_PATH + r"\data\flag\due_list_flag.txt"
+
 # Create output directory
 output_folder_path = PROJECT_PATH + r"\data\output"
 
 REFRESH_TIME_IN_SECONDS = 50000
+RM_REFRESH_TIME_IN_SECONDS = 10
 
 FLOORSHEET_UPLOAD_TIIME = "03:14 PM"
 
@@ -63,3 +67,15 @@ credentials_dg = {"username": "AUTOBOT", "password": "Autom@ti0n"}
 # credentials_dg = {"username": "PRABIN", "password": "Trishakti@48"}
 
 chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBotChatBot"
+
+
+
+# BASE URL TMS
+base_url_tms = "https://tms48.nepsetms.com.np"
+
+credentials_tms = {
+    "username": "DEV-PROD",
+    "password": "Dev@Prod319",
+    "server_id": "105675",
+}
+
