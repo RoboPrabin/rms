@@ -76,10 +76,20 @@ class Uarf:
 
        
 
-    @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS)
+    # @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS)
     def _load_order_book(_self) -> pd.DataFrame:
         # st.info("⬇️ Fetching order book. Please wait ...")
-        df = pd.read_sql("SELECT * FROM order_book", con=_self.engine)
+        if _self.role.upper() == "BRO":
+            # df = pd.read_sql("SELECT * FROM order_book WHERE 'rmName' = %s", con=_self.engine, params=(_self.username,))
+            df = pd.read_sql(
+                """SELECT * FROM order_book WHERE "rmName" = %s""",
+                con=_self.engine,
+                params=(_self.username,)
+            )
+            print(df)
+
+        else:
+            df = pd.read_sql("SELECT * FROM order_book", con=_self.engine)
         df = helper.format_dataframe(df=df)
         if "Client Member Code" in df.columns:
             df = df.rename(columns={"Client Member Code": "Client Code"})
