@@ -31,35 +31,59 @@ class Floorsheet:
         df = pd.read_sql(query, self.intranet_engine, params=(selected_date,))
         return df
 
+
+
     def render_ui(self):
         st.title("📄 Floorsheet Records")
+        col1, col2, col3 = st.columns(3)
+        search_term = ""
 
-        # selected_date = st.date_input(
-        #     label="Select Date",
-        #     value=date.today(),
-        #     help="Floorsheet entries will load based on this date."
-        # )
-
-        # search_term = st.text_input(
-        #     label="Search",
-        #     placeholder="Type to filter (symbol, client name, etc.)"
-        # )
-
-        col1, col2 = st.columns([2, 5])
         with col1:
             selected_date = st.date_input("Select Date", value=date.today())
+
+        # Load raw data first so we can extract unique branches
+        df = self.get_floorsheet_by_date(selected_date)
+
         with col2:
-            search_term = st.text_input("Search", placeholder="Symbol, client name, etc.")
+            filter_option = st.selectbox(
+                "Filter by:",
+                ["None", "Script", "Client Code", "Client Name", "Branch", "Buy", "Sell"]
+            )
+
+            # Show appropriate input depending on filter
+            if filter_option == "Branch" and "branch" in df.columns:
+                with col3:
+                    branch_options = sorted(df["branch"].dropna().unique().tolist())
+                    search_term = st.selectbox("Select Branch", branch_options)
+            elif filter_option not in ["None", "Buy", "Sell"]:
+                with col3:
+                    search_term = st.text_input("Search", placeholder="Enter value...")
 
         st.markdown("---")
 
-        # Load raw data
-        df = self.get_floorsheet_by_date(selected_date)
-
-        # Apply search filter
-        if search_term:
+        # Apply filter logic
+        if filter_option == "Script" and search_term:
+            df = df[df["symbol"].astype(str).str.contains(search_term, case=False, na=False)]
+        elif filter_option == "Client Code" and search_term:
+            df = df[df["clientcode"].astype(str).str.contains(search_term, case=False, na=False)]
+        elif filter_option == "Client Name" and search_term:
+            df = df[df["clientname"].astype(str).str.contains(search_term, case=False, na=False)]
+        elif filter_option == "Branch" and search_term:
+            df = df[df["branch"].astype(str) == search_term]
+        elif filter_option == "Buy":
+            df = df[df["transaction_type"].str.lower() == "buy"]
+        elif filter_option == "Sell":
+            df = df[df["transaction_type"].str.lower() == "sell"]
+        elif filter_option == "None" and search_term:
+            # fallback: search across all columns
             mask = df.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
             df = df[mask]
+
+
+
+        df.sort_values(by="clientname", inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
 
         if df.empty:
             st.warning("No data found for the selected date/search term.")
@@ -125,7 +149,6 @@ class Floorsheet:
 
             st.badge(f"**Total rows :** {len(display_df):,}", color="green")
 
-            # Render selected view
             if view_mode == "Floorsheet":
                 display_df.index = display_df.index + 1
                 display_df.drop(columns=['id', 'contractnumber', 'tradetime','uploaded_at', 'bankdeposit'], inplace=True)
@@ -220,9 +243,10 @@ class Floorsheet:
                     numeric_cols = details.select_dtypes(include=["int64", "float64"]).columns
                     details[numeric_cols] = details[numeric_cols].map(lambda x: f"{x:,}")
 
-
-
                     details = details[desired_order]
+                    details.sort_values(by="Client Name", inplace=True)
+                    details.reset_index(inplace=True, drop=True)
+                    details.index = details.index+1
                     st.dataframe(details, use_container_width=True)
 
             elif view_mode == "Branch Summary":
@@ -299,6 +323,10 @@ class Floorsheet:
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No 'branch' column found in data.")
+
+                
+
+
 
 
 if __name__ == "__main__":

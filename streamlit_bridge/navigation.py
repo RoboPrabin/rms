@@ -8,12 +8,6 @@ def render_sidebar():
     """
     Renders the sidebar menus based on login state and role.
     """
-    # if not is_logged_in():
-    #     st.sidebar.page_link(page_url.login_url, label="Login", icon="🔐")
-    #     return
-    
-    # user = current_user()
-
     app_state.restore_state_from_query_params()
     app_state.sync_query_params_from_session()
     app_state.check_authenticaiton_state()
@@ -117,14 +111,12 @@ def render_sidebar():
     # Authenticated menus
     st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
     st.sidebar.page_link(page_url.live_holdings_url, label="‎‎ ‎ Live Holdings", icon="🔴")
-    st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
 
     if role in ["BRO", "MANAGER", "ADMIN"]:
-        st.sidebar.page_link(page_url.client_summary_url, label="‎‎ ‎ Client Summary", icon="📃")
-
-        
         if role in ["MANAGER", "ADMIN"]:
+            st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.sidebar.page_link(page_url.manager_summary_url, label="‎‎ ‎ Manager Summary", icon="👨‍💼")
+        st.sidebar.page_link(page_url.client_summary_url, label="‎‎ ‎ Client Summary", icon="📃")
         if role == "BRO":
             st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
             st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
@@ -132,7 +124,7 @@ def render_sidebar():
             st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Bro Limit", icon="🧑")
             st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
             st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
-    
+
         st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
@@ -140,7 +132,6 @@ def render_sidebar():
         st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
         st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-        # st.sidebar.page_link(page_url.rm_achievement_url, label="‎‎ ‎ RM Achievement", icon="🎉")
 
 
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
