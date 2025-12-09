@@ -69,6 +69,6 @@ def fetch_due_list():
                 login_dg()
 
     else:
-        show_message("Due list already downloaded today.", 'green')
         filepath = get_folder_path_from_flag()
+        show_message("Due list already downloaded today at " + filepath, 'green')
     return filepath

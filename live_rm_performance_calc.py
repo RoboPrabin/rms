@@ -10,55 +10,62 @@ import pandas as pd
 import psycopg2
 from sqlalchemy import create_engine
 
-
-def extract_rm_child_data(filepath: str):
-    # Database connection details
-    host = "192.168.1.14"
-    dbname = "trishakti_db"
-    user = "postgres"
-    password = "Broker48"
-    port = "5432"
-
-    # Output file
-    show_message(message="Extracting RM Child Data from DB....", color="green")
+def extract_rm_child_data():
+    engine = None
     conn = None
     try:
-        # Connect to PostgreSQL
-        conn = psycopg2.connect(
-            host=host, dbname=dbname, user=user, password=password, port=port
-        )
-        print("✅ Database connection successful.")
+        # Create SQLAlchemy engine using your helper
+        engine = create_engine(get_holding_engine())
+        conn = engine.connect()
+        show_message("✅ Database connection successful to client_rm_map for RM Child data.")
 
-        # Create cursor and execute join query
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT a.rm_name, b.client_code
-            FROM rm_tbl a
-            INNER JOIN client_rm b
-            ON a.u_id = b.rm_id;
+        # Execute query directly into DataFrame
+        query = """
+            SELECT "rmName", "clientCode"
+            FROM client_rm_map
         """
-        )
-
-        # Fetch rows and column names
-        rows = cur.fetchall()
-        col_names = [desc[0] for desc in cur.description]
-
-        # Create DataFrame
-        df = pd.DataFrame(rows, columns=col_names)
-        print(f"📄 {len(df)} rows fetched.")
+        df = pd.read_sql(query, conn)
+        show_message(f"   > RM child 📄 {len(df)} rows fetched.")
+        # Rename columns for consistency
         df.rename(columns={"client_code": "clientCode"}, inplace=True)
-        # Save to Excel
-        df.to_excel(filepath, index=False)
-        print(f"✅ Data exported to '{filepath}'.")
-        return filepath
+        return df
+
     except Exception as e:
         print("❌ Error:", e)
 
     finally:
         if conn:
             conn.close()
-            print("🔒 Database connection closed.")
+        if engine:
+            engine.dispose()
+
+
+def extract_kyc_data():
+    engine = None
+    conn = None
+    try:
+        # Create SQLAlchemy engine using your helper
+        engine = create_engine(get_holding_engine())
+        conn = engine.connect()
+        show_message("✅ Database connection successful to kyc for KYC Data.")
+
+        # Execute query directly into DataFrame
+        query = """
+            SELECT "clientmembercode", "clientfullname", "clientbranch"
+            FROM kyc
+        """
+        df = pd.read_sql(query, conn)
+        show_message(f"   > KYC 📄 {len(df)} rows fetched.")
+        return df
+
+    except Exception as e:
+        show_message("❌ Error:" + str(e), color='red')
+
+    finally:
+        if conn:
+            conn.close()
+        if engine:
+            engine.dispose()
 
 
 def today_folder_path(folder_path: str):
@@ -68,25 +75,33 @@ def today_folder_path(folder_path: str):
     filename = str(folder_path).split("\\")[-1]
     return folder_path.replace(filename, "")[:-1]
 
+def push_trade_book_to_db(merged_df_with_rm:pd.DataFrame):
+    engine = create_engine(get_holding_engine())
+    merged_df_with_rm.to_sql(
+    "trade_book",        
+    engine,              
+    if_exists="replace",  
+    index=False          
+    )
+    show_message(f"'TRADE BOOK' data dumbed to trade_book Table.", color="cyan")
+    show_message(f"=" * 100)
+    print("\n")
 
-def fetch_order_book():
+def fetch_order_and_trade_book():
     duelist_filepath = fetch_due_list()
     folder_path = today_folder_path(folder_path=duelist_filepath)
-    show_message(message=f"Folderpath: {folder_path}")
     duelist_df = pd.read_excel(duelist_filepath)
     
-    rm_filepath = extract_rm_child_data(filepath=r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\Whole Rm List.xlsx")
-    rm_df = pd.read_excel(rm_filepath)
-    tms_all_client_filepath = (r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\tms_client_data.xlsx")
+    rm_df = extract_rm_child_data()
+    tms_all_client_df = extract_kyc_data()
+    show_message(f"*" * 60)
+    
+    
     fetch_order_book()
+    show_message(f"*" * 60)
     tradebook_df = fetch_trade_book()
 
-    # Load the Excel files
-    # tradebook_df = pd.read_excel(order_book_filepath)
     rm_df["clientCode"] = rm_df["clientCode"].astype(str)
-
-    tms_all_client_df = pd.read_excel(tms_all_client_filepath)
-
     merged_df = tradebook_df.merge(
         duelist_df[
             [
@@ -135,14 +150,14 @@ def fetch_order_book():
 
     # Merge with rm_child_data to extract Rm Name
     merged_df_with_rm = merged_df.merge(
-        rm_df[["clientCode", "rm_name"]],
+        rm_df[["clientCode", "rmName"]],
         left_on="clientMemberCode",
         right_on="clientCode",
         how="left",
     )
 
     # Fill NaN values for unmatched Rm Name
-    merged_df_with_rm["rm_name"] = merged_df_with_rm["rm_name"].fillna("N/A")
+    merged_df_with_rm["rmName"] = merged_df_with_rm["rmName"].fillna("N/A")
     merged_df_with_rm["clientbranch"] = merged_df_with_rm["clientbranch"].fillna("N/F")
 
     # Convert clientName and clientbranch to uppercase
@@ -150,7 +165,7 @@ def fetch_order_book():
     merged_df_with_rm["clientbranch"] = merged_df_with_rm["clientbranch"].str.upper()
     merged_df_with_rm['dateTime'] = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
     desired_columns = [
-        "rm_name",
+        "rmName",
         "clientMemberCode",
         "clientName",
         "clientbranch",
@@ -174,29 +189,17 @@ def fetch_order_book():
     )
     # merged_df_with_rm.sort_values(by='rm_name', inplace=True)
     merged_df_with_rm = merged_df_with_rm.sort_values(
-        by=["rm_name", "netAmount"], ascending=[True, True]
+        by=["rmName", "netAmount"], ascending=[True, True]
     )
-    merged_df_with_rm = merged_df_with_rm.rename(columns={"rm_name": "rmName"})
-    merged_df_with_rm = merged_df_with_rm.rename(columns={"clientbranch": "branch"})
-
-    engine = create_engine(get_holding_engine())
-    merged_df_with_rm.to_sql(
-    "order_book",        
-    engine,              
-    if_exists="replace",  
-    index=False          
-    )
-
-    show_message(f"'TRADE BOOK' data dumbed to db.", color="green")
-
-
-
-
-
+    merged_df_with_rm = merged_df_with_rm.rename(columns={"rmName": "rmName", "clientbranch": "branch"})
+    push_trade_book_to_db(merged_df_with_rm=merged_df_with_rm)
    
 
 if __name__ == "__main__":
-    while True:
-        fetch_order_book()
-        print("Waiting for 30 sec")
-        sleep(30)
+    # while True:
+    #     fetch_order_and_trade_book()
+    #     print("Waiting for 30 sec")
+    #     sleep(60)
+    # df = extract_rm_child_data()
+    # print(df)
+    fetch_order_and_trade_book()

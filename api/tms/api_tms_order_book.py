@@ -21,8 +21,7 @@ def push_to_order_book_db(df:pd.DataFrame, table_name:str="order_book"):
     if_exists="replace",  
     index=False          
     )
-    show_message(f"'ORDER BOOK' data dumbed to db.", color="green")
-    print("=" * 100)
+    show_message(f"'ORDER BOOK' data dumbed to order_book Table.", color="cyan")
 
 
 def extract_rm_in_order_book(order_book_df:pd.DataFrame):
@@ -62,10 +61,7 @@ def extract_rm_in_order_book(order_book_df:pd.DataFrame):
     return merge_df
 
 
-
-
 def fetch_order_book_completed():
-    show_message(f"Fetching 'COMPLETED' order book...")
     cookies_init=get_cookie()
     while True:
         response = requests.get(
@@ -77,6 +73,7 @@ def fetch_order_book_completed():
             df_trade_book = pd.DataFrame(response.json())
             df_trade_book['buyOrSell'] = df_trade_book['buyOrSell'].replace({1: 'BUY', 2: 'SELL'})
             df_trade_book['activeStatus'] = "COMPLETED"
+            show_message(f"Fetched order book 'COMPLETED'.", color='green')
             return df_trade_book
 
         else:
@@ -87,8 +84,6 @@ def fetch_order_book_completed():
 
 
 def fetch_order_book_open():
-    print("\n")
-    show_message(f"Fetching 'OPEN' order book...")
     cookies_init=get_cookie()
     while True:
         response = requests.get(
@@ -100,6 +95,7 @@ def fetch_order_book_open():
         if response.status_code == 200:
                 df_trade_book = pd.DataFrame(response.json())
                 df_trade_book['buyOrSell'] = df_trade_book['buyOrSell'].replace({1: 'BUY', 2: 'SELL'})
+                show_message(f"Fetched order book 'OPEN'.", color='green')
                 return df_trade_book
         else:
             # login_tms()
@@ -161,11 +157,11 @@ def merge_and_clean_order_book(open_df:pd.DataFrame, completed_df:pd.DataFrame):
     combined_df.drop(columns=['id', 'exchangeOrderId', 'displayActiveStatus', 'orderPlacedBy', 'displayName', 'securityName'], inplace=True)
     combined_df['amount'] = combined_df['orderQuantity'].astype(float) * combined_df['orderPrice'].astype(float)  
     combined_df.loc[combined_df['activeStatus'] == "COMPLETED", 'totalTradedQuantity'] = combined_df['orderQuantity']
-    combined_df.rename(columns={'clientMemberCode':'clientCode', 'rnName':'bro'}, inplace=True)
 
     # combined_df.to_excel(r"D:\Trishakti\Projects\RPA\track_stock_price\open_and_completed.xlsx", index=False)
     combined_df = extract_rm_in_order_book(combined_df)
     combined_df['updatedTime'] = datetime.now().strftime("%Y-%m-%d %I:%H:%S %p")
+    combined_df = combined_df.rename(columns={'clientMemberCode':'clientCode', 'rmName':'bro'})
     return combined_df
 
 
