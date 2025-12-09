@@ -161,11 +161,11 @@ def merge_and_clean_order_book(open_df:pd.DataFrame, completed_df:pd.DataFrame):
     combined_df.drop(columns=['id', 'exchangeOrderId', 'displayActiveStatus', 'orderPlacedBy', 'displayName', 'securityName'], inplace=True)
     combined_df['amount'] = combined_df['orderQuantity'].astype(float) * combined_df['orderPrice'].astype(float)  
     combined_df.loc[combined_df['activeStatus'] == "COMPLETED", 'totalTradedQuantity'] = combined_df['orderQuantity']
-    combined_df.rename(columns={'clientMemberCode':'clientCode', 'rnName':'bro'}, inplace=True)
 
     # combined_df.to_excel(r"D:\Trishakti\Projects\RPA\track_stock_price\open_and_completed.xlsx", index=False)
     combined_df = extract_rm_in_order_book(combined_df)
     combined_df['updatedTime'] = datetime.now().strftime("%Y-%m-%d %I:%H:%S %p")
+    combined_df.rename(columns={'clientMemberCode':'clientCode', 'rmName':'bro'}, inplace=True)
     return combined_df
 
 
@@ -226,3 +226,6 @@ def fetch_trade_book():
     summary = summary[['clientMemberCode', 'buy/sell', 'buyAmount', 'sellAmount', 'netAmount']]
     return summary
 
+
+
+fetch_order_book()

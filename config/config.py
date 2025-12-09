@@ -14,7 +14,7 @@ due_list_flag_path = PROJECT_PATH + r"\data\flag\due_list_flag.txt"
 output_folder_path = PROJECT_PATH + r"\data\output"
 
 REFRESH_TIME_IN_SECONDS = 50000
-RM_REFRESH_TIME_IN_SECONDS = 30
+RM_REFRESH_TIME_IN_SECONDS = 60
 
 FLOORSHEET_UPLOAD_TIIME = "03:14 PM"
 

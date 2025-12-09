@@ -2,7 +2,7 @@ from live_bro_performance_func.bro_data import separate_data_by_bro_in_folder
 from api.dg.api_rm_list import fetch_all_rms
 import os
 from time import sleep
-from api.tms.api_tms_order_book import fetch_trade_book, fetch_order_book
+from api.tms.api_tms_order_book import fetch_trade_order_book
 from api.dg.api_due_list import fetch_due_list
 from datetime import datetime
 from utils.helper import show_message, show_message_box, get_holding_engine
@@ -78,16 +78,15 @@ def fetch_order_book():
     rm_filepath = extract_rm_child_data(filepath=r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\Whole Rm List.xlsx")
     rm_df = pd.read_excel(rm_filepath)
     tms_all_client_filepath = (r"D:\Trishakti\Projects\RPA\track_stock_price\data\output\tms_client_data.xlsx")
-    fetch_order_book()
-    tradebook_df = fetch_trade_book()
+    orderbook_df = fetch_trade_order_book()
 
     # Load the Excel files
-    # tradebook_df = pd.read_excel(order_book_filepath)
+    # orderbook_df = pd.read_excel(order_book_filepath)
     rm_df["clientCode"] = rm_df["clientCode"].astype(str)
 
     tms_all_client_df = pd.read_excel(tms_all_client_filepath)
 
-    merged_df = tradebook_df.merge(
+    merged_df = orderbook_df.merge(
         duelist_df[
             [
                 "clientCode",
@@ -187,7 +186,7 @@ def fetch_order_book():
     index=False          
     )
 
-    show_message(f"'TRADE BOOK' data dumbed to db.", color="green")
+    show_message(f"Data dumbed to db.", color="green")
 
 
 

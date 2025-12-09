@@ -9,7 +9,6 @@ from utils import helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
-from live_updater import live_rm_performance_calc
 from pandas.io.formats.style import Styler
 
 # ---------- Reusable helpers ----------
@@ -73,28 +72,55 @@ class Uarf:
 
         # Create engine once
         self.engine = create_engine(helper.get_holding_engine())
+        
+         # Auto-refresh every update_time seconds
+        with st.empty():
+            self.refresh_counter = st_autorefresh(
+                interval=10 * 1000,
+                key="rm_refresh"
+            )
 
        
 
-    # @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS)
-    def _load_order_book(_self) -> pd.DataFrame:
+    @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
+    def _load_trade_book(_self) -> pd.DataFrame:
         # st.info("⬇️ Fetching order book. Please wait ...")
         if _self.role.upper() == "BRO":
             # df = pd.read_sql("SELECT * FROM order_book WHERE 'rmName' = %s", con=_self.engine, params=(_self.username,))
             df = pd.read_sql(
-                """SELECT * FROM order_book WHERE "rmName" = %s""",
+                """SELECT * FROM trade_book WHERE "rmName" = %s""",
                 con=_self.engine,
                 params=(_self.username,)
             )
-            print(df)
-
         else:
-            df = pd.read_sql("SELECT * FROM order_book", con=_self.engine)
+            df = pd.read_sql("SELECT * FROM trade_book", con=_self.engine)
+
         df = helper.format_dataframe(df=df)
         if "Client Member Code" in df.columns:
             df = df.rename(columns={"Client Member Code": "Client Code"})
         df = coerce_numeric_columns(df, SUMMARY_COLS)
         return df
+    
+
+    @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
+    def load_order_book_data(_self) -> pd.DataFrame:
+        if _self.role.upper() == "BRO":
+            df = pd.read_sql(
+                """SELECT * FROM order_book WHERE "rmName" = %s""",
+                con=_self.engine,
+                params=(_self.username,)
+            )
+        else:
+            df = pd.read_sql("SELECT * FROM order_book", con=_self.engine)
+
+        # df = helper.format_dataframe(df=df)
+        
+        if "Client Member Code" in df.columns:
+            df = df.rename(columns={"Client Member Code": "Client Code"})
+        df = coerce_numeric_columns(df, SUMMARY_COLS)
+        return df
+    
+
 
     def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
         col1, col2 = st.columns(2)
@@ -122,63 +148,10 @@ class Uarf:
                     df = df[df["Branch"] == branch]
         return df
 
-    def render_page(self):
-        # Only run between 11:00 AM and 3:00 PM
-        start_auto_refresh = True
-        refresh_counter = 0
-        if not (time(11, 0) <= datetime.now().time() <= time(15, 2)):
-            st.warning(" Updates are paused. Data refresh is active only between 11:00 AM and 03:02 PM.", icon="📢")
-            start_auto_refresh = False
-            # return
 
-        if start_auto_refresh:
-             # Hide anchors
-            st.markdown(
-                "<style>h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {display: none !important;}</style>",
-                unsafe_allow_html=True
-            )
-
-            # Custom header
-            st.markdown(
-                f"""
-                <style>
-                    .header-container {{
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                    }}
-                    .glow-text {{
-                        color: rgb(92, 228, 136);
-                        animation: glowPulse 1.5s ease-in-out infinite;
-                    }}
-                    @keyframes glowPulse {{
-                        0% {{ text-shadow: 0 0 5px rgba(92, 228, 136,0.4), 0 0 10px rgba(92, 228, 136,0.3); }}
-                        50% {{ text-shadow: 0 0 12px rgba(92, 228, 136,0.7), 0 0 20px rgba(92, 228, 136,0.5); }}
-                        100% {{ text-shadow: 0 0 5px rgba(92, 228, 136,0.4), 0 0 10px rgba(92, 228, 136,0.3); }}
-                    }}
-                </style>
-                <div class="header-container">
-                    <h1 style="margin:0; display:inline;">
-                        <span class="glow-text">Live</span> RM Performance
-                        <small style="font-style:italic; color:#888; margin-left:5px; font-size:0.4em; font-weight:normal;">
-                            (updates every {self.update_time} seconds)
-                        </small>
-                    </h1>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            # Auto-refresh every update_time seconds
-            refresh_counter = st_autorefresh(
-                interval=self.update_time * 1000,
-                key="rm_refresh"
-            )
-        else:
-            st.header("Order Book", anchor=False)
-
-        df = self._load_order_book()
+    def show_trade_book(self):
+        df = self._load_trade_book()
         df = self._apply_filters(df)
-
         # Summary table
         summary = df[SUMMARY_COLS].sum().to_frame(name="Total").T
         st.subheader("📊 Summary", anchor=False)
@@ -197,17 +170,179 @@ class Uarf:
         df.index = df.index + 1
         st.subheader("📚 Detailed RM Performance", anchor=False)
         st.badge(f"Total rows: {len(df)}", color="green")
+        df.sort_values(by="Buy Amount", inplace=True)
         st.dataframe(
             df.style
             .format({col: accounting_format for col in SUMMARY_COLS if col in df.columns})
             .map(highlight_negative, subset=[c for c in SUMMARY_COLS if c in df.columns]),
             use_container_width=True
         )
-        if refresh_counter > 0:
+        if self.refresh_counter > 0:
             # Toast after refresh
             time_now = datetime.now().strftime("%I:%M:%S %p")
             st.toast(f"Data just updated {time_now}", icon="🔔")
-            helper.show_message("RM Performance data just got refreshed", color="yellow")
+            helper.show_message("RM Performance data just got refreshed")
+
+    
+    def show_order_book(self):
+        st.set_page_config(layout='wide')
+        df:pd.DataFrame = self.load_order_book_data()
+        # statuses = ["All"] + df["activeStatus"].dropna().unique().tolist()
+        # Get unique statuses except "COMPLETED"
+        statuses = [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
+        # statuses = ["All"] + [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
+        selected_status = st.radio("Filter by Active Status:", options=statuses, horizontal=True)
+
+        # Filter dataframe
+        if selected_status == "All":
+            filtered_df = df
+        else:
+            filtered_df = df[df["activeStatus"] == selected_status]
+
+        # --- BUY and SELL totals ---
+        buy_total = filtered_df.loc[filtered_df["buyOrSell"] == "BUY", "amount"].sum()
+        sell_total = filtered_df.loc[filtered_df["buyOrSell"] == "SELL", "amount"].sum()
+
+        net_total = buy_total + sell_total
+
+       
+        summary_df = pd.DataFrame([{
+            "Buy Amount": buy_total,
+            "Sell Amount": sell_total,
+            "Net Amount": net_total
+        }])
+
+        summary_df.index = summary_df.index + 1
+
+        numeric_cols = ["Buy Amount", "Sell Amount", "Net Amount"]
+        summary_df = coerce_numeric_columns(summary_df, numeric_cols)
+        
+        summary_df['Buy Amount'] = summary_df["Buy Amount"] * -1
+        summary_df['Net Amount'] = summary_df["Buy Amount"] + summary_df["Sell Amount"]
+        # Apply formatting + right-align headers
+        summary_df.index = ["Total"]
+        styled_summary = (
+            summary_df.style
+                .format(accounting_format, subset=numeric_cols)
+                .map(highlight_negative, subset=numeric_cols)
+                .pipe(right_align_headers)
+                .hide(axis="index")
+        )
+        st.table(styled_summary)
+        # st.dataframe(styled_summary, hide_index=True)
+
+
+
+        st.markdown("---")
+
+        st.badge(f"Total Rows: {len(filtered_df)}", color="green" )
+
+
+        # Correct column order
+        column_order = ['bro', 'clientCode', 'symbol', 'buyOrSell', 'orderQuantity', 'orderPrice', 'amount']
+        remaining_cols = [col for col in df.columns if col not in column_order]
+        final_order = column_order + remaining_cols
+        filtered_df = filtered_df[final_order]
+
+        # Coerce numeric BEFORE formatting (use lowercase 'amount')
+
+        # Apply BUY/SELL transformation safely on numeric
+        filtered_df["amount"] = filtered_df.apply(
+            lambda row: -abs(row["amount"]) if row["buyOrSell"] == "BUY" else abs(row["amount"]),
+            axis=1
+        )
+
+        # Now uppercase columns
+        filtered_df = helper.format_dataframe(filtered_df)
+
+        filtered_df = coerce_numeric_columns(filtered_df, ["Amount"])
+        # Reset index for display
+        filtered_df.reset_index(drop=True, inplace=True)
+
+
+        filtered_df.sort_values(by="Amount", inplace=True)
+        filtered_df.reset_index(inplace=True, drop=True)
+        filtered_df.index = filtered_df.index + 1
+        # Apply accounting_format + highlight_negative
+        styled_df = (
+            filtered_df.style
+                .format({"Amount": accounting_format})   # now safe, column is numeric
+                .map(highlight_negative, subset=["Amount"])
+        )
+
+        # Show styled dataframe
+        st.dataframe(styled_df, use_container_width=True)
+
+
+
+        # st.dataframe(filtered_df, use_container_width=True)
+
+
+    def show_live_performance_header(self):
+         # Custom header
+        st.markdown(
+            f"""
+            <style>
+                .header-container {{
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                }}
+                .glow-text {{
+                    color: rgb(92, 228, 136);
+                    animation: glowPulse 1.5s ease-in-out infinite;
+                }}
+                @keyframes glowPulse {{
+                    0% {{ text-shadow: 0 0 5px rgba(92, 228, 136,0.4), 0 0 10px rgba(92, 228, 136,0.3); }}
+                    50% {{ text-shadow: 0 0 12px rgba(92, 228, 136,0.7), 0 0 20px rgba(92, 228, 136,0.5); }}
+                    100% {{ text-shadow: 0 0 5px rgba(92, 228, 136,0.4), 0 0 10px rgba(92, 228, 136,0.3); }}
+                }}
+            </style>
+            <div class="header-container">
+                <h1 style="margin:0; display:inline;">
+                    <span class="glow-text">Live</span> RM Performance
+                    <small style="font-style:italic; color:#888; margin-left:5px; font-size:0.4em; font-weight:normal;">
+                        (updates every {self.update_time} seconds)
+                    </small>
+                </h1>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    def render_page(self):
+        has_time_up = False
+        if not (time(11, 0) <= datetime.now().time() <= time(15, 5)):
+            st.warning(" Updates are paused. Data refresh is active only between 11:02 AM and 03:05 PM.", icon="📢")
+            has_time_up = True
+            # return
+
+        st.markdown(
+            "<style>h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {display: none !important;}</style>",
+            unsafe_allow_html=True
+        )
+        if has_time_up:
+            st.header("📜 Detailed RM Performance", anchor=False)
+        else:
+            self.show_live_performance_header()
+
+        view_option = st.radio(
+            "Select View:",
+            options=["Trade Book", "Order Book" ],
+            index=0,   
+            horizontal=True
+        )
+
+        st.markdown("---")
+        if view_option == "Trade Book":
+            self.show_trade_book()
+        else:
+            self.show_order_book()
+       
+       
+
+
+        
 
 
 if __name__ == "__main__":

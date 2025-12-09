@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
-class RMAchievement:
+
+class RMPerformance:
     def __init__(self):
         st.set_page_config("BRO Performance", page_icon="📈", layout='wide')
 
@@ -265,4 +266,4 @@ class RMAchievement:
 
                 
 if __name__ == "__main__":
-    RMAchievement().show()
+    RMPerformance().show()
