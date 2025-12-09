@@ -1,5 +1,8 @@
 from pathlib import Path
-PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
+PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
+chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
+
+
 
 CLIENT_DATA_FILEPATH = PROJECT_PATH + r"\data\input\client_data.xlsx"
 OUTPUT_CLIENT_DATA_FILEPATH = PROJECT_PATH + r"\data\output\holdings.xlsx"
@@ -66,7 +69,7 @@ url_login_dgtrade = "https://dgtrade.trishakti.com.np:8080/bom/index.html#/login
 credentials_dg = {"username": "AUTOBOT", "password": "Autom@ti0n"}
 # credentials_dg = {"username": "PRABIN", "password": "Trishakti@48"}
 
-chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBotChatBot"
+
 
 
 

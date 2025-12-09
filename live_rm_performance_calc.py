@@ -1,3 +1,7 @@
+
+import os
+os.system("")
+
 from live_bro_performance_func.bro_data import separate_data_by_bro_in_folder
 from api.dg.api_rm_list import fetch_all_rms
 import os
@@ -39,7 +43,6 @@ def extract_rm_child_data():
         if engine:
             engine.dispose()
 
-
 def extract_kyc_data():
     engine = None
     conn = None
@@ -66,7 +69,6 @@ def extract_kyc_data():
             conn.close()
         if engine:
             engine.dispose()
-
 
 def today_folder_path(folder_path: str):
     """
@@ -196,10 +198,7 @@ def fetch_order_and_trade_book():
    
 
 if __name__ == "__main__":
-    # while True:
-    #     fetch_order_and_trade_book()
-    #     print("Waiting for 30 sec")
-    #     sleep(60)
-    # df = extract_rm_child_data()
-    # print(df)
-    fetch_order_and_trade_book()
+    while True:
+        fetch_order_and_trade_book()
+        show_message("Waiting for 60 sec", 'yellow')
+        sleep(60)
