@@ -13,4 +13,4 @@ def refresh_token():
         else:
             helper.show_message(f"Failed to get refresh token: {response.status_code}", "red")
             helper.show_message(f"Response Text: {response.text}", "red")
-            # login_tms()
+            login_tms()

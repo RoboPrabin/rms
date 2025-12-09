@@ -75,12 +75,7 @@ class Uarf:
         # Create engine once
         self.engine = create_engine(helper.get_holding_engine())
         
-         # Auto-refresh every update_time seconds
-        with st.empty():
-            self.refresh_counter = st_autorefresh(
-                interval=10 * 1000,
-                key="rm_refresh"
-            )
+        
 
        
 
@@ -99,7 +94,7 @@ class Uarf:
 
         df = helper.format_dataframe(df=df)
         if "Client Member Code" in df.columns:
-            df = df.rename(columns={"Client Member Code": "Client Code"})
+            df = df.rename(columns={"Client Member Code": "Client Code", 'Rm Name':'Bro'})
         df = coerce_numeric_columns(df, SUMMARY_COLS)
         return df
     
@@ -151,7 +146,7 @@ class Uarf:
         return df
 
 
-    def show_trade_book(self):
+    def show_trade_book(self, refresh_counter):
         df = self._load_trade_book()
         df = self._apply_filters(df)
         # Summary table
@@ -177,10 +172,9 @@ class Uarf:
             df.style
             .format({col: accounting_format for col in SUMMARY_COLS if col in df.columns})
             .map(highlight_negative, subset=[c for c in SUMMARY_COLS if c in df.columns]),
-            use_container_width=True
+            width='stretch'
         )
-        if self.refresh_counter > 1:
-            # Toast after refresh
+        if refresh_counter > 1:
             time_now = datetime.now().strftime("%I:%M:%S %p")
             st.toast(f"Data just updated {time_now}", icon="🔔")
             helper.show_message("RM Performance data just got refreshed")
@@ -281,6 +275,7 @@ class Uarf:
 
 
     def show_live_performance_header(self):
+
          # Custom header
         st.markdown(
             f"""
@@ -313,6 +308,14 @@ class Uarf:
         )
 
     def render_page(self):
+        # Auto-refresh every update_time seconds
+        # with st.empty():
+        refresh_counter = 0
+        refresh_counter = st_autorefresh(
+            interval=self.update_time * 1000,
+            key="rm_refresh"
+        )
+
         has_time_up = False
         if not (time(11, 0) <= datetime.now().time() <= time(15, 5)):
             st.warning(" Updates are paused. Data refresh is active only between 11:02 AM and 03:05 PM.", icon="📢")
@@ -337,15 +340,9 @@ class Uarf:
 
         st.markdown("---")
         if view_option == "Trade Book":
-            self.show_trade_book()
+            self.show_trade_book(refresh_counter)
         else:
             self.show_order_book()
-       
-       
-
-
-        
-
 
 if __name__ == "__main__":
     Uarf().render_page()
