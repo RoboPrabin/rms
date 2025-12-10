@@ -7,8 +7,7 @@ def refresh_token():
         response = requests.post('https://tms48.nepsetms.com.np/tmsapi/authApi/authenticate/refresh', cookies=get_cookie(), headers=get_headers())
         if response.status_code == 200:
             new_cookies = response.cookies.get_dict()
-            helper.show_message("🤖 💥 Token refreshed successfully ")
-            # helper.show_message(f"{new_cookies}", "green")
+            helper.show_message("🔄️ Token refreshed successfully ")
             return new_cookies, get_headers()
         else:
             helper.show_message(f"Failed to get refresh token: {response.status_code}", "red")

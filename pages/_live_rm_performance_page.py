@@ -79,7 +79,7 @@ class Uarf:
 
        
 
-    @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
+    # @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
     def _load_trade_book(_self) -> pd.DataFrame:
         # st.info("⬇️ Fetching order book. Please wait ...")
         if _self.role.upper() == "BRO":
@@ -99,11 +99,11 @@ class Uarf:
         return df
     
 
-    @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
+    # @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
     def load_order_book_data(_self) -> pd.DataFrame:
         if _self.role.upper() == "BRO":
             df = pd.read_sql(
-                """SELECT * FROM order_book WHERE "rmName" = %s""",
+                """SELECT * FROM order_book WHERE bro = %s""",
                 con=_self.engine,
                 params=(_self.username,)
             )
@@ -146,7 +146,7 @@ class Uarf:
         return df
 
 
-    def show_trade_book(self, refresh_counter):
+    def show_trade_book(self):
         df = self._load_trade_book()
         df = self._apply_filters(df)
         # Summary table
@@ -174,10 +174,7 @@ class Uarf:
             .map(highlight_negative, subset=[c for c in SUMMARY_COLS if c in df.columns]),
             width='stretch'
         )
-        if refresh_counter > 1:
-            time_now = datetime.now().strftime("%I:%M:%S %p")
-            st.toast(f"Data just updated {time_now}", icon="🔔")
-            helper.show_message("RM Performance data just got refreshed")
+        
 
     
     def show_order_book(self):
@@ -308,18 +305,20 @@ class Uarf:
         )
 
     def render_page(self):
-        # Auto-refresh every update_time seconds
-        # with st.empty():
-        refresh_counter = 0
-        refresh_counter = st_autorefresh(
-            interval=self.update_time * 1000,
-            key="rm_refresh"
-        )
-
         has_time_up = False
+        refresh_counter = 0
         if not (time(11, 0) <= datetime.now().time() <= time(15, 5)):
             st.warning(" Updates are paused. Data refresh is active only between 11:02 AM and 03:05 PM.", icon="📢")
             has_time_up = True
+
+        if not has_time_up:
+            refresh_counter = st_autorefresh(
+                interval=10 * 1000,
+                key="rm_refresh"
+            )
+            
+        if "last_refresh_counter" not in st.session_state:
+            st.session_state.last_refresh_counter = refresh_counter
             # return
 
         st.markdown(
@@ -340,9 +339,18 @@ class Uarf:
 
         st.markdown("---")
         if view_option == "Trade Book":
-            self.show_trade_book(refresh_counter)
+            self.show_trade_book()
         else:
             self.show_order_book()
+
+        if refresh_counter > st.session_state.last_refresh_counter:
+            time_now = datetime.now().strftime("%I:%M:%S %p")
+            st.toast(f"Data just updated {time_now}", icon="🔔")
+            helper.show_message("RM Performance data just got refreshed")
+
+        # Update tracker
+        st.session_state.last_refresh_counter = refresh_counter
+
 
 if __name__ == "__main__":
     Uarf().render_page()

@@ -34,12 +34,24 @@ class RMTag:
             query = 'SELECT id, "username", "full_name" FROM app_user'
             return pd.read_sql(query, engine)
 
-    def get_client_list(self):
-        engine = self.holding_engine
+    @st.cache_data(ttl=6000)
+    def get_client_list(_self):
+        engine = _self.holding_engine
         query = 'SELECT id, clientfullname, clientmembercode FROM kyc'
         return pd.read_sql(query, engine)
     
-    
+
+    @st.cache_data(ttl=6000)
+    def get_rm_client_map(_self, rm_code):
+        engine = create_engine(_self.holding_engine)
+
+        query = """
+            SELECT "clientName", "clientCode", "assignBy", "assignAt"
+            FROM client_rm_map
+            WHERE "rmName" = %s
+        """
+        client_df = pd.read_sql(query, engine, params=(rm_code,))
+        return client_df
     # ---------------------------
     # Mode handlers
     # ---------------------------
@@ -54,15 +66,8 @@ class RMTag:
 
         rm_code = rm_df.loc[rm_df["display"] == selected_rm, "username"].values[0].strip()
         
-
-        engine = create_engine(self.holding_engine)
-
-        query = """
-            SELECT "clientName", "clientCode", "assignBy", "assignAt"
-            FROM client_rm_map
-            WHERE "rmName" = %s
-        """
-        client_df = pd.read_sql(query, engine, params=(rm_code,))
+        client_df = self.get_rm_client_map(rm_code=rm_code)
+        
 
 
 

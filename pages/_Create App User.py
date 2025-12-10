@@ -213,18 +213,28 @@ class CreateAppUser:
             if self.role == "ADMIN":
                 self.show_update_delete_function()
         else:
-            new_role = st.text_input("New Role")
+            new_role = st.text_input("New Role").upper()
             self.header = "Create New Role"
-            # Submit button
+
             if st.button("Add New Role", icon="➕"):
                 if new_role.strip():
                     engine = create_engine(helper.get_holding_engine())
                     with engine.begin() as conn:
-                        conn.execute(
-                            text("INSERT INTO app_user_role (role_name) VALUES (:role)"),
-                            {"role": new_role.strip()}
+                        # Check if role already exists
+                        result = conn.execute(
+                            text("SELECT COUNT(*) FROM app_user_role WHERE role_type = :role_type"),
+                            {"role_type": new_role.strip()}
                         )
-                    st.success(f"Role '{new_role}' added successfully!")
+                        exists = result.scalar()  # returns the count
+
+                        if exists > 0:
+                            st.error(f"Role '{new_role}' already exists!", icon="⚠️")
+                        else:
+                            conn.execute(
+                                text("INSERT INTO app_user_role (role_type) VALUES (:role_type)"),
+                                {"role_type": new_role.strip()}
+                            )
+                            st.success(f"Role '{new_role}' added successfully!")
                 else:
                     st.warning("Please enter a valid role name.", icon="⚠️")
 
@@ -235,12 +245,11 @@ class CreateAppUser:
                 roles = [row[0] for row in result]
 
             st.markdown("---")
-            st.subheader("👨‍💼Existing Roles", anchor=False)
+            st.subheader("👨‍💼 Existing Roles", anchor=False)
             if roles:
                 df_roles = pd.DataFrame(roles, columns=["Current Roles"])
-                df_roles.index += 1  # Start index at 1 instead of 0
+                df_roles.index += 1
                 st.dataframe(df_roles)
-
             else:
                 st.write("No roles found.")
 

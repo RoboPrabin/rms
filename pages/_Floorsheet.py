@@ -20,7 +20,7 @@ class Floorsheet:
         self.intranet_engine = helper.get_holding_engine()
         self.calculate_count = 0
 
-    st.cache_data
+    st.cache_data(ttl=6000)
     def get_floorsheet_by_date(self,selected_date: date) -> pd.DataFrame:
         query = """
             SELECT *

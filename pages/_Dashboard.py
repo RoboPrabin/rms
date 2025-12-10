@@ -1,7 +1,5 @@
 from nepali_datetime import date as nepali_date
 from datetime import date
-
-
 import numpy as np
 import streamlit as st
 import pandas as pd
