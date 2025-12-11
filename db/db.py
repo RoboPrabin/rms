@@ -48,12 +48,57 @@ def get_table_holdings_in_df():
     finally:
         conn.close()
 
+def get_table_average_price():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""SELECT symbol, "closePrice" from average_price""")
+    row = cur.fetchall()
+    cur.close()
+    conn.close()
+    return row
 
+def get_table_rm_child_map():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""SELECT "rmName", "clientName" from client_rm_map""")
+    row = cur.fetchall()
+    cur.close()
+    conn.close()
+    return row
 
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT username, role, password, status, citizenship, phone, email FROM app_user WHERE username = %s", (username.upper(),))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+def get_kyc():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT clientmembercode,clientfullname, clientbranch, boid from kyc")
+    row = cur.fetchall()
+    cur.close()
+    conn.close()
+    return row
+
+def get_isin_data():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""SELECT "ISIN", "SCRIP" FROM isin""")
+    row = cur.fetchall()
+    cur.close()
+    conn.close()
+    return row
+
+
+
+def get_user_by_pin(pin:str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT username, role, password, status, citizenship, phone, email FROM app_user WHERE pin = %s", (pin.strip(),))
     row = cur.fetchone()
     cur.close()
     conn.close()

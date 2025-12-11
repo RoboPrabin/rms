@@ -1,3 +1,5 @@
+from datetime import datetime
+from nepali_datetime import date as nepali_date
 import streamlit as st
 import pandas as pd
 from datetime import date
@@ -16,6 +18,10 @@ class Floorsheet:
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
         navigation.render_sidebar()
+        today = datetime.today()
+
+        # Get the day name (e.g. Monday, Tuesday)
+        self.day_name = today.strftime("%A")
 
         self.intranet_engine = helper.get_holding_engine()
 
@@ -45,7 +51,12 @@ class Floorsheet:
                 "total_traded_quantity": x["quantity"].sum(),
                 "total_traded_volume": x["amount"].sum(),
             })
-        return df.groupby(["clientcode", "clientname"], group_keys=False).apply(client_summary_func).reset_index()
+        return (
+                df.groupby(["clientcode", "clientname"], group_keys=False, observed=True)
+                .apply(client_summary_func, include_groups=False)
+                .reset_index()
+            )
+
 
     # ✔ Cache branch summary per date
     @st.cache_data(ttl=6000)
@@ -245,7 +256,8 @@ class Floorsheet:
 
             # --- Branch Summary ---
             elif view_mode == "Branch Summary":
-                st.subheader("𖦥 Branch Summary")
+                
+                st.subheader("𖦥 Branch Summary : " + str(nepali_date.today()) + " (" + self.day_name + ")", anchor=False)
                 if not display_df.empty:
                     df2 = display_df.copy()
                     df2.index = df2.index + 1
@@ -257,7 +269,7 @@ class Floorsheet:
                     df2.rename(columns={
                         "total":"Total","sales_turnover":"Sales Turnover",
                         "purchase_turnover":"Purchase Turnover","both_traders":"Both Traders",
-                        "seller_count":"Total Seller","buyer_count":"Total Buyers",
+                        "seller_count":"Total Sellers","buyer_count":"Total Buyers",
                         "branch":"Branch","%":"Branch Contribution %"
                     }, inplace=True)
 
@@ -269,11 +281,18 @@ class Floorsheet:
                     df2.reset_index(drop=True, inplace=True)
                     df2.index = df2.index + 1
 
+                    cols_to_clean = ["Total Buyers", "Total Sellers", "Both Traders"]
+
+                    for col in cols_to_clean:
+                        df2[col] = df2[col].apply(
+                            lambda x: str(int(float(x))) if pd.notnull(x) else ""
+                        )
+
                     st.dataframe(df2, use_container_width=True)
 
                     # totals row
                     total_df = pd.DataFrame([totals])
-                    total_df.insert(0, "branch", "TOTAL")
+                    total_df.insert(0, "", "TOTAL")
 
                     formatted_df = total_df.copy()
                     formatted_df["buyer_count"] = formatted_df["buyer_count"].map("{:,.0f}".format)
@@ -284,14 +303,14 @@ class Floorsheet:
                     formatted_df["total"] = formatted_df["total"].map("Rs. {:,.0f}".format)
 
                     formatted_df.rename(columns={
-                        "buyer_count":"Total Buyer","seller_count":"Total Seller",
+                        "buyer_count":"Total Buyers","seller_count":"Total Sellers",
                         "both_traders":"Both Traders","purchase_turnover":"Purchase Turnover",
                         "sales_turnover":"Sales Turnover","total":"Total"
                     }, inplace=True)
 
                     st.markdown("---")
-                    st.subheader("➤ Summary Totals")
-                    st.dataframe(formatted_df, use_container_width=True, hide_index=True)
+                    st.subheader("➤ Summary Totals", anchor=False)
+                    st.dataframe(formatted_df, width='stretch', hide_index=True)
 
             # --- Piechart ---
             elif view_mode == "Branch Piechart":

@@ -124,14 +124,15 @@ def render_sidebar():
             st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Bro Limit", icon="🧑")
             st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
             st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
+            st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
 
-        st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
         st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
+        if role == "ADMIN":
+            st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
+            st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
 
 
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")

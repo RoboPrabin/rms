@@ -124,13 +124,13 @@ class Uarf:
         with col1:
             filter_option = st.selectbox(
                 "Filter by:",
-                ["None", "Rm Name", "Client Code", "Client Name", "Branch"]
+                ["None", "Bro", "Client Code", "Client Name", "Branch"]
             )
         with col2:
-            if filter_option == "Rm Name" and "Rm Name" in df.columns:
-                rm_name = st.selectbox("Select Rm Name", [""] + sorted(df["Rm Name"].dropna().unique().tolist()))
+            if filter_option == "Bro" and "Bro" in df.columns:
+                rm_name = st.selectbox("Select Bro", [""] + sorted(df["Bro"].dropna().unique().tolist()))
                 if rm_name:
-                    df = df[df["Rm Name"] == rm_name]
+                    df = df[df["Bro"] == rm_name]
             elif filter_option == "Client Code" and "Client Code" in df.columns:
                 client_code = st.text_input("Enter Client Code")
                 if client_code:

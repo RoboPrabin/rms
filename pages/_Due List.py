@@ -20,72 +20,119 @@ class DueList:
         self.intranet_engine = helper.get_holding_engine()
 
 
-    @st.cache_data(ttl=6000)
-    def load_due_list_data(_self):
+    # @st.cache_data(ttl=6000)
+    def load_due_list_data_all(_self):
+         # --- Load data ---
+    
+        query = 'SELECT * FROM due_list'
+        params = None
+        df = pd.read_sql(query, _self.intranet_engine, params=params)
+        return df
+    
+    
+    # @st.cache_data(ttl=6000)
+    def load_due_list_data_bro(_self):
          # --- Load data ---
         if _self.role == "BRO":
             query = 'SELECT * FROM due_list WHERE "rmName" = %s'
             params = (_self.username.upper(),)
-        else:
-            query = 'SELECT * FROM due_list'
-            params = None
-
-
         df = pd.read_sql(query, _self.intranet_engine, params=params)
         return df
 
     def render_page(_self):
         st.title("📋 Due List", anchor=False)
-       
-        df : pd.DataFrame = _self.load_due_list_data()
+
+        # --- Load data based on role ---
+        if _self.role == "BRO":
+            df: pd.DataFrame = _self.load_due_list_data_bro()
+        else:
+            df: pd.DataFrame = _self.load_due_list_data_all()
+
         # --- Layout for filters at top ---
         col1, col2, col3, col4 = st.columns(4)
+
         with col1:
             selected_date = st.date_input("Filter by date", datetime.today())
+
         with col2:
             by_status = st.selectbox("Select Session", ["Morning", "Evening"], index=0)
+
         with col3:
-            branch_selected_placeholder = st.empty()
-        with col4:
-            search_query = st.text_input("Search", "", placeholder="Search anything . . .")
-            # branch filter will be populated after loading data
+            filter_by = st.selectbox(
+                "Filter By",
+                ["Bro", "Client Code", "Branch"],
+                index=2
+            )
 
+        # with col4:
+        #     search_query = st.text_input("Search", "", placeholder="Search anything . . .")
 
-
-        # --- Branch filter options ---
+        # --- Prepare unique lists ---
+        unique_bros = df["rmName"].dropna().unique().tolist()
         unique_branches = df["branch"].dropna().unique().tolist()
-        branch_selected = branch_selected_placeholder.selectbox(
-            "Filter by branch", options=["All"] + sorted(unique_branches)
-        )
 
-        # --- Filter by uploaded_at containing selected date ---
+        # --- Dynamic filter input ---
+        with col4:
+            if filter_by == "Bro":
+                filter_value = st.selectbox(
+                    "Select Bro",
+                    options=["All"] + sorted(unique_bros)
+                )
+
+            elif filter_by == "Branch":
+                filter_value = st.selectbox(
+                    "Select Branch",
+                    options=["All"] + sorted(unique_branches)
+                )
+
+            elif filter_by == "Client Code":
+                filter_value = st.text_input(
+                    "Enter Client Code",
+                    placeholder="Type client code..."
+                )
+
+        # --- Filter by date ---
         selected_date_str = selected_date.strftime("%Y-%m-%d")
         df_filtered = df[df["uploaded_at"].str.contains(selected_date_str, na=False)]
-        
 
+        # --- Filter by AM/PM ---
         if by_status == "Morning":
             df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("AM")]
-        else:  # Evening
+        else:
             df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("PM")]
 
+        # --- Apply selected filter ---
+        if filter_by == "Bro" and filter_value != "All":
+            df_filtered = df_filtered[df_filtered["rmName"] == filter_value]
+            if len(df_filtered)==0:
+                st.info(f"No dues for {filter_value}.", icon="ℹ️")
+                st.stop()
 
-        # --- Apply branch filter ---
-        if branch_selected != "All":
-            df_filtered = df_filtered[df_filtered["branch"] == branch_selected]
+        elif filter_by == "Branch" and filter_value != "All":
+            df_filtered = df_filtered[df_filtered["branch"] == filter_value]
 
-        # --- Apply search filter ---
-        if search_query:
-            mask = df_filtered.apply(
-                lambda row: row.astype(str).str.contains(search_query, case=False, na=False)
-            ).any(axis=1)
-            df_filtered = df_filtered[mask]
+        elif filter_by == "Client Code" and filter_value.strip():
+            df_filtered = df_filtered[
+                df_filtered["clientCode"]
+                .astype(str)
+                .str.contains(filter_value, case=False, na=False)
+            ]
 
+        # # --- Apply search filter ---
+        # if search_query:
+        #     mask = df_filtered.apply(
+        #         lambda row: row.astype(str).str.contains(search_query, case=False, na=False)
+        #     ).any(axis=1)
+        #     df_filtered = df_filtered[mask]
+
+        # --- Empty check ---
         if df_filtered.empty:
             st.warning(f"Due list not found as of date {selected_date_str}", icon="⚠️")
             return
-        
-        # --- Format and calculate ---
+
+        # --- Rename for display ---
         df_filtered = df_filtered.rename(columns={"rmName": "Bro"})
+
         # --- Display badges ---
         row_count = len(df_filtered)
         due_balance_sum = df_filtered["dueBalance"].sum()
@@ -103,23 +150,23 @@ class DueList:
             """,
             unsafe_allow_html=True,
         )
-        df_filtered.reset_index(inplace=True, drop=True)
-        # df_filtered.index = df_filtered.index + 1
-        # st.dataframe(df_filtered, width='stretch')
 
-
-
+        # --- Prepare for display ---
+        df_filtered.reset_index(drop=True, inplace=True)
         df_filtered = df_filtered.rename(columns=helper.camel_to_title)
-        numeric_cols = ["Due Balance", "Unbilled Amount", "Adjusted Balance", "Collateral", "Bill Age In Days", "Due Since Last Stl Date In Days", "Due Since In Days" ]   # add more if needed
+
+        numeric_cols = [
+            "Due Balance", "Unbilled Amount", "Adjusted Balance", "Collateral",
+            "Bill Age In Days", "Due Since Last Stl Date In Days", "Due Since In Days"
+        ]
 
         # --- Coerce numeric columns ---
         df_filtered = coerce_numeric_columns(df_filtered, numeric_cols)
 
         # --- Reset index to start at 1 ---
-        df_filtered.reset_index(drop=True, inplace=True)
         df_filtered.index = df_filtered.index + 1
 
-        # --- Apply styling: accounting format + highlight negatives ---
+        # --- Styling ---
         styled_df = (
             df_filtered.style
                 .format(accounting_format, subset=numeric_cols)
