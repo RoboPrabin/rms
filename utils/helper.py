@@ -41,15 +41,19 @@ from config.config import due_list_flag_path
 
 def get_platform_options():
     return {
+        "Webcdas":"https://webcdas.cdsc.com.np/",
+        "DG":"https://dgtrade.trishakti.com.np:8080/bom/index.html#/login",
+        "RMS":"https://holdings.trishakti.com.np:9999/",
+        "Customer Screening": "http://192.168.1.177:8099/CustomerAccount/Login?ReturnUrl=%2F",
+        "Gmail": "https://mail.google.com",
         "Facebook": "https://facebook.com",
         "Instagram": "https://instagram.com",
         "Twitter (X)": "https://twitter.com",
         "LinkedIn": "https://linkedin.com",
-        "Gmail": "https://mail.google.com",
         "Outlook": "https://outlook.com",
         "GitHub": "https://github.com",
         "GitLab": "https://gitlab.com",
-        "Custom": ""   # Allows user to manually enter URL
+        "Custom": ""   
     }
 
 
