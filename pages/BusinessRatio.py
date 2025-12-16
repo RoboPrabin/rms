@@ -93,6 +93,10 @@ class BusinessRatio:
                 use_container_width=True
             )
         df = self.get_floorsheet_by_date(selected_date)
+        if df.empty:
+            st.warning(f"No Floorsheet data found for {selected_date}. Please upload the floorsheet first or change the date", icon="⚠️")
+            st.stop()
+            
         display_df = self.compute_branch_summary(df)
         evening_duelist = db.get_due_list()
         if len(evening_duelist) == 0:

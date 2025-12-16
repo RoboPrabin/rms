@@ -1,10 +1,10 @@
 from pathlib import Path
-PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
-chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
+# PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
+# chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
 
 
-# PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
-# chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
+PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
+chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
 
 MASTER_PASSWORD = "prabin"
 
