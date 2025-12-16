@@ -326,7 +326,7 @@ class Uarf:
             unsafe_allow_html=True
         )
         if has_time_up:
-            st.header("📜 Detailed RM Performance", anchor=False)
+            st.header("📜 BRO Performance", anchor=False)
         else:
             self.show_live_performance_header()
 
