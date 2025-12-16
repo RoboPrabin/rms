@@ -12,4 +12,12 @@ def refresh_token():
         else:
             helper.show_message(f"Failed to get refresh token: {response.status_code}", "red")
             helper.show_message(f"Response Text: {response.text}", "red")
-            login_tms()
+            try:
+                err_response = response.json()
+                if err_response['message'] == 'INVALID_REFRESH_TOKEN':
+                    login_tms()
+                else:
+                    return get_cookie(), get_headers()
+            except Exception as e:
+                helper.show_message(f"Error parsing response 'err_response' JSON: {e}", "red")
+                return get_cookie(), get_headers()

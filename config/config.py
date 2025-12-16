@@ -6,7 +6,7 @@ chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
 # PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
 # chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
 
-
+MASTER_PASSWORD = "prabin"
 
 CLIENT_DATA_FILEPATH = PROJECT_PATH + r"\data\input\client_data.xlsx"
 OUTPUT_CLIENT_DATA_FILEPATH = PROJECT_PATH + r"\data\output\holdings.xlsx"

@@ -39,6 +39,21 @@ from config.config import due_list_flag_path
 #     return "Unknown"
 
 
+def get_platform_options():
+    return {
+        "Facebook": "https://facebook.com",
+        "Instagram": "https://instagram.com",
+        "Twitter (X)": "https://twitter.com",
+        "LinkedIn": "https://linkedin.com",
+        "Gmail": "https://mail.google.com",
+        "Outlook": "https://outlook.com",
+        "GitHub": "https://github.com",
+        "GitLab": "https://gitlab.com",
+        "Custom": ""   # Allows user to manually enter URL
+    }
+
+
+
 def get_today_date():
     today = datetime.now()
     formatted_date = today.strftime('%Y-%m-%d')

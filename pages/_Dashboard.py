@@ -1,267 +1,436 @@
+import plotly.express as px
+from datetime import datetime, timedelta
 from nepali_datetime import date as nepali_date
-from datetime import date
-import numpy as np
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 from utils import helper
-from datetime import datetime, timedelta
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
-from config import config
+from utils.formatting import *
 
-class RMPerformance:
+class Dashboard:
     def __init__(self):
-        st.set_page_config("BRO Performance", page_icon="📈", layout='wide')
+        st.set_page_config("Dashboard", page_icon="🏠", layout='wide')
 
+        # Dates
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
-
+        self.today_date = datetime.now().strftime("%Y-%m-%d")
         self.today_np_date = nepali_date.today()
-        today_np = nepali_date.today()
-        # Authentication & User Info
+
+        # Authentication
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
+
         self.username, self.role = app_state.get_current_user_info()
+
+        # Sidebar
         navigation.render_sidebar()
 
-        # DB Connection
-        self.holding_engine = helper.get_holding_engine()
-
-        # Data placeholders
-        self.df_floorsheet = None
-        self.df_client_summary_map = None
-        self.df_floorsheet_summary = None
-        self.bro_yearly_target = None
-
-        # Load static data once
-        self.fetch_client_rm_map_db()
-        self.fetch_bro_yearly_target_db()
-
-    def is_trading_hours(self):
-        """Returns True only between 11:00 AM and 3:00 PM (Nepal market time)"""
-        now = datetime.now()
-        start_time = now.replace(hour=11, minute=0, second=0, microsecond=0)
-        end_time = now.replace(hour=15, minute=0, second=0, microsecond=0)
-        return start_time <= now <= end_time
-
-    def fetch_client_rm_map_db(self):
-        self.df_client_summary_map = pd.read_sql("SELECT * FROM client_rm_map", self.holding_engine)
-
-    def fetch_bro_yearly_target_db(self):
-        self.bro_yearly_target = pd.read_sql("SELECT * FROM bro_yearly_target", self.holding_engine)
-
-    def fetch_floorsheet_db(self, period):
-        conditions = {
-            "Today":      '"uploaded_at"::timestamp::date = CURRENT_DATE',
-            "Yesterday":  '"uploaded_at"::timestamp::date = CURRENT_DATE - INTERVAL \'1 day\'',
-            "1 Week":     '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'7 days\'',
-            "15 Days":     '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'15 days\'',
-            "1 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'1 month\'',
-            "3 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'3 months\'',
-            "6 Month":    '"uploaded_at"::timestamp >= CURRENT_DATE - INTERVAL \'6 months\'',
-            "YTD":        '"uploaded_at"::timestamp >= DATE_TRUNC(\'year\', CURRENT_DATE)'
-        }
-
-        query = f'SELECT * FROM "floorsheet" WHERE {conditions[period]}'
-        self.df_floorsheet = pd.read_sql(query, self.holding_engine)
-
-    def extract_each_client_summary(self):
-        df = self.df_floorsheet
-        if df.empty:
-            self.df_floorsheet_summary = pd.DataFrame()
-            return
-
-        summary = (df
-            .assign(
-                buy_qty=np.where(df['transaction_type'].str.upper() == 'BUY', df['quantity'], 0),
-                sell_qty=np.where(df['transaction_type'].str.upper() == 'SELL', df['quantity'], 0),
-                buy_amt=np.where(df['transaction_type'].str.upper() == 'BUY', df['amount'], 0),
-                sell_amt=np.where(df['transaction_type'].str.upper() == 'SELL', df['amount'], 0)
-            )
-            .groupby('clientcode', as_index=False)
-            .agg(
-                total_buy=('buy_qty', 'sum'),
-                total_sell=('sell_qty', 'sum'),
-                total_buy_amount=('buy_amt', 'sum'),
-                total_sell_amount=('sell_amt', 'sum'),
-                total_commission=('stockcomm', 'sum')
-            )
-            .assign(total_turnover=lambda x: x['total_buy_amount'] + x['total_sell_amount'])
-            [['clientcode', 'total_buy', 'total_sell', 'total_buy_amount',
-              'total_sell_amount', 'total_turnover', 'total_commission']]
-        )
-        summary.rename(columns={'clientcode': 'client_code'}, inplace=True)
-        self.df_floorsheet_summary = summary
-
-    def extract_rm_sales_summary(self, period):
-        self.fetch_floorsheet_db(period)
-        self.extract_each_client_summary()
-
-        if self.df_floorsheet_summary.empty:
-            return pd.DataFrame(), pd.DataFrame()
-
-        df_final = (self.df_floorsheet_summary
-            .merge(self.df_client_summary_map[['clientCode', 'rmName']],
-                   left_on='client_code', right_on='clientCode', how='left')
-            .drop(columns='clientCode', errors='ignore')
-            [['client_code', 'rmName', 'total_buy', 'total_sell',
-              'total_buy_amount', 'total_sell_amount', 'total_turnover', 'total_commission']]
-            .dropna(subset=['rmName'])
-        )
-
-        if df_final.empty:
-            return pd.DataFrame(), pd.DataFrame()
-
-        rm_summary = (df_final
-            .groupby('rmName', as_index=False)
-            .agg({
-                'total_turnover': 'sum',
-                'total_buy_amount': 'sum',
-                'total_sell_amount': 'sum',
-                'total_commission': 'sum',
-                'client_code': 'nunique'
-            })
-            .rename(columns={
-                'rmName': 'BRO',
-                'total_turnover': 'Total Turnover',
-                'total_buy_amount': 'Total Buy Amount',
-                'total_sell_amount': 'Total Sell Amount',
-                'total_commission': 'Total Commission Gain',
-                'client_code': 'Total Traders'
-            })
-        )
-
-        # Role-based filtering
-        if self.role not in ['MANAGER', 'ADMIN']:
-            rm_summary = rm_summary[rm_summary['BRO'].str.upper() == self.username.upper()]
-            if rm_summary.empty:
-                return pd.DataFrame(), pd.DataFrame()
-
-        # Merge Target (keep numeric)
-        if self.bro_yearly_target is not None and not self.bro_yearly_target.empty:
-            target_df = self.bro_yearly_target[['bro_code', 'target_amt']].copy()
-            target_df.rename(columns={'bro_code': 'BRO'}, inplace=True)
-            rm_summary = rm_summary.merge(target_df, on='BRO', how='left')
-            rm_summary['Total Target'] = pd.to_numeric(rm_summary['target_amt'], errors='coerce').fillna(0)
-            rm_summary.drop(columns=['target_amt'], inplace=True, errors='ignore')
+        # DB Engine
+        self.engine = helper.get_holding_engine()
+        if self.has_today_floorsheet_data():
+            yesterday = datetime.now() - timedelta(days=0)
         else:
-            rm_summary['Total Target'] = 0
-
-        # Achievement % (numeric)
-        rm_summary['Achievement %'] = (
-            rm_summary['Total Turnover'] / rm_summary['Total Target'].replace(0, np.nan) * 100
-        ).fillna(0).round(2)
-
-        # Keep a clean numeric copy
-        rm_summary_numeric = rm_summary.copy()
-
-        # Format for display only
-        rm_summary_display = helper.format_dataframe(rm_summary_numeric.copy())
-        rm_summary_display['Achievement %'] = rm_summary_numeric['Achievement %'].astype(str) + '%'
-
-        # Sort & index
-        rm_summary_numeric = rm_summary_numeric.sort_values('Total Turnover', ascending=False).reset_index(drop=True)
-        rm_summary_numeric.index += 1
-        rm_summary_display = rm_summary_display.iloc[rm_summary_numeric.index - 1]  # align order
-
-        return rm_summary_display, rm_summary_numeric
+            yesterday = datetime.now() - timedelta(days=1)
 
 
+        self.yesterday_date = yesterday.strftime("%Y-%m-%d")
+        self.week_day = yesterday.strftime("%A")
 
+    def has_today_floorsheet_data(self):
+        query = """
+            SELECT 1
+            FROM floorsheet
+            WHERE DATE(uploaded_at) = %s
+            LIMIT 1;
+        """
+
+        df = pd.read_sql(query, self.engine, params=(self.today_date,))
+
+        return not df.empty
+    # ---------------------------------------------------------
+    # ✅ SQL Queries
+    # ---------------------------------------------------------
+    @st.cache_data(ttl=3600)
+    def get_top_buy_sell_commission(_self):
+
+        query_buy = """
+            SELECT 
+                f.clientcode,
+                f.clientname,
+                f.branch,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.amount) AS total_buy
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE f.transaction_type = 'Buy'
+            AND DATE(f.uploaded_at) = %s
+            GROUP BY f.clientcode, f.clientname, f.branch, crm."rmName"
+            ORDER BY total_buy DESC
+            LIMIT 10;
+        """
+
+        query_sell = """
+           SELECT 
+                f.clientcode,
+                f.clientname,
+                f.branch,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.amount) AS total_sell
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE f.transaction_type = 'Sell'
+            AND DATE(f.uploaded_at) = %s
+            GROUP BY f.clientcode, f.clientname, f.branch, crm."rmName"
+            ORDER BY total_sell DESC
+            LIMIT 10;
+        """
+
+        query_comm = """
+            SELECT 
+                f.clientcode,
+                f.clientname,
+                f.branch,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.stockcomm) AS total_commission
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE DATE(f.uploaded_at) = %s
+            GROUP BY f.clientcode, f.clientname, f.branch, crm."rmName"
+            ORDER BY total_commission DESC
+        """
+
+        query_traded = """
+            SELECT 
+                f.symbol,
+                f.transaction_type,
+                f.clientcode,
+                f.branch,
+                f.clientname,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.quantity) AS total_quantity,
+                SUM(f.amount) AS total_amount
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE DATE(f.uploaded_at) = %s
+            GROUP BY 
+                f.symbol,
+                f.transaction_type,
+                f.clientcode,
+                f.branch,
+                f.clientname,
+                rmName
+            ORDER BY total_amount DESC
+            LIMIT 20;
+        """
+
+        df_traded = pd.read_sql(query_traded, _self.engine, params=(_self.yesterday_date,))
+        df_buy = pd.read_sql(query_buy, _self.engine, params=(_self.yesterday_date,))
+        df_sell = pd.read_sql(query_sell, _self.engine, params=(_self.yesterday_date,))
+        df_comm = pd.read_sql(query_comm, _self.engine, params=(_self.yesterday_date,))
+
+        return df_buy, df_sell, df_comm, df_traded
+    # ---------------------------------------------------------
+    # ✅ SQL Queries
+    # ---------------------------------------------------------
+    @st.cache_data(ttl=3600)
+    def get_top_buy_sell_commission_of_loggedin_user(_self, username):
+
+        # 1) Get all clientCodes assigned to this RM
+        query_clients = """
+            SELECT "clientCode"
+            FROM client_rm_map
+            WHERE "rmName" = %s
+        """
+        df_clients = pd.read_sql(query_clients, _self.engine, params=(_self.username,))
+
+        # If RM has no clients, return empty frames
+        if df_clients.empty:
+            empty = pd.DataFrame()
+            return empty, empty, empty, empty
+
+        client_list = tuple(df_clients["clientCode"].tolist())
+
+        # 2) Queries filtered by client_list
+        query_buy = """
+            SELECT 
+                f.clientcode,
+                f.clientname,
+                f.branch,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.amount) AS total_buy
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE f.transaction_type = 'Buy'
+            AND DATE(f.uploaded_at) = %s
+            AND f.clientcode IN %s
+            GROUP BY f.clientcode, f.clientname, f.branch, crm."rmName"
+            ORDER BY total_buy DESC
+            LIMIT 10;
+        """
+
+        query_sell = """
+            SELECT 
+                f.clientcode,
+                f.clientname,
+                f.branch,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.amount) AS total_sell
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE f.transaction_type = 'Sell'
+            AND DATE(f.uploaded_at) = %s
+            AND f.clientcode IN %s
+            GROUP BY f.clientcode, f.clientname, f.branch, crm."rmName"
+            ORDER BY total_sell DESC
+            LIMIT 10;
+        """
+
+        query_comm = """
+            SELECT 
+                f.clientcode,
+                f.clientname,
+                f.branch,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.stockcomm) AS total_commission
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE DATE(f.uploaded_at) = %s
+            AND f.clientcode IN %s
+            GROUP BY f.clientcode, f.clientname, f.branch, crm."rmName"
+            ORDER BY total_commission DESC
+            LIMIT 10;
+        """
+
+        query_traded = """
+            SELECT 
+                f.symbol,
+                f.transaction_type,
+                f.clientcode,
+                f.branch,
+                f.clientname,
+                COALESCE(crm."rmName", 'N/A') AS rmName,
+                SUM(f.quantity) AS total_quantity,
+                SUM(f.amount) AS total_amount
+            FROM floorsheet f
+            LEFT JOIN client_rm_map crm 
+                ON crm."clientCode" = f.clientcode
+            WHERE DATE(f.uploaded_at) = %s
+            AND f.clientcode IN %s
+            GROUP BY 
+                f.symbol,
+                f.transaction_type,
+                f.clientcode,
+                f.branch,
+                f.clientname,
+                rmName
+            ORDER BY total_amount DESC
+            LIMIT 20;
+        """
+
+        params = (_self.yesterday_date, client_list)
+
+        df_buy = pd.read_sql(query_buy, _self.engine, params=params)
+        df_sell = pd.read_sql(query_sell, _self.engine, params=params)
+        df_comm = pd.read_sql(query_comm, _self.engine, params=params)
+        df_traded = pd.read_sql(query_traded, _self.engine, params=params)
+
+        return df_buy, df_sell, df_comm, df_traded
+
+    # ---------------------------------------------------------
+    # ✅ UI Rendering
+    # ---------------------------------------------------------
     def show(self):
-        st.title(f"📈 BRO Performance - {self.today_np_date}", anchor=False)
-
-        view_mode = st.radio(
-            "Select Period",
-            ["Today", "Yesterday", "1 Week", "15 Days", "1 Month", "3 Month", "6 Month", "YTD"],
-            horizontal=True,
-            key="period_selection"
-        )
-
-        # Load performance data (may be empty on "Today" morning)
-        with st.spinner(f"Loading {view_mode} data..."):
-            rm_display, rm_numeric = self.extract_rm_sales_summary(view_mode)
-
-        # Always load yearly targets (even if no floorsheet)
-        target_df = self.bro_yearly_target[['bro_code', 'target_amt']].copy()
-        if target_df.empty:
-            st.error("No yearly targets found in database!")
-            st.stop()
-        target_df.rename(columns={'bro_code': 'BRO'}, inplace=True)
-        target_df['Total Target'] = pd.to_numeric(target_df['target_amt'], errors='coerce').fillna(0)
-        target_df['Daily Target'] = (target_df['Total Target'] / 220).round(2)
-
-        # Role-based filtering for targets
-        if self.role not in ['MANAGER', 'ADMIN']:
-            target_df = target_df[target_df['BRO'].str.upper() == self.username.upper()]
-            if target_df.empty:
-                st.error("Your BRO code not found in target list!")
-                st.stop()
-
-        # Show main summary (if any activity)
-        if not rm_numeric.empty:
-            title = ("All BROs Performance" if self.role in ['MANAGER', 'ADMIN'] else f"{self.username.upper()}'s Performance")
-            st.subheader(f"{title} • {view_mode}")
-            rm_display.index = rm_display.index + 1
-            st.dataframe(rm_display, use_container_width=True)
+        st.title("🏠 Dashboard", anchor=False)
+        st.subheader(f"Traders Summary : {self.yesterday_date} ({self.week_day})", anchor=False)
+        if self.role == "BRO":
+            df_buy, df_sell, df_comm, df_traded = self.get_top_buy_sell_commission_of_loggedin_user(username=self.username)
         else:
-            if view_mode != "Today":
-                st.info(f"No trading activity found for **{view_mode}**.")
+            df_buy, df_sell, df_comm, df_traded = self.get_top_buy_sell_commission()
 
-        # TODAY'S TARGET SECTION — ALWAYS SHOWS
-        if view_mode == "Today":
-            st.markdown("---")
-            st.subheader("🎯 Today's Target (220 Trading Days/Year)", anchor=False)
+        if self.role in ["MANAGEMENT", "ADMIN"]:
+            mode = st.radio("Mode", ["Top Performers", "Top Commission Providers", "Top Traded Stocks"], horizontal=True, index=0)
+        else:
+            mode = st.radio("Mode", ["Top Performers", "Top Traded Stocks"], horizontal=True, index=0)
 
-            # Check if we have turnover today
-            has_turnover_today = not rm_numeric.empty and (rm_numeric['Total Turnover'] > 0).any()
+        if mode=="Top Performers":
+            # Two-column layout for buyers & sellers
+            col1, col2 = st.columns(2)
 
-            if has_turnover_today:
-                # Merge actual performance
-                progress = rm_numeric[['BRO', 'Total Turnover', 'Total Target']].copy()
-                progress = progress.merge(target_df[['BRO', 'Daily Target']], on='BRO', how='left')
-                progress['Today %'] = ((progress['Total Turnover'] / progress['Daily Target']) * 100).round(2)
-                progress['Remaining'] = (progress['Daily Target'] - progress['Total Turnover']).clip(lower=0).round(2)
+            with col1:
+                st.subheader("📈 Top 10 Buyers")
+                df_buy.index = df_buy.index + 1
+                df_buy.rename(columns={"clientcode":"Client Code","clientname":"Client Name" ,"branch":"Branch" ,"total_buy":"Total Buy", "rmname":"BRO"}, inplace=True)
+                # st.dataframe(df_buy, use_container_width=True, column_order=["BRO", "Client Code", "Client Name", "Branch", "Total Buy"])
+                df_buy = df_buy[["BRO", "Client Code", "Client Name", "Branch", "Total Buy"]]
+                df_buy = coerce_numeric_columns(df_buy, ["Total Buy"])
 
-                full_df = pd.DataFrame({
-                    'BRO': progress['BRO'],
-                    'Daily Target': progress['Daily Target'].apply(lambda x: f"{x:,.2f}"),
-                    'Today Turnover': progress['Total Turnover'].apply(lambda x: f"{x:,.2f}"),
-                    'Achieved Today': progress['Today %'].astype(str) + '%',
-                    'Remaining': progress['Remaining'].apply(lambda x: f"{x:,.2f}")
-                })
-
-                st.success("Floorsheet uploaded — Here's today's performance:")
-                full_df.index = full_df.index + 1
-                st.dataframe(full_df, use_container_width=True)
-
-            else:
-                if self.role in ["MANAGER", "ADMIN"]:
-                    target_only = pd.DataFrame({
-                        "BRO": target_df['BRO'],
-                        "BRO's Target": target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
-                    })
-                else:
-                    target_only = pd.DataFrame({
-                        "BRO": target_df['BRO'],
-                        "Your Today's Target": target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
-                    })
-
-                # Show motivational message ONLY during trading hours (11 AM - 3 PM)
-                if self.is_trading_hours():
-                    if self.role == "BRO":
-                        st.success("🔴 Market is LIVE — Crush your daily target today!")
-                else:
-                    if self.role in ["MANAGER", "ADMIN"]:
-                        st.info("👇 Here is BRO's daily target for today:")
-                    else:
-                        st.info("👇 Here is your daily target for today:")
-                target_only.sort_values(by="BRO", inplace=True)
-                target_only = target_only.reset_index(drop=True)
-                target_only.index = target_only.index + 1
-                st.dataframe(target_only, use_container_width=True)
-                st.caption(f"*✍️ Performance will update automatically once the floorsheet upload completes ({config.FLOORSHEET_UPLOAD_TIIME}).*")
-
+                # fig = px.pie(
+                # df_buy,
+                # names="Client Name",
+                # values="Total Buy",
+                # title="Top 10 Buyers",
+                # hole=0.4  
+                # )
+                # fig.update_traces(textposition='outside', textinfo='percent+label')
+                # st.plotly_chart(fig, use_container_width=True,)
                 
+                st.dataframe(
+                    df_buy.style
+                    .format({col: accounting_format for col in ['Total Buy'] if col in df_buy.columns})
+                    .map(highlight_negative, subset=[c for c in ['Total Buy'] if c in df_buy.columns]),
+                    width='stretch',
+                    hide_index=True
+                )
+
+            with col2:
+                # st.markdown("### 📉 Top 10 Sellers")
+                st.subheader("📉 Top 10 Sellers")
+                df_sell.index = df_sell.index + 1
+                df_sell.rename(columns={"clientcode":"Client Code","clientname":"Client Name" ,"branch":"Branch" ,"total_sell":"Total Sell","rmname":"BRO"}, inplace=True)
+
+                df_sell = df_sell[["BRO", "Client Code", "Client Name", "Branch", "Total Sell"]]
+                df_sell = coerce_numeric_columns(df_sell, ["Total Sell"])
+
+
+                # fig = px.pie(
+                # df_sell,
+                # names="Client Name",
+                # values="Total Sell",
+                # title="Top 10 Sellers",
+                # hole=0.4  
+                # )
+                # fig.update_traces(textposition='outside', textinfo='percent+label')
+                # st.plotly_chart(fig, use_container_width=True,)
+
+
+                st.dataframe(
+                    df_sell.style
+                    .format({col: accounting_format for col in ['Total Sell'] if col in df_sell.columns})
+                    .map(highlight_negative, subset=[c for c in ['Total Sell'] if c in df_sell.columns]),
+                    width='stretch',
+                    hide_index=True
+                )
+        elif mode == "Top Commission Providers":
+            # Commission providers
+            st.markdown(f"### 💰 Total Commission Earned")
+            # st.markdown(f"### 💰 Total Commission earned on {self.yesterday_date}, {self.week_day}")
+            df_comm.index = df_comm.index + 1
+            df_comm.rename(columns={"clientcode":"Client Code","clientname":"Client Name" ,"branch":"Branch" , "total_commission":"Total Commission","rmname":"BRO"}, inplace=True)
+            total_comm = round(df_comm['Total Commission'].sum(), 2)
+            df_comm = df_comm[["BRO", "Client Code", "Client Name", "Branch", "Total Commission"]]
+            df_comm = coerce_numeric_columns(df_comm, ["Total Commission"])
+
+            # fig = px.pie(
+            #     df_comm,
+            #     names="Client Name",
+            #     values="Total Commission",
+            #     title="Commission Contribution Share",
+            #     hole=0.4  
+            # )
+            # fig.update_traces(textposition='outside', textinfo='percent+label')
+            # st.plotly_chart(fig, use_container_width=True,)
+
+            st.markdown("---")
+            st.badge(f"Total Commission: {total_comm:,.2f}", color='green')
+            st.dataframe(
+                df_comm.style
+                .format({col: accounting_format for col in ['Total Commission'] if col in df_comm.columns})
+                .map(highlight_negative, subset=[c for c in ['Total Commission'] if c in df_comm.columns]),
+                width='stretch'
+            )
+
+            
+
+        elif mode == "Top Traded Stocks":
+            st.markdown("### 📊 Top Traded Stocks")
+
+            # --- Split Buy/Sell ---
+            df_buy_traded = df_traded[df_traded["transaction_type"] == "Buy"].copy()
+            df_sell_traded = df_traded[df_traded["transaction_type"] == "Sell"].copy()
+
+            # --- Rename columns ---
+            rename_map = {
+                "symbol": "Symbol",
+                "transaction_type": "Type",
+                "branch": "Branch",
+                "clientcode": "Client Code",
+                "clientname": "Client Name",
+                "rmname": "BRO",
+                "total_quantity": "Total Quantity",
+                "total_amount": "Total Amount"
+            }
+
+            df_buy_traded.rename(columns=rename_map, inplace=True)
+            df_sell_traded.rename(columns=rename_map, inplace=True)
+
+            # --- Column order ---
+            cols = [
+                "BRO", "Branch", "Client Code", "Client Name",
+                "Symbol", "Type", "Total Quantity", "Total Amount"
+            ]
+
+            df_buy_traded = df_buy_traded[cols]
+            df_sell_traded = df_sell_traded[cols]
+
+            # --- Tabs for clean UI ---
+            tab1, tab2 = st.tabs(["🟥 Top 10 Traded — Buyers", "🟩 Top 10 Traded — Sellers"])
+
+            with tab1:
+                df_buy_traded.reset_index(inplace=True, drop=True)
+                df_buy_traded.index = df_buy_traded.index + 1
+
+                fig = px.pie(
+                df_buy_traded,
+                names="Symbol",
+                values="Total Quantity",
+                title="Top Buy",
+                hole=0.4  
+                )
+                fig.update_traces(textposition='outside', textinfo='percent+label')
+                st.plotly_chart(fig, use_container_width=True,)
+                st.badge(f"Top 10 total Buy Amount: {df_buy_traded['Total Amount'].sum():,.2f}", color="red")
+                
+                st.dataframe(
+                    df_buy_traded.style
+                    .format({col: accounting_format for col in ['Total Amount', 'Total Quantity'] if col in df_buy_traded.columns})
+                    .map(highlight_negative, subset=[c for c in ['Total Amount', 'Total Quantity'] if c in df_buy_traded.columns]),
+                    width='stretch',
+                    height=388,
+                )
+
+            with tab2:
+                df_sell_traded.reset_index(inplace=True, drop=True)
+                df_sell_traded.index = df_sell_traded.index + 1
+                fig = px.pie(
+                df_sell_traded,
+                names="Symbol",
+                values="Total Quantity",
+                title="Top Sell",
+                hole=0.4  
+                )
+                fig.update_traces(textposition='outside', textinfo='percent+label')
+                st.plotly_chart(fig, use_container_width=True,)
+                st.badge(f"Top 10 total Sell Amount: {df_sell_traded['Total Amount'].sum():,.2f}", color="green")
+                st.dataframe(
+                    df_sell_traded.style
+                    .format({col: accounting_format for col in ['Total Amount', 'Total Quantity'] if col in df_sell_traded.columns})
+                    .map(highlight_negative, subset=[c for c in ['Total Amount', 'Total Quantity'] if c in df_sell_traded.columns]),
+                    width='stretch',
+                    height=388,
+                )
+
+# ---------------------------------------------------------
+# ✅ Run App
+# ---------------------------------------------------------
 if __name__ == "__main__":
-    RMPerformance().show()
+    Dashboard().show()

@@ -57,7 +57,10 @@ class LoginPage:
 
         st.success("Login successful! 👍 Redirecting...")
         time.sleep(0.5)
-        st.switch_page(page_url.dashbord_url)
+        if st.session_state['role'] == "USER":
+            st.switch_page(page_url.book_closure_url)
+        else:
+            st.switch_page(page_url.dashbord_url)
 
     def handle_failed_login(self, username):
         remaining = update_login_status(username, success=False)

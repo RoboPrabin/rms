@@ -13,6 +13,11 @@ from utils.helper import show_message, show_message_box, get_holding_engine
 import pandas as pd
 import psycopg2
 from sqlalchemy import create_engine
+from datetime import datetime, time
+import sys
+from time import sleep
+
+
 
 def extract_rm_child_data():
     engine = None
@@ -195,10 +200,21 @@ def fetch_order_and_trade_book():
     )
     merged_df_with_rm = merged_df_with_rm.rename(columns={"rmName": "rmName", "clientbranch": "branch"})
     push_trade_book_to_db(merged_df_with_rm=merged_df_with_rm)
-   
+
+
+def is_within_time_range():
+    now = datetime.now().time()
+    start = time(11, 0)      # 11:00 AM
+    end = time(15, 5)        # 03:05 PM
+    return start <= now <= end
+ 
 
 if __name__ == "__main__":
     while True:
+        if not is_within_time_range():
+            print("Time exceeded 03:05 PM. Exiting...")
+            sys.exit(0)
+
         fetch_order_and_trade_book()
         show_message("Waiting for 60 sec", 'yellow')
         sleep(60)

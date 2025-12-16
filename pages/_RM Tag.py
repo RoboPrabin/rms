@@ -185,14 +185,18 @@ class RMTag:
     # Main UI
     # ---------------------------
     def render_ui(self):
-        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client"], horizontal=True, index=0)
+        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client", "Bulk Tag", "Bulk Transfer"], horizontal=True, index=0)
         with st.spinner("Loading data . . . ."):
             if mode == "Show RM Clients":
                 self.show_rm_clients()
             elif mode == "Tag RM":
                 self.tag_rm()
-            else:
+            elif mode == "Search Tagged Client":
                 self.search_tagged_client()
+            elif mode == "Bulk Tag":
+                st.info("Bulk tag page")
+            else:
+                st.info("Bulk transfer page.")
 
 
 if __name__ == "__main__":

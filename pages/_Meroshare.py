@@ -14,16 +14,12 @@ class Meroshare:
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
-
-
         helper.adjust_ui()
         render_sidebar()
         self.total_accounts = 0
         self.engine = sqlalchemy.create_engine(helper.get_holding_engine())
         if self.role in ["BRO", "ADMIN"]:
             st.title("📝 Add MeroShare Account", anchor=False)
-        # else:
-        #     st.title(f"👥 Total MeroShare Accounts : {self.total_accounts}", anchor=False)
 
 
     def show_input_fields(self):
@@ -86,7 +82,7 @@ class Meroshare:
 
     # @st.cache_data(helper.default_ttl())
     def load_data(self):
-        if self.role in ["MANAGER", "ADMIN"]:
+        if self.role in ["MANAGER", "ADMIN", "MANAGEMENT"]:
             df = pd.read_sql("SELECT * FROM meroshare_acc", self.engine)
         else:
             df = pd.read_sql(
@@ -106,20 +102,21 @@ class Meroshare:
             df.index = df.index + 1  
                 
             df.drop(columns=['id'], inplace=True)
-            column_order = ['clientName', 'category','dp', 'username', 'password','hasVerifiedCredentials', 'bro', 'password_expired', 'account_expired', 'demat_expired' ,'login_message']
+            column_order = ['bro','clientName', 'category','dp', 'username', 'password','hasVerifiedCredentials',  'password_expired', 'account_expired', 'demat_expired' ,'login_message']
             total_count = len(df)
             self.total_accounts = total_count 
             df = df[column_order]
             df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
             df.rename(columns={"Login_Message":"Login Message", "Password_Expired":"Password Expired", "Account_Expired":"Account Expired", "Demat_Expired":"Demat Expired"}, inplace=True)
             # df.rename(columns={""})
+            df.sort_values(by="Bro", inplace=True)
 
 
-            if self.role != "MANAGER":
-                st.markdown("<hr>", unsafe_allow_html=True)
+            if self.role != ["MANAGER", "MANAGEMENT"]:
+                # st.markdown("<hr>", unsafe_allow_html=True)
                 st.markdown(f"<h3>👥 Total MeroShare Accounts : {total_count}</h3>", unsafe_allow_html=True)
-            elif self.role == "MANAGER":
-                st.title(f"👥 Total MeroShare Accounts : {total_count}", anchor=False)
+            # elif self.role in ["MANAGER", "MANAGEMENT"]:
+            #     st.title(f"👥 Total MeroShare Accounts : {total_count}", anchor=False)
 
             # print(df.columns)
             if df.empty:
@@ -129,13 +126,13 @@ class Meroshare:
 
                 if search_query:
                     df = df[df.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
-                if self.role == "MANAGER":
+                if self.role in ["MANAGER", "MANAGEMENT"]:
                     df.drop(columns=['Password'], inplace=True)
                 
                 
                 st.dataframe(df, width='stretch')
 
-                if self.role != "MANAGER":
+                if self.role == ["BRO"]:
                     # 🔧 Add edit/delete controls per row
                     for i, row in df.iterrows():
                         with st.expander(f"🔧 Manage: {row['Client Name']}"):
@@ -192,7 +189,7 @@ class Meroshare:
             st.error(f"❌ Failed to load data: {e}")
 
     def render_meroshare_page(self):
-        if self.role == "MANAGER":
+        if self.role in ["MANAGER", "MANAGEMENT"]:
             self.load_and_display_data()
         else:
             self.show_input_fields()

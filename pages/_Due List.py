@@ -20,10 +20,9 @@ class DueList:
         self.intranet_engine = helper.get_holding_engine()
 
 
-    # @st.cache_data(ttl=6000)
+    @st.cache_data(ttl=120)
     def load_due_list_data_all(_self):
          # --- Load data ---
-    
         query = 'SELECT * FROM due_list'
         params = None
         df = pd.read_sql(query, _self.intranet_engine, params=params)
@@ -135,7 +134,7 @@ class DueList:
 
         # --- Display badges ---
         row_count = len(df_filtered)
-        due_balance_sum = df_filtered["dueBalance"].sum()
+        due_balance_sum = df_filtered["adjustedBalance"].sum()
 
         st.markdown(
             f"""
@@ -144,7 +143,7 @@ class DueList:
                     Total rows : {row_count}
                 </span>
                 <span style="background-color: rgba(255, 108, 108, 0.2); color: rgb(255, 108, 108); font-size: 0.875rem; padding:5px; border-radius:6px;">
-                    Total Due Balance : {due_balance_sum:,.2f}
+                    Total Adjusted Balance : {due_balance_sum:,.2f}
                 </span>
             </div>
             """,

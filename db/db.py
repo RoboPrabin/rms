@@ -1,23 +1,335 @@
-
-
 #db.py
+import uuid
 from psycopg2 import sql
 import psycopg2
 import psycopg2.extras
 import pandas as pd
 from utils import helper
 from psycopg2.extras import execute_batch
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def get_connection():
     return psycopg2.connect(
-        host="localhost",
+        host="172.17.26.6",
+        # host="localhost",
         dbname="client_holdings",
         user="postgres",
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
     )
+
+def get_due_list():
+    # today_date = datetime.now().strftime("%Y-%m-%d")
+    # print(today_date)
+    query = f"""
+        SELECT *
+        FROM due_list
+        WHERE uploaded_at LIKE CURRENT_DATE::text || ' % PM'
+
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]  # ✅ column names
+        cur.close()
+        conn.close()
+
+        return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
+
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+
+
+
+def insert_book_closure(script, start_date, end_date, t0, t1, t2, created_by,updated_by):
+    query = """
+        INSERT INTO book_closure (
+            id,
+            script,
+            start_date,
+            end_date,
+            t0,
+            t1,
+            t2,
+            created_by,
+            created_at,
+            updated_by
+        )
+        VALUES (
+            %s,  -- id
+            %s,  -- script
+            %s,  -- start_date
+            %s,  -- end_date
+            %s,  -- t0
+            %s,  -- t1
+            %s,  -- t2
+            %s,  -- created_by
+            NOW(),
+            %s
+        )
+    """
+
+    params = (
+        str(uuid.uuid4()),
+        script,
+        start_date,
+        end_date,
+        t0,
+        t1,
+        t2,
+        created_by,
+        updated_by
+    )
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, params)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print("DB Error:", e)
+        return False
+
+def update_book_closure(id, script, start_date, end_date, t0, t1, t2, updated_by):
+    query = """
+        UPDATE book_closure
+        SET 
+            script = %s,
+            start_date = %s,
+            end_date = %s,
+            t0 = %s,
+            t1 = %s,
+            t2 = %s,
+            updated_by = %s,
+            updated_at = NOW()
+        WHERE id = %s
+    """
+
+    params = (script, start_date, end_date, t0, t1, t2, updated_by, id)
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, params)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print("DB Error:", e)
+        return False
+
+def get_all_book_closure():
+    query = """
+        SELECT 
+            *
+        FROM book_closure
+        ORDER BY created_at DESC;
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]  # ✅ column names
+        cur.close()
+        conn.close()
+
+        return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
+
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+
+
+def get_all_holidays():
+    query = """
+        SELECT *
+        FROM holidays
+        ORDER BY holiday_date;
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]   # ✅ get column names
+
+        cur.close()
+        conn.close()
+
+        return pd.DataFrame(rows, columns=cols)        # ✅ return DataFrame with columns
+
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+
+def delete_book_closure(id):
+    query = "DELETE FROM book_closure WHERE id = %s"
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, (id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print("DB Error:", e)
+        return False   
+
+def holiday_exists(holiday_date):
+    query = """
+        SELECT 1
+        FROM holidays
+        WHERE holiday_date = %s
+        LIMIT 1;
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # ✅ Convert Python date → string (YYYY-MM-DD)
+        holiday_date_str = holiday_date.strftime("%Y-%m-%d")
+
+        cur.execute(query, (holiday_date_str,))
+        row = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return row is not None
+
+    except Exception as e:
+        print("DB Error:", e)
+        return False
+
+
+def insert_holiday(holiday_date, holiday_description, created_by):
+    query = """
+        INSERT INTO holidays (
+            id,
+            holiday_date,
+            holiday_description,
+            created_by,
+            created_at
+        )
+        VALUES (%s, %s, %s, %s, NOW())
+    """
+    holiday_date_str = holiday_date.strftime("%Y-%m-%d")
+    params = (
+        str(uuid.uuid4()),
+        holiday_date_str,
+        holiday_description,
+        created_by
+    )
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, params)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print("DB Error:", e)
+        return False
+
+
+def get_last_sunday():
+    today = datetime.today()
+    # Monday=0 ... Sunday=6
+    if today.weekday() == 6:  
+        # Today is Sunday → return today
+        return today.date()
+
+    # Otherwise compute last Sunday
+    days_since_sunday = (today.weekday() + 1) % 7
+    last_sunday = today - timedelta(days=days_since_sunday)
+    return last_sunday.date()
+
+
+def is_sunday_file_uploaded():
+    sunday_date = get_last_sunday()
+    query = """
+        SELECT 1
+        FROM dpm3
+        WHERE (uploaded_at::timestamp)::date = %s
+        LIMIT 1;
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, (sunday_date,))
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        return result is not None
+    except Exception as e:
+        print("DB Error:", e)
+        return False
+
+def get_holidays():
+    query = """
+        SELECT holiday_date 
+        FROM holidays
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()  
+        cur.close()
+        conn.close()
+
+        # Convert to Python date objects
+        holidays = {row[0] for row in rows}  
+        return holidays
+
+    except Exception as e:
+        print("DB Error:", e)
+        return set()
+
+def get_dpm3():
+    query = "SELECT * FROM dpm3;"   
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+
+        rows = cur.fetchall()
+        col_names = [desc[0] for desc in cur.description]
+
+        cur.close()
+        conn.close()
+
+        # Convert to DataFrame
+        df = pd.DataFrame(rows, columns=col_names)
+        return df
+
+    except Exception as e:
+        print("DB Error while fetching dpm3:", e)
+        return pd.DataFrame()   
+
+
+
+
 
 def get_user_roles():
     conn = get_connection()

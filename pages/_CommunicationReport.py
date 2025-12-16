@@ -149,9 +149,9 @@ class CommunicationReport:
 
                 col4, col5 = st.columns(2)
                 with col4:
-                    reason_to_visit = st.text_area("Reason to Visit", value=current[6])
+                    reason_to_visit = st.text_area("Reason to Visit", value=current[7])
                 with col5:
-                    feedback = st.text_area("Feedback", value=current[7])
+                    feedback = st.text_area("Feedback", value=current[8])
                 
                 status = st.selectbox(
                     "Status",

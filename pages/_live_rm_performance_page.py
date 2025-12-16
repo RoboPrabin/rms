@@ -313,7 +313,7 @@ class Uarf:
 
         if not has_time_up:
             refresh_counter = st_autorefresh(
-                interval=10 * 1000,
+                interval= self.update_time * 1000,
                 key="rm_refresh"
             )
             

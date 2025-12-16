@@ -29,6 +29,7 @@ class Uarf:
         self.holding_engine = helper.get_holding_engine()
 
         st.header("🪪 User Access Request Form", anchor=False)
+        st.info("Page is under construction.", icon="📢")
 
     def render_page(self):
         pass

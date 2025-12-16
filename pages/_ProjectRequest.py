@@ -11,7 +11,7 @@ import pandas as pd
 
 class ProjectRequest:
     def __init__(self):
-        st.set_page_config(page_title="Project Request", layout="wide", page_icon="📢")
+        st.set_page_config(page_title="Project Request", layout="wide", page_icon="🤝🏻")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
@@ -19,7 +19,7 @@ class ProjectRequest:
 
         render_sidebar()
         helper.adjust_ui()
-        st.title(f"📢 Project Request", anchor=False)
+        st.title(f"🤝🏻 Project Request", anchor=False)
         self.engine = create_engine(helper.get_holding_engine())
         self.user_roles = db.get_user_roles()
 
