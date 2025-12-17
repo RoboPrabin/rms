@@ -1,5 +1,4 @@
-
-
+from db import db
 from streamlit_autorefresh import st_autorefresh
 from datetime import datetime, time
 from nepali_datetime import date as nepali_date
@@ -77,7 +76,10 @@ class Uarf:
         
         
 
-       
+    def get_kyc_data(_self):
+        rows = db.get_kyc()
+        df = pd.DataFrame(rows, columns=['client_code', 'client_fullname', 'branch', 'boid'])
+        return df
 
     # @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
     def _load_trade_book(_self) -> pd.DataFrame:
@@ -180,6 +182,19 @@ class Uarf:
     def show_order_book(self):
         st.set_page_config(layout='wide')
         df:pd.DataFrame = self.load_order_book_data()
+        print(df)
+        df_kyc = self.get_kyc_data()
+        df = df.merge(
+            df_kyc[["client_code", "client_fullname", "branch"]],
+            how="left",
+            left_on="clientCode",
+            right_on="client_code"
+        )
+
+        df.drop(columns=["client_code"], inplace=True)
+        df.rename(columns={"client_fullname":"clientName"}, inplace=True)
+        df["branch"] = df["branch"].str.upper()
+        # df.drop(columns=['Client_Code'], inplace=True)
         # statuses = ["All"] + df["activeStatus"].dropna().unique().tolist()
         # Get unique statuses except "COMPLETED"
         statuses = [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
@@ -230,9 +245,9 @@ class Uarf:
 
         st.badge(f"Total Rows: {len(filtered_df)}", color="green" )
 
-
+        
         # Correct column order
-        column_order = ['bro', 'clientCode', 'symbol', 'buyOrSell', 'orderQuantity', 'orderPrice', 'amount']
+        column_order = ['bro', 'clientCode','clientName', 'branch' ,'symbol', 'buyOrSell', 'orderQuantity', 'orderPrice', 'amount']
         remaining_cols = [col for col in df.columns if col not in column_order]
         final_order = column_order + remaining_cols
         filtered_df = filtered_df[final_order]
@@ -264,7 +279,7 @@ class Uarf:
         )
 
         # Show styled dataframe
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(styled_df, width='stretch')
 
 
 

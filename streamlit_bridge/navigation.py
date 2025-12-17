@@ -119,7 +119,7 @@ def render_sidebar():
 
     if role == "ADMIN":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.automation_url, label="‎‎ ‎ Automations", icon="🤖")
+        st.sidebar.page_link(page_url.automation_url, label="‎‎ ‎ Automations", icon="⚡")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
         st.sidebar.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")

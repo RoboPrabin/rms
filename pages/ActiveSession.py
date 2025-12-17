@@ -37,14 +37,14 @@ class Feedback:
     def render_page(self):
         df = self.get_all_feedbacks()
         if df is not None:
-            df.drop(columns=["id", "user_agent"], inplace=True)
+            df.drop(columns=["user_agent"], inplace=True)
             total_active = df[df["session_status"] == "ACTIVE"].shape[0]
             df.columns = df.columns.str.upper()
             df.index = df.index + 1
             st.badge(f"Total Active: {total_active}" )
             st.dataframe(df)
             st.stop()
-        st.info(f"No any feedbacks yet.", icon="📢")
+        st.info(f"No Active Sessions.", icon="📢")
 
 
 

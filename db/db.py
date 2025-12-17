@@ -11,8 +11,8 @@ from datetime import datetime, timedelta
 
 def get_connection():
     return psycopg2.connect(
-        host="172.17.26.6",
-        # host="localhost",
+        # host="172.17.26.6",
+        host="localhost",
         dbname="client_holdings",
         user="postgres",
         password="admin",
@@ -854,7 +854,7 @@ def create_session(username: str) -> str:
     """
     session_id = None
     conn = get_connection()
-    now = datetime.now()
+    now = datetime.now().strftime("%Y-%m-%d %T:%H:%s %p")
     ip_address = helper.get_client_ip()
     user_agent = helper.get_user_agent()
     
@@ -902,7 +902,7 @@ def end_session(username: str):
     Mark all active sessions of the given username as logged out.
     """
     conn = get_connection()
-    now = datetime.now()
+    now = datetime.now().strftime("%Y-%m-%d %T:%H:%s %p")
     try:
         with conn:
             with conn.cursor() as cur:

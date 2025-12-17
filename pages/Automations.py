@@ -20,7 +20,7 @@ from db import db
 
 class Uarf:
     def __init__(self):
-        st.set_page_config("Automations", page_icon="🤖", layout='wide')
+        st.set_page_config("Automations", page_icon="⚡", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
@@ -35,8 +35,7 @@ class Uarf:
         # DB
         self.holding_engine = helper.get_holding_engine()
 
-        st.header("🤖 Automations", anchor=False)
-        st.info("Page is under construction.", icon="🤖")
+        st.header("⚡ Automations", anchor=False)
 
     # ✅ Strong password generator
     def generate_strong_password(self, length=12):
@@ -71,79 +70,69 @@ class Uarf:
     def get_all_users(self):
         rows = db.get_all_app_user()
         df = pd.DataFrame(rows, columns=["username", "role", "phone", "password", "email"])
-
-        df["selected"] = False
-
-        edited_df = st.data_editor(
+        df.columns = df.columns.str.upper()
+        selection = st.dataframe(
             df,
-            key="df_selector",
-            width="stretch",
-            column_config={
-                "selected": st.column_config.CheckboxColumn("Select")
-            }
+            key="user_table",
+            selection_mode="multi-row",
+            on_select="rerun"
         )
 
-        selected_df = edited_df[edited_df["selected"] == True]
+        selected_df = df.iloc[selection.selection.rows] if selection.selection.rows else pd.DataFrame()
 
-        col1, spcr, col2 = st.columns([1, 0.1, 5])
-
-        # ✅ Initialize sending state
+        # Initialize sending state
         if "sending" not in st.session_state:
             st.session_state.sending = False
         if "generating" not in st.session_state:
             st.session_state.generating = False
 
-        # ✅ SEND CREDENTIALS BUTTON
+        col1, spcr, col2 = st.columns([1,1,1], gap="small")
+
         with col1:
             if st.session_state.sending:
-                st.button("Sending…", icon="⏳", disabled=True)
+                st.button("Sending…", icon="⏳", disabled=True, use_container_width=True)
             else:
-                if st.button("Send credentials", icon="✈️"):
+                if st.button("Send credentials", icon="✈️", use_container_width=True):
                     st.session_state.sending = True
                     st.rerun()
 
-        # ✅ GENERATE STRONG PASSWORD BUTTON
         with col2:
             if st.session_state.generating:
-                st.button("Generating…", icon="♻️", disabled=True)
+                st.button("Generating…", icon="♻️", disabled=True, use_container_width=True)
             else:
-                if st.button("Generate strong password", icon="♻️"):
+                if st.button("Generate strong password", icon="♻️", use_container_width=True):
                     st.session_state.generating = True
-                    st.rerun()   # ✅ IMPORTANT: rerun immediately after clicking
-                    
+                    st.rerun()
 
-        # ✅ GENERATING PROCESS
+        # Generating process
         if st.session_state.generating:
-            # with st.spinner("Generating strong passwords…"):
             self.reset_all_passwords()
-            # sleep(1)
-
-            # st.success("Task completed ✅")
             st.session_state.generating = False
             sleep(1)
-            st.rerun()   # ✅ CRITICAL: reset UI back to normal
+            st.rerun()
 
-        # ✅ EMAIL SENDING PROCESS
+        # Email sending process
         if st.session_state.sending:
-            with st.spinner("Sending credentials… please wait"):
-                results = send_bulk_email(
-                    selected_df,
-                    subject="RMS Credentials",
-                    body="Your RMS login details:\n"
-                )
-
-            for email, ok in results:
-                if ok:
-                    st.success(f"Sent to {email}")
-                else:
-                    st.error(f"Failed to send to {email}")
-
+            if not selected_df.empty:
+                with st.spinner("Sending credentials… please wait"):
+                    results = send_bulk_email(
+                        selected_df,
+                        subject="RMS Credentials",
+                        body="Your RMS login details:\n"
+                    )
+                for email, ok in results:
+                    if ok:
+                        st.success(f"Sent to {email}")
+                    else:
+                        st.error(f"Failed to send to {email}")
             st.session_state.sending = False
             sleep(1)
             st.rerun()
 
     def render_page(self):
-        self.get_all_users()
+        mode = st.radio("Mode", ['App users', "Others", "Next"], horizontal=True)
+        if mode == "App users":
+            self.get_all_users()
 
 
 if __name__ == "__main__":
