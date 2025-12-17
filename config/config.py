@@ -27,8 +27,8 @@ FLOORSHEET_UPLOAD_TIIME = "03:14 PM"
 
 postgresql_config = {
     "db_user": "postgres",
-    "db_password" : "admin",
-    # "db_host" : "172.17.26.6" ,        
+    # "db_password" : "admin",
+    "db_host" : "172.17.26.6" ,        
     "db_host" : "localhost" ,        
     "db_port" : "5432",          
     "db_name" : "client_holdings"

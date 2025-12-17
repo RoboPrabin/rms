@@ -22,6 +22,26 @@ def restore_state_from_query_params():
         print("SID decryption failed:", e)
         st.session_state.authenticated = False
 
+
+def restore_state_from_query_params_test():
+    params = st.query_params
+    # helper.show_message("Restoring state from query params:" + str(params))
+    if "sid" not in params:
+        return
+
+    try:
+        payload = decrypt_data(params["sid"])
+
+        if payload.get("auth") is True:
+            st.session_state.authenticated = True
+            st.session_state.username = payload.get("user", "Guest")
+            st.session_state.role = payload.get("role", "User")
+
+    except Exception as e:
+        print("SID decryption failed:", e)
+        st.session_state.authenticated = False
+
+
 def check_authenticaiton_state():
     # Gate: only allow if authenticated
     if not st.session_state.get("authenticated", False):

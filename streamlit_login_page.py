@@ -39,7 +39,7 @@ class LoginPage:
     def handle_blocked_user(self):
         st.error("Your account is blocked after multiple failed login attempts! ❌")
 
-    def handle_successful_login(self, user, password):
+    def handle_successful_login(self, user):
         # reset failed_attempts on success
         update_login_status(user["username"], success=True)
 
@@ -50,12 +50,25 @@ class LoginPage:
         }
         encrypted = security.encrypt_data(payload)
 
+        # create_session(username=user["username"])
+        status, data = create_session(user['username'], sid=encrypted)
+        if status == "EXISTS":
+            st.warning("You are already logged in from another device.", icon="⚠️")
+            st.json({
+                # "session_id": data[0],
+                "login_time": str(data[1]),
+                "ip": data[3],
+                "user_agent": data[4]
+            })
+            st.stop()
+            return
+        
         st.session_state.authenticated = True
         st.session_state.username = payload["user"]
         st.session_state.role = payload["role"]
 
         st.query_params["sid"] = encrypted
-        create_session(username=user["username"])
+
 
         st.success("Login successful! 👍 Redirecting...")
         time.sleep(0.5)
@@ -102,7 +115,7 @@ class LoginPage:
             if user["status"] == "BLOCKED":
                 self.handle_blocked_user()
             elif password == user["password"]:
-                self.handle_successful_login(user, password)
+                self.handle_successful_login(user)
             else:
                 self.handle_failed_login(username)
 

@@ -29,24 +29,25 @@ class RMTag:
     # ---------------------------
     # Utility functions
     # ---------------------------
-    def get_rm_list(self, only_self=False):
-        engine = self.holding_engine  # use your cached SQLAlchemy engine
-        if only_self and self.role == "BRO":
-            rm_code = self.username.upper()
+    @st.cache_data(ttl=3600)
+    def get_rm_list(_self, only_self=False):
+        engine = _self.holding_engine  # use your cached SQLAlchemy engine
+        if only_self and _self.role == "BRO":
+            rm_code = _self.username.upper()
             query = 'SELECT id, "username", "full_name" FROM app_user WHERE "username" = %s'
             return pd.read_sql(query, engine, params=(rm_code,))
         else:
             query = 'SELECT id, "username", "full_name" FROM app_user'
             return pd.read_sql(query, engine)
 
-    @st.cache_data(ttl=6000)
+    @st.cache_data(ttl=3600)
     def get_client_list(_self):
         engine = _self.holding_engine
         query = 'SELECT id, clientfullname, clientmembercode FROM kyc'
         return pd.read_sql(query, engine)
     
 
-    @st.cache_data(ttl=6000)
+    @st.cache_data(ttl=3600)
     def get_rm_client_map(_self, rm_code):
         engine = create_engine(_self.holding_engine)
 
@@ -190,7 +191,7 @@ class RMTag:
     # Main UI
     # ---------------------------
     def render_ui(self):
-        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client", "Bulk Tag", "Bulk Transfer"], horizontal=True, index=3)
+        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client","Single Transfer" ,"Bulk Tag", "Bulk Transfer"], horizontal=True, index=0)
         with st.spinner("Loading data . . . ."):
             if mode == "Show RM Clients":
                 self.show_rm_clients()
@@ -200,9 +201,61 @@ class RMTag:
                 self.search_tagged_client()
             elif mode == "Bulk Tag":
                 self.show_bulk_tag_ui()
+            elif mode == "Single Transfer":
+                self.show_single_transfer_ui()
             else:
                 self.show_bulk_transfer_ui()
 
+    @st.cache_data(ttl=3600)
+    def get_all_kyc_info(_self):
+        rows = db.get_kyc()
+        return rows
+    
+# import streamlit as st
+# import pandas as pd
+# from datetime import datetime
+# import psycopg2
+
+
+    def show_single_transfer_ui(self):
+        rows = self.get_all_kyc_info()
+        df = pd.DataFrame(rows, columns=['clientCode', 'clientName', "branch", "boid"])
+        df.index = df.index + 1
+        df.sort_values(by='clientName', inplace=True)
+
+        def format_client(row):
+            return f"{row['clientCode']} - {row['clientName']}"
+
+        options = df.apply(format_client, axis=1).tolist()
+        selected_labels = st.multiselect("Choose clients", options)
+
+        if not selected_labels:
+            return
+
+        # ---------------- RM Selection ----------------
+        rm_df = self.get_rm_list(only_self=True)
+        rm_df.sort_values(by="username", inplace=True)
+        rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
+
+        selected_rm_display = st.selectbox("Select RM", rm_df["display"].tolist())
+
+        # ---------------- Transfer Action ----------------
+        if st.button("Transfer Now", icon="✈️"):
+            selected_codes = [label.split(" - ")[0] for label in selected_labels]
+            selected_rm = selected_rm_display.split(" - ")[0]
+            assigned_by = self.username  # logged-in user
+            assigned_at = datetime.now()
+
+            db.assign_clients_to_rm(
+                selected_codes=selected_codes,
+                rm_username=selected_rm,
+                assign_by=assigned_by,
+                assign_at=assigned_at
+            )
+
+            st.success("✅ Clients transferred successfully")
+
+                    
 
     def show_bulk_transfer_ui(self):
         rm_df = self.get_rm_list(only_self=True)

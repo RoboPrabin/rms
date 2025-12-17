@@ -11,13 +11,50 @@ from datetime import datetime, timedelta
 
 def get_connection():
     return psycopg2.connect(
-        # host="172.17.26.6",
-        host="localhost",
+        host="172.17.26.6",
+        # host="localhost",
         dbname="client_holdings",
         user="postgres",
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
     )
+
+
+def insert_book_closure_from_file(df: pd.DataFrame, username: str):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    inserted = 0
+    now = datetime.now()
+
+    for _, row in df.iterrows():
+        cur.execute("""
+            INSERT INTO book_closure (
+                id, script, start_date, end_date, t0, t1, t2,
+                created_by, created_at, updated_by, updated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            str(uuid.uuid4()),
+            row["script"],
+            row["start_date"],
+            row["end_date"],
+            row["t0"],
+            row["t1"],
+            row["t2"],
+            username,   # created_by
+            now,             # created_at
+            username,   # updated_by
+            now              # updated_at
+        ))
+
+        inserted += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return inserted
 
 
 def process_bulk_tag(df: pd.DataFrame, assign_by: str):
@@ -569,6 +606,49 @@ def save_feedback(bro: str, star: int, remarks: str = "") -> None:
         cur.close()
         conn.close()
 
+def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at):
+    """
+    selected_codes : list[str]
+    rm_username    : str
+    """
+
+    query = """
+        UPDATE client_rm_map ck
+        SET
+            "rmName" = %s,
+            "rmFullName" = au.full_name,
+            "assignBy" = %s,
+            "assignAt" = %s
+        FROM app_user au
+        WHERE
+            au.username = %s
+            AND ck."clientCode" = ANY(%s);
+    """
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                query,
+                (
+                    rm_username,   # rmName
+                    assign_by,     # assignBy
+                    assign_at,     # assignAt
+                    rm_username,   # join with app_user
+                    selected_codes # LIST → works with ANY()
+                )
+            )
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        conn.close()
+
+
 
 def change_password(username: str, current_password: str, new_password: str) -> bool:
     conn = get_connection()
@@ -847,53 +927,125 @@ def update_login_status(username: str, success: bool) -> int:
     return remaining
 
 
-def create_session(username: str) -> str:
+# def create_session(username: str) -> str:
+#     """
+#     Create a new user session or update an existing session for the given username.
+#     Returns the session UUID as a string.
+#     """
+#     session_id = None
+#     conn = get_connection()
+#     now = datetime.now()
+#     # now = datetime.now().strftime("%Y-%m-%d %T:%H:%s %p")
+#     ip_address = helper.get_client_ip()
+#     user_agent = helper.get_user_agent()
+    
+#     try:
+#         with conn:
+#             with conn.cursor() as cur:
+#                 # Check if a session exists for this username
+#                 cur.execute("""
+#                     SELECT id FROM user_session
+#                     WHERE UPPER(username) = %s
+#                     LIMIT 1
+#                 """, (username.upper(),))
+#                 row = cur.fetchone()
+                
+#                 if row:
+#                     # Update existing session
+#                     session_id = row[0]
+#                     cur.execute("""
+#                         UPDATE user_session
+#                         SET login_time = %s,
+#                             ip_address = %s,
+#                             user_agent = %s,
+#                             session_status = 'ACTIVE'
+#                         WHERE id = %s
+#                     """, (now, ip_address, user_agent, session_id))
+#                 else:
+#                     # Insert new session
+#                     cur.execute("""
+#                         INSERT INTO user_session (username, login_time, session_status, ip_address, user_agent)
+#                         VALUES (%s, %s, 'ACTIVE', %s, %s)
+#                         RETURNING id
+#                     """, (username.upper(), now, ip_address, user_agent))
+#                     row = cur.fetchone()
+#                     if row:
+#                         session_id = row[0]
+#     finally:
+#         conn.close()
+    
+#     return str(session_id)  # Return UUID as string
+
+
+def create_session(username: str, sid:str):
     """
-    Create a new user session or update an existing session for the given username.
-    Returns the session UUID as a string.
+    Create or update a user session.
+    Returns:
+        ("EXISTS", row)  -> active session already exists
+        ("UPDATED", session_id) -> username exists but was not active, so updated
+        ("NEW", session_id) -> username did not exist, so new row created
     """
-    session_id = None
     conn = get_connection()
-    now = datetime.now().strftime("%Y-%m-%d %T:%H:%s %p")
+    now = datetime.now()
     ip_address = helper.get_client_ip()
     user_agent = helper.get_user_agent()
-    
+
     try:
         with conn:
             with conn.cursor() as cur:
-                # Check if a session exists for this username
+
+                # 1️⃣ Check for ACTIVE session
                 cur.execute("""
-                    SELECT id FROM user_session
-                    WHERE LOWER(username) = %s
+                    SELECT id, login_time, session_status, ip_address, user_agent
+                    FROM user_session
+                    WHERE UPPER(username) = UPPER(%s)
+                    AND session_status = 'ACTIVE'
                     LIMIT 1
-                """, (username.upper(),))
-                row = cur.fetchone()
-                
-                if row:
-                    # Update existing session
-                    session_id = row[0]
+                """, (username,))
+                active_row = cur.fetchone()
+
+                if active_row:
+                    return ("EXISTS", active_row)
+
+                # 2️⃣ Check if username exists at all (inactive session)
+                cur.execute("""
+                    SELECT id
+                    FROM user_session
+                    WHERE UPPER(username) = UPPER(%s)
+                    LIMIT 1
+                """, (username,))
+                existing = cur.fetchone()
+
+                if existing:
+                    session_id = existing[0]
+
+                    # ✅ Update existing inactive session
                     cur.execute("""
                         UPDATE user_session
                         SET login_time = %s,
+                            session_status = 'ACTIVE',
                             ip_address = %s,
                             user_agent = %s,
-                            session_status = 'ACTIVE'
+                            session_id = %s
                         WHERE id = %s
-                    """, (now, ip_address, user_agent, session_id))
-                else:
-                    # Insert new session
-                    cur.execute("""
-                        INSERT INTO user_session (username, login_time, session_status, ip_address, user_agent)
-                        VALUES (%s, %s, 'ACTIVE', %s, %s)
                         RETURNING id
-                    """, (username.upper(), now, ip_address, user_agent))
-                    row = cur.fetchone()
-                    if row:
-                        session_id = row[0]
+                    """, (now, ip_address, user_agent,sid ,session_id))
+
+                    updated = cur.fetchone()
+                    return ("UPDATED", updated[0])
+
+                # 3️⃣ Username does NOT exist → create new row
+                cur.execute("""
+                    INSERT INTO user_session (username, login_time, session_status, ip_address, user_agent, session_id)
+                    VALUES (UPPER(%s), %s, 'ACTIVE', %s, %s, %s)
+                    RETURNING id
+                """, (username, now, ip_address, user_agent, sid))
+
+                new_row = cur.fetchone()
+                return ("NEW", new_row[0])
+
     finally:
         conn.close()
-    
-    return str(session_id)  # Return UUID as string
 
 
 
@@ -902,18 +1054,18 @@ def end_session(username: str):
     Mark all active sessions of the given username as logged out.
     """
     conn = get_connection()
-    now = datetime.now().strftime("%Y-%m-%d %T:%H:%s %p")
+    now = datetime.now()
     try:
         with conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     UPDATE user_session
                     SET logout_time = %s,
-                        session_status = 'LOGGED_OUT'
-                    WHERE LOWER(username) = %s
-                      AND session_status = 'ACTIVE'
+                        session_status = 'LOGGED_OUT',
+                        session_id = null
+                    WHERE UPPER(username) = UPPER(%s)
                     RETURNING id
-                """, (now, username.lower()))
+                """, (now, username))
                 cur.fetchall()
     finally:
         conn.close()

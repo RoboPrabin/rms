@@ -182,7 +182,6 @@ class Uarf:
     def show_order_book(self):
         st.set_page_config(layout='wide')
         df:pd.DataFrame = self.load_order_book_data()
-        print(df)
         df_kyc = self.get_kyc_data()
         df = df.merge(
             df_kyc[["client_code", "client_fullname", "branch"]],

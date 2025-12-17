@@ -1,3 +1,4 @@
+from io import BytesIO
 from config import config
 from db import db
 import streamlit_bridge.app_state as app_state
@@ -290,15 +291,115 @@ class BookClosure:
             else:
                 st.error("Incorrect password")
 
+    def show_upload_ui(self):
+        st.subheader("Upload Book Closure Script", anchor=False)
 
+        # -----------------------------------------
+        # Session state flags
+        # -----------------------------------------
+        if "book_upload_done" not in st.session_state:
+            st.session_state.book_upload_done = False
+
+        if "book_upload_count" not in st.session_state:
+            st.session_state.book_upload_count = 0
+
+        # -----------------------------------------
+        # After processing: show success and stop
+        # -----------------------------------------
+        if st.session_state.book_upload_done:
+            st.success(f"✅ Successfully inserted {st.session_state.book_upload_count} rows into book_closure.")
+
+            # Reset flags
+            st.session_state.book_upload_done = False
+            st.session_state.book_upload_count = 0
+
+            st.stop()
+
+        # -----------------------------------------
+        # Sample file download
+        # -----------------------------------------
+        st.markdown("Upload an Excel file using the exact sample format.")
+
+        sample_df = pd.DataFrame({
+            "script": ["SCRIPT-1", "SCRIPT-2"],
+            "start_date": ["2025-01-01", "2025-02-01"],
+            "end_date": ["2025-01-05", "2025-02-05"],
+            "t0": ["2025-01-06", "2025-02-06"],
+            "t1": ["2025-01-07", "2025-02-07"],
+            "t2": ["2025-01-08", "2025-02-08"]
+        })
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            sample_df.to_excel(writer, index=False, sheet_name="Sample")
+
+        st.download_button(
+            label="📥 Download Sample Excel",
+            data=buffer.getvalue(),
+            file_name="book_closure_sample.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # -----------------------------------------
+        # File uploader
+        # -----------------------------------------
+        uploaded_file = st.file_uploader(
+            "Upload your filled Excel file",
+            type=["xlsx"]
+        )
+
+        if uploaded_file is None:
+            return
+
+        # -----------------------------------------
+        # Read & validate file
+        # -----------------------------------------
+        df = pd.read_excel(uploaded_file)
+
+        expected_cols = ["script", "start_date", "end_date", "t0", "t1", "t2"]
+
+        if list(df.columns) != expected_cols:
+            st.error(f"Invalid columns. Expected: {expected_cols}, Got: {list(df.columns)}")
+            return
+
+        if df.isnull().any().any():
+            st.error("File contains empty values. Please fix and upload again.")
+            return
+
+        st.success("✅ File validated successfully")
+        st.badge(f"Total rows to insert: {len(df)}")
+
+        df.reset_index(inplace=True, drop=True)
+        df.index = df.index + 1
+        st.dataframe(df)
+
+        # -----------------------------------------
+        # Process button
+        # -----------------------------------------
+        if st.button("Insert Into Book Closure"):
+            with st.spinner("Processing..."):
+                inserted = db.insert_book_closure_from_file(df, username=self.username)
+
+            st.session_state.book_upload_done = True
+            st.session_state.book_upload_count = inserted
+
+            st.rerun()
+
+
+    
+    
     def render_page(self):
         if self.role in ["USER", "ADMIN"]:
-            mode = st.radio("mode", ['Add Book Closure', 'View/Edit Book Closure', 'Add/View Holidays'], horizontal=True, index=0)
+            mode = st.radio("Mode", ['Add Book Closure', 'View/Edit Book Closure', 'Add/View Holidays'], horizontal=True, index=0)
         else:
-            mode = st.radio("mode", ['View Book Closure'], horizontal=True, index=0)
-
+            mode = st.radio("Mode", ['View Book Closure'], horizontal=True, index=0)
+        st.markdown("---")
         if mode == "Add Book Closure":
-            self.show_entry_form()
+            mode2 = st.radio("Select Data Entry Mode", ["Upload File", "Manual Entry"], horizontal=True)
+            if mode2 == "Manual Entry":
+                self.show_entry_form()
+            else:
+                self.show_upload_ui()
         elif mode == 'View/Edit Book Closure' or mode == 'View Book Closure':
             self.show_all_book_closure()
         else:
