@@ -346,7 +346,6 @@ class Uarf:
         if refresh_counter > st.session_state.last_refresh_counter:
             time_now = datetime.now().strftime("%I:%M:%S %p")
             st.toast(f"Data just updated {time_now}", icon="🔔")
-            helper.show_message("RM Performance data just got refreshed")
 
         # Update tracker
         st.session_state.last_refresh_counter = refresh_counter

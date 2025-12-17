@@ -19,30 +19,108 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
-def get_due_list():
-    # today_date = datetime.now().strftime("%Y-%m-%d")
-    # print(today_date)
-    query = f"""
-        SELECT *
-        FROM due_list
-        WHERE uploaded_at LIKE CURRENT_DATE::text || ' % PM'
 
+def process_bulk_tag(df: pd.DataFrame, assign_by: str):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    inserted = 0
+
+    for _, row in df.iterrows():
+        client_code = row["clientCode"]
+        client_name = row["clientName"]
+        rm_name = row["rmName"]
+
+        # Fetch rmFullName from rm table
+        cur.execute(
+            'SELECT full_name FROM app_user WHERE username = %s',
+            (rm_name,)
+        )
+        result = cur.fetchone()
+        rm_full_name = result[0] if result else None
+
+        # UUID
+        row_id = str(uuid.uuid4())
+
+        # Timestamp
+        assign_at = datetime.now()  # Python datetime → PostgreSQL timestamp
+
+        # Insert
+        insert_query = """
+            INSERT INTO client_rm_map (
+                id, "clientCode", "clientName", "rmName", "rmFullName",
+                "assignBy", "assignAt"
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+
+        cur.execute(insert_query, (
+            row_id,
+            client_code,
+            client_name,
+            rm_name,
+            rm_full_name,
+            assign_by,
+            assign_at
+        ))
+
+        inserted += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return inserted
+
+def transfer_bulk_clients(from_rm: str, to_rm: str, to_rm_full_name: str):
+    query = """
+        UPDATE client_rm_map
+        SET "rmName" = %s,
+            "rmFullName" = %s
+        WHERE "rmName" = %s;
     """
 
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(query)
-        rows = cur.fetchall()
-        cols = [desc[0] for desc in cur.description]  # ✅ column names
+        cur.execute(query, (to_rm, to_rm_full_name, from_rm))
+        affected = cur.rowcount   # number of updated rows
+        conn.commit()
+
         cur.close()
         conn.close()
 
-        return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
+        return affected  # return count instead of DataFrame
+
+    except Exception as e:
+        print("DB Error:", e)
+        return 0
+
+
+def get_due_list(selected_date):
+    query = """
+        SELECT *
+        FROM due_list
+        WHERE to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::date = %s
+          AND to_char(to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM'), 'AM') = 'PM';
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, (selected_date,))   # ✅ pass date here
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]
+        cur.close()
+        conn.close()
+
+        return pd.DataFrame(rows, columns=cols)
 
     except Exception as e:
         print("DB Error:", e)
         return pd.DataFrame()
+    
+
 
 
 
@@ -383,6 +461,15 @@ def get_user_by_username(username):
     cur = conn.cursor()
     cur.execute("SELECT username, role, password, status, citizenship, phone, email FROM app_user WHERE username = %s", (username.upper(),))
     row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+def get_all_app_user():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT username, role, phone, password, email FROM app_user")
+    row = cur.fetchall()
     cur.close()
     conn.close()
     return row

@@ -59,7 +59,7 @@ class BusinessRatio:
         return df2
 
     def render_page(self):
-        col1, col2, col3, col4, col5 = st.columns([1.6, 1, 1, 1, 1])
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
 
         with col1:
             selected_date = st.date_input(
@@ -92,13 +92,15 @@ class BusinessRatio:
                 icon="⏳",
                 use_container_width=True
             )
+
+            
         df = self.get_floorsheet_by_date(selected_date)
         if df.empty:
             st.warning(f"No Floorsheet data found for {selected_date}. Please upload the floorsheet first or change the date", icon="⚠️")
             st.stop()
             
         display_df = self.compute_branch_summary(df)
-        evening_duelist = db.get_due_list()
+        evening_duelist = db.get_due_list(selected_date=selected_date)
         if len(evening_duelist) == 0:
             st.error(f"Evening Due list not found. Please contact your admin.", icon="🚨")
             st.stop()

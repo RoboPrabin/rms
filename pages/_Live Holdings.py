@@ -237,7 +237,6 @@ class Dashboard:
 
         # Auto-refresh loop
         while True:
-            helper.show_message("Data just got refreshed ...", "yellow")
             _self.show_holdings()
             _self.show_download_button()
             _self.show_search_box()

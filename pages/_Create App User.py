@@ -132,7 +132,7 @@ class CreateAppUser:
 
         selected_user = str(selected_user).split("-")[0].strip()
 
-        action = st.radio("Action", ["Update", "Delete"])
+        action = st.radio("Action", ["Update", "Delete"], horizontal=True)
 
 
         if action == "Update":
@@ -143,6 +143,7 @@ class CreateAppUser:
             new_role = st.selectbox("Role", self.user_roles)
             
             new_password = st.text_input("Password", type="password", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Password"].values[0])
+            failed_attempts = st.number_input("Failed Attempts", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Failed Attempts"].values[0])
             df_users = self.app_user
             options = (df_users["username"] + " - " + df_users["full_name"]).tolist()
             onboarded_by = st.selectbox("Onboarded By", options)
@@ -155,7 +156,7 @@ class CreateAppUser:
                             text("""
                                 UPDATE app_user
                                 SET email = :email, role = :role, password = :password, full_name = :full_name,
-                                    phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, status = :status
+                                    phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, status = :status, failed_attempts = :failed_attempst
                                 WHERE username = :username
                             """),
                             {
@@ -167,7 +168,8 @@ class CreateAppUser:
                                 "phone": phone,
                                 "citizenship": citizenship,
                                 "onboarded_by": onboarded_by.split("-", 1)[0].strip().upper(),
-                                "status": status
+                                "status": status,
+                                "failed_attempst":failed_attempts
                             }
                         )
                     st.success(f"User '{selected_user}' updated successfully.")
