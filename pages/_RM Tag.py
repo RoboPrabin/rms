@@ -211,49 +211,46 @@ class RMTag:
         rows = db.get_kyc()
         return rows
     
-# import streamlit as st
-# import pandas as pd
-# from datetime import datetime
-# import psycopg2
-
 
     def show_single_transfer_ui(self):
-        rows = self.get_all_kyc_info()
-        df = pd.DataFrame(rows, columns=['clientCode', 'clientName', "branch", "boid"])
-        df.index = df.index + 1
-        df.sort_values(by='clientName', inplace=True)
+        if 'client_options' not in st.session_state:
+            rows = self.get_all_kyc_info()
+            df = pd.DataFrame(rows, columns=['clientCode', 'clientName', "branch", "boid"])
+            df.sort_values(by='clientName', inplace=True)
+            
+            def format_client(row):
+                return f"{row['clientCode']} - {row['clientName']}"
+            
+            st.session_state.client_options = df.apply(format_client, axis=1).tolist()
 
-        def format_client(row):
-            return f"{row['clientCode']} - {row['clientName']}"
-
-        options = df.apply(format_client, axis=1).tolist()
-        selected_labels = st.multiselect("Choose clients", options)
+        options = st.session_state.client_options
+        selected_labels = st.multiselect("Choose clients", options, key="client_multiselect")
 
         if not selected_labels:
             return
 
-        # ---------------- RM Selection ----------------
-        rm_df = self.get_rm_list(only_self=True)
-        rm_df.sort_values(by="username", inplace=True)
-        rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
+        with st.form("transfer_form"):
+            rm_df = self.get_rm_list(only_self=True)
+            rm_df.sort_values(by="username", inplace=True)
+            rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
 
-        selected_rm_display = st.selectbox("Select RM", rm_df["display"].tolist())
+            selected_rm_display = st.selectbox("Select RM", rm_df["display"].tolist())
 
-        # ---------------- Transfer Action ----------------
-        if st.button("Transfer Now", icon="✈️"):
-            selected_codes = [label.split(" - ")[0] for label in selected_labels]
-            selected_rm = selected_rm_display.split(" - ")[0]
-            assigned_by = self.username  # logged-in user
-            assigned_at = datetime.now()
+            submitted = st.form_submit_button("Transfer Now", icon="✈️")
+            if submitted:
+                selected_codes = [label.split(" - ")[0] for label in selected_labels]
+                selected_rm = selected_rm_display.split(" - ")[0]
+                assigned_by = self.username
+                assigned_at = datetime.now()
 
-            db.assign_clients_to_rm(
-                selected_codes=selected_codes,
-                rm_username=selected_rm,
-                assign_by=assigned_by,
-                assign_at=assigned_at
-            )
-
-            st.success("✅ Clients transferred successfully")
+                db.assign_clients_to_rm(
+                    selected_codes=selected_codes,
+                    rm_username=selected_rm,
+                    assign_by=assigned_by,
+                    assign_at=assigned_at
+                )
+                st.success("✅ Clients transferred successfully")
+                # Optional: del st.session_state.client_options to refresh list next time
 
                     
 
