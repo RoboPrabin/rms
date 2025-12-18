@@ -322,6 +322,7 @@ class Dashboard:
                     width='stretch',
                     hide_index=True
                 )
+        
         elif mode == "Commission Gained":
             # Commission providers
             st.markdown(f"### 💰 Total Commission Earned")
@@ -350,8 +351,6 @@ class Dashboard:
                 .map(highlight_negative, subset=[c for c in ['Total Commission'] if c in df_comm.columns]),
                 width='stretch'
             )
-
-            
 
         elif mode == "Top Traded Stocks":
             st.markdown("### 📊 Top Traded Stocks")

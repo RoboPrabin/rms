@@ -30,11 +30,11 @@ class RMTag:
     # Utility functions
     # ---------------------------
     @st.cache_data(ttl=3600)
-    def get_rm_list(_self, only_self=False):
+    def get_rm_list(_self, username: str ,only_self=False):
         engine = _self.holding_engine  
         if only_self and _self.role == "BRO":
             # rm_code = _self.username.upper()
-            alias = helper.get_alias_name(_self.username)
+            alias = helper.get_alias_name(username)
             query = 'SELECT id, alias, "full_name" FROM app_user WHERE alias = %s'
             return pd.read_sql(query, engine, params=(alias,))
         else:
@@ -49,7 +49,7 @@ class RMTag:
     
 
     @st.cache_data(ttl=3600)
-    def get_rm_client_map(_self, rm_code):
+    def get_rm_client_map(_self, rm_code,  username: str):
         engine = create_engine(_self.holding_engine)
 
         query = """
@@ -63,7 +63,7 @@ class RMTag:
     # Mode handlers
     # ---------------------------
     def show_rm_clients(self):
-        rm_df = self.get_rm_list(only_self=True)
+        rm_df = self.get_rm_list(only_self=True, username = self.username)
         rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
         rm_df.sort_values(by="alias", inplace=True)
 
@@ -73,19 +73,8 @@ class RMTag:
 
         rm_code = rm_df.loc[rm_df["display"] == selected_rm, "alias"].values[0].strip()
         
-        client_df = self.get_rm_client_map(rm_code=rm_code)
+        client_df = self.get_rm_client_map(rm_code=rm_code, username = self.username)
         
-
-
-
-        # query = """
-        #     SELECT "clientName", "clientCode", "assignBy", "assignAt"
-        #     FROM client_rm_map
-        #     WHERE "rmName" = %s
-        # """
-        # client_df = pd.read_sql(query, self.conn, params=[rm_code])
-
-
         client_df.index = client_df.index + 1
 
         if len(client_df) >= 1:
@@ -111,7 +100,7 @@ class RMTag:
         client_df["display"] = client_df["clientmembercode"] + " - " + client_df["clientfullname"]
 
         selected_client = st.selectbox("Select Client", client_df["display"].tolist())
-        rm_df = self.get_rm_list(only_self=True)
+        rm_df = self.get_rm_list(only_self=True, username = self.username)
         rm_df.sort_values(by="alias", inplace=True)
         rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
 
@@ -238,7 +227,7 @@ class RMTag:
 
         # with st.form("transfer_form"):
         with col2:
-            rm_df = self.get_rm_list(only_self=True)
+            rm_df = self.get_rm_list(only_self=True, username = self.username)
             rm_df.sort_values(by="alias", inplace=True)
             rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
 
@@ -310,7 +299,7 @@ class RMTag:
                     
 
     def show_bulk_transfer_ui(self):
-        rm_df = self.get_rm_list(only_self=True)
+        rm_df = self.get_rm_list(only_self=True, username = self.username)
         rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
         rm_df.sort_values(by="alias", inplace=True)
 
