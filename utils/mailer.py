@@ -3,14 +3,70 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
+from email.message import EmailMessage
+from typing import Optional
+
+
+sender_email: str = "prabin.chand@trishakti.com.np"
+sender_password: str = "papk nqvm bksx roqu"
+display_name: str = "RMS - Trishakti"
+subject: str = "RMS - Credentials 🔐"
+
+def send_email(
+    to_email: str,
+    username:str,
+    password:str,
+    url:str = "https://holdings.trishakti.com.np:9999",
+    sender_email: str = sender_email,
+    sender_password: str = sender_password,
+    display_name: str = display_name,
+) -> None:
+    """
+    Send an email using Gmail SMTP.
+    """
+
+    msg = EmailMessage()
+    msg["From"] = f"{display_name} <{sender_email}>"
+    msg["To"] = to_email
+    msg["Subject"] = "RMS Account Created."
+
+    # if html:
+    #     msg.add_alternative(body, subtype="html")
+    # else:
+    msg.set_content(f"""
+    Hello,
+
+    Your account has been created successfully.
+
+    Username: {username.lower()}
+    Password: {password}
+    URL: {url}
+
+    Please change your password after first login.
+
+    Regards,
+    RMS Team
+    Trishakti Securities Limited
+    Kathamndu, Nepal
+    """)
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to send email: {e}")
+
+
 
 def send_bulk_email(
     selected_df,
     body,
-    subject="RMS - Credentials 🔐",
-    sender_email="prabin.trishakti@gmail.com",
-    sender_password="xfvf xpzp cvnt bnlv",
-    display_name="RMS"
+    subject=subject,
+    sender_email=sender_email,
+    sender_password=sender_password,
+    display_name=display_name
 ):
     results = []
 
@@ -58,3 +114,4 @@ def send_bulk_email(
             results.append((row["email"], False))
 
     return results
+

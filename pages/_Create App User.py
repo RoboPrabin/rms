@@ -1,3 +1,4 @@
+from utils import mailer
 from datetime import datetime
 from time import sleep
 from db import db
@@ -28,18 +29,32 @@ class CreateAppUser:
         self.user_roles = db.get_user_roles()
 
     def show_creation_form(self):
-        with st.form("create_user_form"):
-            username = st.text_input("User code").upper()
-            full_name = st.text_input("Full name").title()
+        with st.form("create_user_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                username = st.text_input("User code").upper()
+            with col2:
+                full_name = st.text_input("Full name").title()
             # full_name = st.text_input("Full name").title()
-            password = st.text_input("Password", type="password", help="Password field is case sensitive.")
-            phone = st.text_input("Phone")
-            email = st.text_input("Email")
-            citizenship = st.text_input("Citizenship No (Optional)")
-            df_users = self.app_user
-            options = (df_users["username"] + " - " + df_users["full_name"]).tolist()
-            onboarded_by = st.selectbox("Onboarded By", options)
 
+            col3, col4 = st.columns(2)
+            with col3:
+                password = st.text_input("Password", type="password", help="Password field is case sensitive.", value=helper.generate_secure_password(), disabled=True)
+            with col4:
+                phone = st.text_input("Phone", value="9999999999")
+            
+            col5, col6 = st.columns(2)
+            with col5:
+                email = st.text_input("Email")
+            with col6:
+                citizenship = st.text_input("Citizenship No (Optional)", value="99-99-99-99-99")
+
+            df_users = self.app_user
+            options = (df_users["alias"] + " - " + df_users["full_name"]).tolist()
+            col7, col8 = st.columns(2)
+            with col7:
+                onboarded_by = st.selectbox("Onboarded By", options)
+            
             if self.role == "ADMIN":
                 roles = self.user_roles 
                 role = st.selectbox("Role", roles)
@@ -47,7 +62,10 @@ class CreateAppUser:
                 roles = self.user_roles
                 roles = [r for r in roles if r not in ("ADMIN", "SYSTEM")]
                 role = st.selectbox("Role", roles)
-            submitted = st.form_submit_button("Create User")
+            with col8:
+                alias = st.selectbox("Alias", options)
+            
+            submitted = st.form_submit_button("Create App User", icon="➕")
 
             if submitted:
                 if not username or not password or not phone or not email or not full_name or not onboarded_by:
@@ -66,8 +84,8 @@ class CreateAppUser:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status)
-                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status)
+                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias)
+                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias)
                                 """),
                                 {
                                     "id": user_id,
@@ -79,12 +97,22 @@ class CreateAppUser:
                                     "role": role,
                                     "phone": phone,
                                     "onboarded_by": onboarded_by.split("-")[0].strip().upper(),
+                                    "alias":alias.split("-")[0].strip().upper(),
                                     "created_at": datetime.now(),
                                     "created_by": self.username.upper(),
                                     "status": "ACTIVE",
                                 }
                             )
                         st.success(f"User '{username}' created successfully.")
+                        with st.spinner("Sending Email. Please wait....", show_time=True):
+                            mailer.send_email(
+                                            to_email=email,
+                                            username=username,
+                                            password=password
+                                            )
+                        st.success("Email sent succcessfully", icon="✅")
+                        sleep(1.5)
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Error creating user: {e}")
 
@@ -145,9 +173,10 @@ class CreateAppUser:
             new_password = st.text_input("Password", type="password", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Password"].values[0])
             failed_attempts = st.number_input("Failed Attempts", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Failed Attempts"].values[0])
             df_users = self.app_user
-            options = (df_users["username"] + " - " + df_users["full_name"]).tolist()
+            options = (df_users["alias"] + " - " + df_users["full_name"]).tolist()
             onboarded_by = st.selectbox("Onboarded By", options)
             status = st.selectbox("status", ["ACTIVE", "BLOCKED"])
+            alias = st.selectbox("Alias", options)
 
             if st.button("Update User"):
                 try:
@@ -156,7 +185,8 @@ class CreateAppUser:
                             text("""
                                 UPDATE app_user
                                 SET email = :email, role = :role, password = :password, full_name = :full_name,
-                                    phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, status = :status, failed_attempts = :failed_attempst
+                                    phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, 
+                                 status = :status, failed_attempts = :failed_attempst, alias = :alias
                                 WHERE username = :username
                             """),
                             {
@@ -168,6 +198,7 @@ class CreateAppUser:
                                 "phone": phone,
                                 "citizenship": citizenship,
                                 "onboarded_by": onboarded_by.split("-", 1)[0].strip().upper(),
+                                "alias":alias.split("-", 1)[0].strip().upper(),
                                 "status": status,
                                 "failed_attempst":failed_attempts
                             }
@@ -187,15 +218,16 @@ class CreateAppUser:
                             {"username": selected_user}
                         )
                     st.success(f"User '{selected_user}' deleted successfully.")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Error deleting user: {e}")
 
     def get_all_app_users(self):
         df_users = pd.read_sql(
-            'SELECT username, full_name FROM app_user ORDER BY username;',
+            'SELECT alias, full_name FROM app_user ORDER BY alias;',
             con=self.engine
         )
-        system_row = pd.DataFrame([{"username": "SYSTEM", "full_name": "App System"}])
+        system_row = pd.DataFrame([{"alias": "SYSTEM", "full_name": "App System"}])
         df_users = pd.concat([system_row, df_users], ignore_index=True)
         return df_users
     

@@ -11,8 +11,8 @@ from datetime import datetime, timedelta
 
 def get_connection():
     return psycopg2.connect(
-        host="172.17.26.6",
-        # host="localhost",
+        # host="172.17.26.6",
+        host="localhost",
         dbname="client_holdings",
         user="postgres",
         password="admin",
@@ -70,7 +70,7 @@ def process_bulk_tag(df: pd.DataFrame, assign_by: str):
 
         # Fetch rmFullName from rm table
         cur.execute(
-            'SELECT full_name FROM app_user WHERE username = %s',
+            'SELECT full_name FROM app_user WHERE alias = %s',
             (rm_name,)
         )
         result = cur.fetchone()

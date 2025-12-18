@@ -1,62 +1,117 @@
-import uuid
-from utils.helper import get_holding_engine
 import pandas as pd
-from sqlalchemy import create_engine
-
-engine = create_engine(get_holding_engine())
-
-# 1. Load Excel
-df = pd.read_excel(
-    r"C:\Users\Prabin\Downloads\onenepalstock.xlsx"
-)
-
-# Normalize column names
-df["id"] = [str(uuid.uuid4()) for _ in range(len(df))]
-order = ['id', 'holiday_date', 'holiday_description']
-df = df[order]
-# 6. Insert into DB
-df.to_sql(
-    "holidays",
-    engine,
-    if_exists="append",
-    index=False
-)
-
-print("Inserted rows:", len(df))
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
+from email.message import EmailMessage
+from typing import Optional
 
 
+sender_email: str = "prabin.chand@trishakti.com.np"
+sender_password: str = "papk nqvm bksx roqu"
+display_name: str = "RMS - Trishakti"
+subject: str = "RMS - Credentials 🔐"
+
+def send_email(
+    to_email: str,
+    username:str,
+    password:str,
+    url:str = "https://holdings.trishakti.com.np:9999",
+    sender_email: str = sender_email,
+    sender_password: str = sender_password,
+    display_name: str = display_name,
+) -> None:
+    """
+    Send an email using Gmail SMTP.
+    """
+
+    msg = EmailMessage()
+    msg["From"] = f"{display_name} <{sender_email}>"
+    msg["To"] = to_email
+    msg["Subject"] = "RMS Account Created."
+
+    msg.set_content(f"""
+    Hello,
+
+    Your account has been created successfully.
+
+    Username: {username.lower()}
+    Password: {password}
+    URL: {url}
+
+    Please change your password after first login.
+
+    Regards,
+    RMS Team
+    Trishakti Securities Limited
+    Kathamndu, Nepal
+    """)
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to send email: {e}")
 
 
 
-# import pandas as pd
-# from sqlalchemy import create_engine
-# from utils.helper import get_holding_engine
+def send_bulk_email(
+    selected_df,
+    body,
+    subject=subject,
+    sender_email=sender_email,
+    sender_password=sender_password,
+    display_name=display_name
+):
+    results = []
 
-# engine = create_engine(get_holding_engine())
+    try:
+        # ✅ Connect once
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
 
-# # 1. Load Excel
-# df = pd.read_excel(
-#     r"C:\Users\Prabin\Downloads\BN 48 client_report - Copy.xlsx"
-# )
+        # ✅ Send all emails using the same connection
+        for _, row in selected_df.iterrows():
+            to_email = row["email"]
+                # ✅ Skip if email is None, empty, or NaN
+            if not to_email or pd.isna(to_email):
+                print("Skipped empty email")
+                continue
 
-# # Normalize Excel column names
-# df.columns = df.columns.str.strip().str.upper()
 
-# excel_codes = df["CLIENT_MEMBER_CODE"].astype(str).str.strip()
+            msg = MIMEMultipart()
+            msg["From"] = formataddr((display_name, sender_email))
+            msg["To"] = to_email
+            msg["Subject"] = subject
+            msg.attach(
+                    MIMEText(
+                        body
+                        + "\n\nUSERNAME: " + str(row["username"])
+                        + "\nPASSWORD: " + str(row["password"])
+                        + "\nURL: " + str("https://holdings.trishakti.com.np:9999/"),
+                        "plain"
+                    )
+                )
 
-# # 2. Load only required columns from DB
-# query = """
-# SELECT clientmembercode
-# FROM kyc
-# """
-# db_df = pd.read_sql(query, engine)
+            try:
+                server.sendmail(sender_email, to_email, msg.as_string())
+                results.append((to_email, True))
+            except Exception:
+                results.append((to_email, False))
 
-# db_codes = db_df["clientmembercode"].astype(str).str.strip()
+        # ✅ Close once
+        server.quit()
 
-# # 3. Find which codes are NOT in DB table
-# missing_codes = excel_codes[~excel_codes.isin(db_codes)]
+    except Exception:
+        # If connection fails, mark all as failed
+        for _, row in selected_df.iterrows():
+            results.append((row["email"], False))
 
-# print("CLIENT_MEMBER_CODE not found in table:")
-# print(missing_codes.unique())
-# total_missing = missing_codes.shape[0]
-# print("Total missing (including duplicates):", total_missing)
+    return results
+
+
+
+send_email(to_email="prabin.trishakti@gmail.com", username="prabin", password="prabin")

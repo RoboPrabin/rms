@@ -34,10 +34,10 @@ class RMTag:
         engine = _self.holding_engine  # use your cached SQLAlchemy engine
         if only_self and _self.role == "BRO":
             rm_code = _self.username.upper()
-            query = 'SELECT id, "username", "full_name" FROM app_user WHERE "username" = %s'
+            query = 'SELECT id, alias, "full_name" FROM app_user WHERE alias = %s'
             return pd.read_sql(query, engine, params=(rm_code,))
         else:
-            query = 'SELECT id, "username", "full_name" FROM app_user'
+            query = 'SELECT id, alias, "full_name" FROM app_user'
             return pd.read_sql(query, engine)
 
     @st.cache_data(ttl=3600)
@@ -63,14 +63,14 @@ class RMTag:
     # ---------------------------
     def show_rm_clients(self):
         rm_df = self.get_rm_list(only_self=True)
-        rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
-        rm_df.sort_values(by="username", inplace=True)
+        rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
+        rm_df.sort_values(by="alias", inplace=True)
 
         selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
         if not selected_rm:
             return
 
-        rm_code = rm_df.loc[rm_df["display"] == selected_rm, "username"].values[0].strip()
+        rm_code = rm_df.loc[rm_df["display"] == selected_rm, "alias"].values[0].strip()
         
         client_df = self.get_rm_client_map(rm_code=rm_code)
         
@@ -111,8 +111,8 @@ class RMTag:
 
         selected_client = st.selectbox("Select Client", client_df["display"].tolist())
         rm_df = self.get_rm_list(only_self=True)
-        rm_df.sort_values(by="username", inplace=True)
-        rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
+        rm_df.sort_values(by="alias", inplace=True)
+        rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
 
         selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
 
@@ -122,7 +122,7 @@ class RMTag:
 
             rm_row = rm_df.loc[rm_df["display"] == selected_rm].iloc[0]
             rm_id = rm_row["id"]
-            rm_brocode = rm_row["username"]
+            rm_brocode = rm_row["alias"]
             rm_fullname = rm_row["full_name"]
 
             # Check if client already tagged
@@ -224,20 +224,27 @@ class RMTag:
             st.session_state.client_options = df.apply(format_client, axis=1).tolist()
 
         options = st.session_state.client_options
-        selected_labels = st.multiselect("Choose clients", options, key="client_multiselect")
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_labels = st.multiselect("Choose clients", options, key="client_multiselect")
 
-        if not selected_labels:
-            return
+            # if not selected_labels:
+            #     return
 
-        with st.form("transfer_form"):
+        # with st.form("transfer_form"):
+        with col2:
             rm_df = self.get_rm_list(only_self=True)
-            rm_df.sort_values(by="username", inplace=True)
-            rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
+            rm_df.sort_values(by="alias", inplace=True)
+            rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
 
             selected_rm_display = st.selectbox("Select RM", rm_df["display"].tolist())
 
-            submitted = st.form_submit_button("Transfer Now", icon="✈️")
+            # submitted = st.form_submit_button("Transfer Now", icon="✈️")
+            submitted = st.button("Transfer Now", icon="✈️")
             if submitted:
+                if not selected_labels:
+                    st.warning(f"Please select client to transfer.", icon="⚠️")
+                    st.stop()
                 selected_codes = [label.split(" - ")[0] for label in selected_labels]
                 selected_rm = selected_rm_display.split(" - ")[0]
                 assigned_by = self.username
@@ -251,13 +258,56 @@ class RMTag:
                 )
                 st.success("✅ Clients transferred successfully")
                 # Optional: del st.session_state.client_options to refresh list next time
+    
+    
+    
+    
+    # def show_single_transfer_ui(self):
+    #     if 'client_options' not in st.session_state:
+    #         rows = self.get_all_kyc_info()
+    #         df = pd.DataFrame(rows, columns=['clientCode', 'clientName', "branch", "boid"])
+    #         df.sort_values(by='clientName', inplace=True)
+            
+    #         def format_client(row):
+    #             return f"{row['clientCode']} - {row['clientName']}"
+            
+    #         st.session_state.client_options = df.apply(format_client, axis=1).tolist()
+
+    #     options = st.session_state.client_options
+    #     selected_labels = st.multiselect("Choose clients", options, key="client_multiselect")
+
+    #     if not selected_labels:
+    #         return
+
+    #     with st.form("transfer_form"):
+    #         rm_df = self.get_rm_list(only_self=True)
+    #         rm_df.sort_values(by="username", inplace=True)
+    #         rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
+
+    #         selected_rm_display = st.selectbox("Select RM", rm_df["display"].tolist())
+
+    #         submitted = st.form_submit_button("Transfer Now", icon="✈️")
+    #         if submitted:
+    #             selected_codes = [label.split(" - ")[0] for label in selected_labels]
+    #             selected_rm = selected_rm_display.split(" - ")[0]
+    #             assigned_by = self.username
+    #             assigned_at = datetime.now()
+
+    #             db.assign_clients_to_rm(
+    #                 selected_codes=selected_codes,
+    #                 rm_username=selected_rm,
+    #                 assign_by=assigned_by,
+    #                 assign_at=assigned_at
+    #             )
+    #             st.success("✅ Clients transferred successfully")
+    #             # Optional: del st.session_state.client_options to refresh list next time
 
                     
 
     def show_bulk_transfer_ui(self):
         rm_df = self.get_rm_list(only_self=True)
-        rm_df["display"] = rm_df["username"] + " - " + rm_df["full_name"]
-        rm_df.sort_values(by="username", inplace=True)
+        rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
+        rm_df.sort_values(by="alias", inplace=True)
 
         col1, col2, col3= st.columns(3)
         with col1:
@@ -272,8 +322,8 @@ class RMTag:
             st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
             transfer_button = st.button("Transfer All Clients", icon="➡️")
 
-        from_rm_code = rm_df.loc[rm_df["display"] == from_selected_rm, "username"].values[0].strip()
-        to_rm_code = rm_df.loc[rm_df["display"] == to_selected_rm, "username"].values[0].strip()
+        from_rm_code = rm_df.loc[rm_df["display"] == from_selected_rm, "alias"].values[0].strip()
+        to_rm_code = rm_df.loc[rm_df["display"] == to_selected_rm, "alias"].values[0].strip()
         to_rm_full_name = rm_df.loc[rm_df["display"] == to_selected_rm, "full_name"].values[0].strip()
         if transfer_button:
             if from_rm_code.strip() == to_rm_code.strip():

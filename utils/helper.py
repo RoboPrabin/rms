@@ -17,6 +17,10 @@ import requests
 from streamlit_javascript import st_javascript
 from datetime import datetime, timedelta
 from config.config import due_list_flag_path
+import secrets
+import string
+from typing import Final
+
 
 # def get_user_agent() -> str:
 #     js = """
@@ -55,6 +59,43 @@ def get_platform_options():
         "GitLab": "https://gitlab.com",
         "Custom": ""   
     }
+
+
+
+
+def generate_secure_password(length: int = 12) -> str:
+    """
+    Generate a cryptographically secure random password
+    with uppercase, lowercase, digits, and symbols.
+    """
+
+    if length < 8:
+        raise ValueError("Password length must be at least 8 characters")
+
+    UPPER: Final = string.ascii_uppercase
+    LOWER: Final = string.ascii_lowercase
+    DIGITS: Final = string.digits
+    SYMBOLS: Final = "!@#$%?"
+
+    ALL_CHARS: Final = UPPER + DIGITS + SYMBOLS
+
+    # Ensure at least one character from each category
+    password_chars = [
+        secrets.choice(UPPER),
+        secrets.choice(DIGITS),
+        secrets.choice(SYMBOLS),
+    ]
+
+    # Fill the remaining length
+    for _ in range(length - len(password_chars)):
+        password_chars.append(secrets.choice(ALL_CHARS))
+
+    # Shuffle to avoid predictable placement
+    secrets.SystemRandom().shuffle(password_chars)
+
+    return "".join(password_chars)
+
+
 
 
 
