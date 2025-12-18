@@ -18,7 +18,7 @@ class Feedback:
         render_sidebar()
         self.holding_engine = create_engine(helper.get_holding_engine())
 
-    def get_all_feedbacks(self):
+    def get_all_active_sessions(self):
         query = text("""
             SELECT *
             FROM user_session
@@ -34,13 +34,22 @@ class Feedback:
         df = pd.DataFrame(rows, columns=result.keys())
         return df
 
+    def truncate_query(self):
+        with self.holding_engine.begin() as conn:
+            conn.execute(text("TRUNCATE TABLE user_session"))
+
+
     def render_page(self):
-        df = self.get_all_feedbacks()
+        df = self.get_all_active_sessions()
         if df is not None:
             df.drop(columns=["user_agent"], inplace=True)
             total_active = df[df["session_status"] == "ACTIVE"].shape[0]
             df.columns = df.columns.str.upper()
             df.index = df.index + 1
+            if st.button("Truncate session", icon="🚮"):
+                self.truncate_query()
+                st.success("All session removed.")
+                st.rerun()
             st.badge(f"Total Active: {total_active}" )
             st.dataframe(df)
             st.stop()

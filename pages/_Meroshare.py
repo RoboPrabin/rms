@@ -23,60 +23,75 @@ class Meroshare:
 
 
     def show_input_fields(self):
-        # Input fields
-        client_name = st.text_input("Client Name", help="Username cannot be change, once added.").title()
-        dp = st.text_input("DP")
-        username = st.text_input("Username").upper()
-        password = st.text_input("Password", type="password")
-        has_verified = st.selectbox("Has Verified Credentials", options=["-select-","Yes", "No"])
-        category = st.text_input("Cateogry", value="CRED", disabled=True)
+
+        with st.form("submit_meroshare", clear_on_submit=True):
+            # Input fields
+            col1, col2 = st.columns(2)
+            with col1:
+                client_name = st.text_input("Client Name").title()
+            with col2:
+                dp = st.text_input("DP")
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                username = st.text_input("Username", help="Username cannot be change, once added.").upper()
+            with col4:
+                password = st.text_input("Password", type="password")
 
 
-        # Submit button
-        if st.button("Submit"):
-            if not client_name or not dp or not username or not password:
-                st.warning("Please fill in all fields.")
-            elif has_verified == "-select-":
-                st.warning("Please select a valid option for 'Has Verified Credentials'.")
-            elif not dp.isdigit():
-                st.warning("DP should be a valid integer.")
-            else:
-                verified_bool = has_verified == "Yes"
-                dp_int = int(dp)
+            col5, col6 = st.columns(2)
+            with col5:
+                has_verified = st.selectbox("Has Verified Credentials", options=["-select-","Yes", "No"])
+            with col6:
+                category = st.text_input("Cateogry", value="CRED", disabled=True)
 
-                try:
-                    engine = sqlalchemy.create_engine(helper.get_holding_engine())
-                    with engine.begin() as conn:
-                        result = conn.execute(
-                            sqlalchemy.text("SELECT 1 FROM meroshare_acc WHERE username = :username"),
-                            {"username": username}
-                        ).fetchone()
+            submitted = st.form_submit_button("Submit")
 
-                        if result:
-                            st.warning("Username already exists. Please use a different one.")
-                        else:
-                            # ✅ Insert new record
-                            conn.execute(
-                                sqlalchemy.text("""
-                                    INSERT INTO meroshare_acc (id,"clientName", category ,dp, username, password, "hasVerifiedCredentials", bro)
-                                    VALUES (gen_random_uuid(), :cname , :category ,:dp,:username, :password, :verified, :bro)
-                                """),
-                                {
-                                    "dp": dp_int,
-                                    "cname":client_name,
-                                    "category": category,
-                                    "username": username,
-                                    "password": password,
-                                    "verified": verified_bool,
-                                    "bro": self.username.upper()
-                                }
-                            )
-                            st.success("✅ MeroShare account info added successfully!")
-                            # sleep(1)
-                            # st.rerun()
+            # Submit button
+            if submitted:
+                if not client_name or not dp or not username or not password:
+                    st.warning("Please fill in all fields.")
+                elif has_verified == "-select-":
+                    st.warning("Please select a valid option for 'Has Verified Credentials'.")
+                elif not dp.isdigit():
+                    st.warning("DP should be a valid integer.")
+                else:
+                    verified_bool = has_verified == "Yes"
+                    dp_int = int(dp)
 
-                except Exception as e:
-                    st.error(f"❌ Failed to insert data: {e}")
+                    try:
+                        engine = sqlalchemy.create_engine(helper.get_holding_engine())
+                        with engine.begin() as conn:
+                            result = conn.execute(
+                                sqlalchemy.text("SELECT 1 FROM meroshare_acc WHERE username = :username"),
+                                {"username": username}
+                            ).fetchone()
+
+                            if result:
+                                st.warning("Username already exists. Please use a different one.")
+                            else:
+                                # ✅ Insert new record
+                                conn.execute(
+                                    sqlalchemy.text("""
+                                        INSERT INTO meroshare_acc (id,"clientName", category ,dp, username, password, "hasVerifiedCredentials", bro)
+                                        VALUES (gen_random_uuid(), :cname , :category ,:dp,:username, :password, :verified, :bro)
+                                    """),
+                                    {
+                                        "dp": dp_int,
+                                        "cname":client_name,
+                                        "category": category,
+                                        "username": username,
+                                        "password": password,
+                                        "verified": verified_bool,
+                                        "bro": self.username.upper()
+                                    }
+                                )
+                                st.success("✅ MeroShare account info added successfully!")
+                                sleep(1)
+                                st.rerun()
+
+                    except Exception as e:
+                        st.error(f"❌ Failed to insert data: {e}")
 
 
 

@@ -105,7 +105,7 @@ class BookClosure:
             st.info("No book closure records found.")
         else:
             st.dataframe(df, use_container_width=True)
-            if self.role == "USER":
+            if self.role in ["USER", "ADMIN"]:
                 self.show_edit_function()
 
     def show_edit_function(self):

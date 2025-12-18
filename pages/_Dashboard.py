@@ -33,6 +33,7 @@ class Dashboard:
         if self.has_today_floorsheet_data():
             yesterday = datetime.now() - timedelta(days=0)
         else:
+            st.info(f"Todays's floorsheet not uploaded yet. Showing yesterday data.", icon="ℹ️")
             yesterday = datetime.now() - timedelta(days=1)
 
 
@@ -251,7 +252,7 @@ class Dashboard:
     # ✅ UI Rendering
     # ---------------------------------------------------------
     def show(self):
-        st.title("🏠 Dashboard", anchor=False)
+        st.title("📊 Business Insights", anchor=False)
         st.subheader(f"Traders Summary : {self.yesterday_date} ({self.week_day})", anchor=False)
         if self.role == "BRO":
             df_buy, df_sell, df_comm, df_traded = self.get_top_buy_sell_commission_of_loggedin_user(username=self.username)
@@ -259,7 +260,7 @@ class Dashboard:
             df_buy, df_sell, df_comm, df_traded = self.get_top_buy_sell_commission()
 
         if self.role in ["MANAGEMENT", "ADMIN"]:
-            mode = st.radio("Mode", ["Top Performers", "Top Commission Providers", "Top Traded Stocks"], horizontal=True, index=0)
+            mode = st.radio("Mode", ["Top Performers",  "Top Traded Stocks",  "Commission Gained",], horizontal=True, index=0)
         else:
             mode = st.radio("Mode", ["Top Performers", "Top Traded Stocks"], horizontal=True, index=0)
 
@@ -321,7 +322,7 @@ class Dashboard:
                     width='stretch',
                     hide_index=True
                 )
-        elif mode == "Top Commission Providers":
+        elif mode == "Commission Gained":
             # Commission providers
             st.markdown(f"### 💰 Total Commission Earned")
             # st.markdown(f"### 💰 Total Commission earned on {self.yesterday_date}, {self.week_day}")
