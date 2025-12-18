@@ -1,3 +1,4 @@
+import numpy as np
 from utils.formatting import *
 from db import db
 
@@ -128,14 +129,16 @@ class BusinessRatio:
             final_df["tradeVolume"] = final_df["total"] * trade_day
             final_df["opportunityCost"] = final_df["total"] * rate
             final_df['expectedVolume'] = final_df["volumeRequired"] / trade_day
-            final_df['expectationmet'] = (final_df['expectedVolume'] > final_df['tradeVolume']).map({True: "YES", False: "NO"})
+            final_df['expectationmet'] = (final_df['total'] > final_df['expectedVolume']).map({True: "YES", False: "NO"})
+            final_df['Sortage/Exceed By'] = final_df['expectedVolume'] - final_df["total"]
         else:
             final_df["volumeRequired"] = final_df["todayAdjustBalanceDueAmount"] * 100
             final_df["tradeVolume"] = final_df["total"] * 220
             final_df["opportunityCost"] = final_df["total"] * 40
             final_df['expectedVolume'] = final_df["volumeRequired"] / 220
-            final_df['expectationmet'] = (final_df['expectedVolume'] > final_df['tradeVolume']).map({True: "YES", False: "NO"})
-    
+            final_df['expectationmet'] = (final_df['total'] > final_df['expectedVolume']).map({True: "YES", False: "NO"})
+            final_df['Sortage/Exceed By'] = final_df["total"] - final_df['expectedVolume']
+
   
   
         # final_df['volumeCheck'] = (final_df['todayAdjustBalanceDueAmount'] * 100) / 220
@@ -145,9 +148,9 @@ class BusinessRatio:
        
         # st.badge(f"total bnp adjust balance : {total_adjusted_balance_bnp}")
         # st.badge(f"Total Adjusted Balance: {total_adjusted_balance_bnp}")
-        column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "expectationmet"  ,"volumeRequired", "tradeVolume", "opportunityCost"]
+        column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "expectationmet"  ,"volumeRequired", "tradeVolume", "opportunityCost", "Sortage/Exceed By"]
         final_df = final_df[column_order]
-        numeric_cols = ["purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume"]  # add more if needed
+        numeric_cols = ["purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "Sortage/Exceed By"]  # add more if needed
         # numeric_cols = ["purchase_turnover", "sales_turnover", "total", "volumeRequired", "tradeVolume", "opportunityCost" ,"todayAdjustBalanceDueAmount", "expectedVolume"]  # add more if needed
         final_df.drop(columns=["volumeRequired", "tradeVolume", "opportunityCost"], inplace= True)
         # Ensure numeric columns are clean
