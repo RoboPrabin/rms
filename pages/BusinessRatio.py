@@ -127,10 +127,14 @@ class BusinessRatio:
             final_df["volumeRequired"] = final_df["todayAdjustBalanceDueAmount"] * times
             final_df["tradeVolume"] = final_df["total"] * trade_day
             final_df["opportunityCost"] = final_df["total"] * rate
+            final_df['expectedVolume'] = final_df["volumeRequired"] / trade_day
+            final_df['expectationmet'] = (final_df['expectedVolume'] > final_df['tradeVolume']).map({True: "YES", False: "NO"})
         else:
             final_df["volumeRequired"] = final_df["todayAdjustBalanceDueAmount"] * 100
             final_df["tradeVolume"] = final_df["total"] * 220
             final_df["opportunityCost"] = final_df["total"] * 40
+            final_df['expectedVolume'] = final_df["volumeRequired"] / 220
+            final_df['expectationmet'] = (final_df['expectedVolume'] > final_df['tradeVolume']).map({True: "YES", False: "NO"})
     
   
   
@@ -141,8 +145,11 @@ class BusinessRatio:
        
         # st.badge(f"total bnp adjust balance : {total_adjusted_balance_bnp}")
         # st.badge(f"Total Adjusted Balance: {total_adjusted_balance_bnp}")
-        numeric_cols = ["purchase_turnover", "sales_turnover", "total", "volumeRequired", "tradeVolume", "opportunityCost" ,"todayAdjustBalanceDueAmount"]  # add more if needed
-        
+        column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "expectationmet"  ,"volumeRequired", "tradeVolume", "opportunityCost"]
+        final_df = final_df[column_order]
+        numeric_cols = ["purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume"]  # add more if needed
+        # numeric_cols = ["purchase_turnover", "sales_turnover", "total", "volumeRequired", "tradeVolume", "opportunityCost" ,"todayAdjustBalanceDueAmount", "expectedVolume"]  # add more if needed
+        final_df.drop(columns=["volumeRequired", "tradeVolume", "opportunityCost"], inplace= True)
         # Ensure numeric columns are clean
         final_df = coerce_numeric_columns(final_df, numeric_cols)
         
@@ -159,10 +166,12 @@ class BusinessRatio:
             "purchase_turnover": "Purchase Turnover",
             "sales_turnover": "Sales Turnover",
             "total": "Total",
-            "volumeRequired": "Volume Required",
+            "volumeRequired": "Volume Required (Yearly)",
             "tradeVolume": "Trade Volume",
             "opportunityCost": "Opportunity Cost",
             "todayAdjustBalanceDueAmount": "Today Adjust Balance Due Amount",
+            "expectedVolume": "Expected Volume (Daily)",
+            "expectationmet": "Expectation Met"
         }
 
         final_df.rename(columns=rename_map, inplace=True)
@@ -178,6 +187,8 @@ class BusinessRatio:
         # After concatenating totals
         final_df.index = final_df.index.astype(str)
         final_df.index = final_df.index[:-1].tolist() + [""]
+
+
         def highlight_total_row(row):
             if row["Branch"] == "TOTAL":
                 return ["font-weight: bold;"] * len(row)
