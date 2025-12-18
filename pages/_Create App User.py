@@ -146,12 +146,19 @@ class CreateAppUser:
 
 
     def show_update_delete_function(self):
-        st.markdown("---")
-        st.subheader("✏️ Update or ❌ Delete User", anchor=False)
         # selected_user = st.selectbox("Select a user to modify",self.df_users["Username"].tolist())
         # Build a display column
+
+
         self.df_users["display"] = self.df_users["Username"] + " - " + self.df_users["Full Name"]
 
+        if len(self.df_users["display"]) == 0:
+            st.warning("Search result not found.", icon="⚠️")
+            st.stop()
+       
+       
+        st.markdown("---")
+        st.subheader("✏️ Update or ❌ Delete User", anchor=False)
         # Use that for the selectbox
         selected_user = st.selectbox(
             "Select a user to modify",
@@ -161,7 +168,7 @@ class CreateAppUser:
         selected_user = str(selected_user).split("-")[0].strip()
 
         action = st.radio("Action", ["Update", "Delete"], horizontal=True)
-
+        
 
         if action == "Update":
             full_name = st.text_input("Full Name", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Full Name"].values[0])
