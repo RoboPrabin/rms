@@ -21,7 +21,7 @@ class DueList:
 
 
     @st.cache_data(ttl=120)
-    def load_due_list_data_all(_self):
+    def load_due_list_data_all(_self, username):
          # --- Load data ---
         query = 'SELECT * FROM due_list'
         params = None
@@ -33,8 +33,9 @@ class DueList:
     def load_due_list_data_bro(_self):
          # --- Load data ---
         if _self.role == "BRO":
+            alias = helper.get_alias_name(_self.username.upper())
             query = 'SELECT * FROM due_list WHERE "rmName" = %s'
-            params = (_self.username.upper(),)
+            params = (alias,)
         df = pd.read_sql(query, _self.intranet_engine, params=params)
         return df
 
@@ -45,7 +46,7 @@ class DueList:
         if _self.role == "BRO":
             df: pd.DataFrame = _self.load_due_list_data_bro()
         else:
-            df: pd.DataFrame = _self.load_due_list_data_all()
+            df: pd.DataFrame = _self.load_due_list_data_all(username = _self.username)
 
         # --- Layout for filters at top ---
         col1, col2, col3, col4 = st.columns(4)

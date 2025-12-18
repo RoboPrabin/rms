@@ -31,11 +31,12 @@ class RMTag:
     # ---------------------------
     @st.cache_data(ttl=3600)
     def get_rm_list(_self, only_self=False):
-        engine = _self.holding_engine  # use your cached SQLAlchemy engine
+        engine = _self.holding_engine  
         if only_self and _self.role == "BRO":
-            rm_code = _self.username.upper()
+            # rm_code = _self.username.upper()
+            alias = helper.get_alias_name(_self.username)
             query = 'SELECT id, alias, "full_name" FROM app_user WHERE alias = %s'
-            return pd.read_sql(query, engine, params=(rm_code,))
+            return pd.read_sql(query, engine, params=(alias,))
         else:
             query = 'SELECT id, alias, "full_name" FROM app_user'
             return pd.read_sql(query, engine)
@@ -191,7 +192,11 @@ class RMTag:
     # Main UI
     # ---------------------------
     def render_ui(self):
-        mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client","Single Transfer" ,"Bulk Tag", "Bulk Transfer"], horizontal=True, index=0)
+        if self.role == "BRO":
+            mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client"], horizontal=True, index=0)
+        else:
+            mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client","Single Transfer" ,"Bulk Tag", "Bulk Transfer"], horizontal=True, index=0)
+
         with st.spinner("Loading data . . . ."):
             if mode == "Show RM Clients":
                 self.show_rm_clients()
