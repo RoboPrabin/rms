@@ -50,7 +50,7 @@ class CreateAppUser:
                 citizenship = st.text_input("Citizenship No (Optional)", value="99-99-99-99-99")
 
             df_users = self.app_user
-            options = (df_users["alias"] + " - " + df_users["full_name"]).tolist()
+            options = (df_users["username"] + " - " + df_users["full_name"]).tolist()
             col7, col8 = st.columns(2)
             with col7:
                 onboarded_by = st.selectbox("Onboarded By", options)
@@ -146,10 +146,6 @@ class CreateAppUser:
 
 
     def show_update_delete_function(self):
-        # selected_user = st.selectbox("Select a user to modify",self.df_users["Username"].tolist())
-        # Build a display column
-
-
         self.df_users["display"] = self.df_users["Username"] + " - " + self.df_users["Full Name"]
 
         if len(self.df_users["display"]) == 0:
@@ -157,8 +153,7 @@ class CreateAppUser:
             st.stop()
        
        
-        st.markdown("---")
-        st.subheader("✏️ Update or ❌ Delete User", anchor=False)
+        # st.subheader("✏️ Update or ❌ Delete User", anchor=False)
         # Use that for the selectbox
         selected_user = st.selectbox(
             "Select a user to modify",
@@ -171,50 +166,131 @@ class CreateAppUser:
         
 
         if action == "Update":
-            full_name = st.text_input("Full Name", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Full Name"].values[0])
-            phone = st.text_input("Phone", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Phone"].values[0])
-            citizenship = st.text_input("Citizenship", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Citizenship"].values[0])
-            new_email = st.text_input("Email", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Email"].values[0])
-            new_role = st.selectbox("Role", self.user_roles)
-            
-            new_password = st.text_input("Password", type="password", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Password"].values[0])
-            failed_attempts = st.number_input("Failed Attempts", value=self.df_users.loc[self.df_users["Username"] == selected_user, "Failed Attempts"].values[0])
-            df_users = self.app_user
-            options = (df_users["alias"] + " - " + df_users["full_name"]).tolist()
-            onboarded_by = st.selectbox("Onboarded By", options)
-            status = st.selectbox("status", ["ACTIVE", "BLOCKED"])
-            alias = st.selectbox("Alias", options)
+            # --- Master users list ---
+            df_users = self.app_user.copy()
+            df_users["display"] = df_users["username"] + " - " + df_users["full_name"]
+            options = df_users["display"].tolist()
 
-            if st.button("Update User"):
-                try:
-                    with self.engine.begin() as conn:
-                       conn.execute(
-                            text("""
-                                UPDATE app_user
-                                SET email = :email, role = :role, password = :password, full_name = :full_name,
-                                    phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, 
-                                 status = :status, failed_attempts = :failed_attempst, alias = :alias
-                                WHERE username = :username
-                            """),
-                            {
-                                "email": new_email.lower(),
-                                "role": new_role,
-                                "password": new_password,
-                                "username": selected_user,
-                                "full_name": full_name,
-                                "phone": phone,
-                                "citizenship": citizenship,
-                                "onboarded_by": onboarded_by.split("-", 1)[0].strip().upper(),
-                                "alias":alias.split("-", 1)[0].strip().upper(),
-                                "status": status,
-                                "failed_attempst":failed_attempts
-                            }
-                        )
-                    st.success(f"User '{selected_user}' updated successfully.")
-                    sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error updating user: {e}")
+            # --- DB values for current user ---
+            db_alias = self.df_users.loc[
+                self.df_users["Username"] == selected_user, "Alias"
+            ].values[0]
+
+            db_onboarded_by = self.df_users.loc[
+                self.df_users["Username"] == selected_user, "Onboarded By"
+            ].values[0]
+
+            db_status = self.df_users.loc[
+                self.df_users["Username"] == selected_user, "Status"
+            ].values[0]
+
+            # --- Resolve DB → display for users ---
+            alias_display = df_users.loc[df_users["username"] == db_alias, "display"].values[0]
+            onboarded_by_display = df_users.loc[df_users["username"] == db_onboarded_by, "display"].values[0]
+
+            # --- Resolve display → index (Streamlit requirement) ---
+            alias_index = options.index(alias_display)
+            onboarded_by_index = options.index(onboarded_by_display)
+
+            # --- Status options ---
+            status_options = ["ACTIVE", "BLOCKED"]
+            status_index = status_options.index(db_status) if db_status in status_options else 0
+
+            with st.form("update_form"):
+                # --- UI Columns ---
+                col1, col2 = st.columns(2)
+                with col1:
+                    full_name = st.text_input(
+                        "Full Name",
+                        value=self.df_users.loc[self.df_users["Username"] == selected_user, "Full Name"].values[0]
+                    )
+                with col2:
+                    citizenship = st.text_input(
+                        "Citizenship",
+                        value=self.df_users.loc[self.df_users["Username"] == selected_user, "Citizenship"].values[0]
+                    )
+
+                col3, col4 = st.columns(2)
+                with col3:
+                    phone = st.text_input(
+                        "Phone",
+                        value=self.df_users.loc[self.df_users["Username"] == selected_user, "Phone"].values[0]
+                    )
+                with col4:
+                    new_email = st.text_input(
+                        "Email",
+                        value=self.df_users.loc[self.df_users["Username"] == selected_user, "Email"].values[0]
+                    )
+
+                col5, col6 = st.columns(2)
+                with col5:
+                    new_role = st.selectbox("Role", self.user_roles)
+                with col6:
+                    new_password = st.text_input(
+                        "Password",
+                        type="password",
+                        value=self.df_users.loc[self.df_users["Username"] == selected_user, "Password"].values[0]
+                    )
+
+                col7, col8 = st.columns(2)
+                with col7:
+                    failed_attempts = st.number_input(
+                        "Failed Attempts",
+                        value=self.df_users.loc[self.df_users["Username"] == selected_user, "Failed Attempts"].values[0]
+                    )
+                with col8:
+                    status = st.selectbox(
+                        "Status",
+                        status_options,
+                        index=status_index
+                    )
+
+                # --- Alias and Onboarded By selectboxes ---
+                col9, col10 = st.columns(2)
+                with col9:
+                    onboarded_by = st.selectbox(
+                        "Onboarded By",
+                        options,
+                        index=onboarded_by_index
+                    )
+                with col10:
+                    alias = st.selectbox(
+                        "Alias",
+                        options,
+                        index=alias_index
+                    )
+
+
+                if st.form_submit_button("Update User"):
+                    try:
+                        with self.engine.begin() as conn:
+                            conn.execute(
+                                    text("""
+                                        UPDATE app_user
+                                        SET email = :email, role = :role, password = :password, full_name = :full_name,
+                                            phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, 
+                                        status = :status, failed_attempts = :failed_attempst, alias = :alias
+                                        WHERE username = :username
+                                    """),
+                                    {
+                                        "email": new_email.lower(),
+                                        "role": new_role,
+                                        "password": new_password,
+                                        "username": selected_user,
+                                        "full_name": full_name,
+                                        "phone": phone,
+                                        "citizenship": citizenship,
+                                        "onboarded_by": onboarded_by.split("-", 1)[0].strip().upper(),
+                                        "alias":alias.split("-", 1)[0].strip().upper(),
+                                        "status": status,
+                                        "failed_attempst":failed_attempts
+                                    }
+                                )
+                        st.success(f"User '{selected_user}' updated successfully.")
+                        sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error updating user: {e}")
 
         elif action == "Delete":
             if st.button("Delete User"):
@@ -231,10 +307,11 @@ class CreateAppUser:
 
     def get_all_app_users(self):
         df_users = pd.read_sql(
-            'SELECT alias, full_name FROM app_user ORDER BY alias;',
+            'SELECT username, full_name FROM app_user ORDER BY alias;',
+            # 'SELECT alias, full_name FROM app_user ORDER BY alias;',
             con=self.engine
         )
-        system_row = pd.DataFrame([{"alias": "SYSTEM", "full_name": "App System"}])
+        system_row = pd.DataFrame([{"username": "SYSTEM", "full_name": "App System"}])
         df_users = pd.concat([system_row, df_users], ignore_index=True)
         return df_users
     
@@ -252,7 +329,9 @@ class CreateAppUser:
         elif selected_option == "View App Users":
             self.show_all_app_users()
             if self.role == "ADMIN":
-                self.show_update_delete_function()
+                st.markdown("---")
+                with st.expander("✏️ Update or ❌ Delete User"):
+                    self.show_update_delete_function()
         else:
             new_role = st.text_input("New Role").upper()
             self.header = "Create New Role"
