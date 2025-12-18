@@ -85,11 +85,12 @@ class Uarf:
     def _load_trade_book(_self) -> pd.DataFrame:
         # st.info("⬇️ Fetching order book. Please wait ...")
         if _self.role.upper() == "BRO":
+            alias = helper.get_alias_name(_self.username)
             # df = pd.read_sql("SELECT * FROM order_book WHERE 'rmName' = %s", con=_self.engine, params=(_self.username,))
             df = pd.read_sql(
                 """SELECT * FROM trade_book WHERE "rmName" = %s""",
                 con=_self.engine,
-                params=(_self.username,)
+                params=(alias,)
             )
         else:
             df = pd.read_sql("SELECT * FROM trade_book", con=_self.engine)
@@ -104,10 +105,12 @@ class Uarf:
     # @st.cache_data(ttl=config.RM_REFRESH_TIME_IN_SECONDS-2)
     def load_order_book_data(_self) -> pd.DataFrame:
         if _self.role.upper() == "BRO":
+            alias = helper.get_alias_name(_self.username)
+
             df = pd.read_sql(
                 """SELECT * FROM order_book WHERE bro = %s""",
                 con=_self.engine,
-                params=(_self.username,)
+                params=(alias,)
             )
         else:
             df = pd.read_sql("SELECT * FROM order_book", con=_self.engine)

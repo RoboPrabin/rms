@@ -61,6 +61,17 @@ def get_platform_options():
     }
 
 
+def get_alias_name(loggedin_username:str):
+    # 1) Get all clientCodes assigned to this RM
+    query_clients = """
+        SELECT alias
+        FROM app_user
+        WHERE username = %s
+    """
+    loggedin_username = pd.read_sql(query_clients,get_holding_engine(), params=(loggedin_username,))
+    alias = loggedin_username.loc[0, "alias"]
+    return alias
+
 
 
 def generate_secure_password(length: int = 12) -> str:

@@ -141,14 +141,15 @@ class Dashboard:
     # ---------------------------------------------------------
     @st.cache_data(ttl=3600)
     def get_top_buy_sell_commission_of_loggedin_user(_self, username):
-
+        # GET Alias
+        alias = helper.get_alias_name(_self.username)
         # 1) Get all clientCodes assigned to this RM
         query_clients = """
             SELECT "clientCode"
             FROM client_rm_map
             WHERE "rmName" = %s
         """
-        df_clients = pd.read_sql(query_clients, _self.engine, params=(_self.username,))
+        df_clients = pd.read_sql(query_clients, _self.engine, params=(alias,))
 
         # If RM has no clients, return empty frames
         if df_clients.empty:

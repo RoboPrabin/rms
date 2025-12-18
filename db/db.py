@@ -11,13 +11,16 @@ from datetime import datetime, timedelta
 
 def get_connection():
     return psycopg2.connect(
-        # host="172.17.26.6",
-        host="localhost",
+        host="172.17.26.6",
+        # host="localhost",
         dbname="client_holdings",
         user="postgres",
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
     )
+
+
+
 
 
 def insert_book_closure_from_file(df: pd.DataFrame, username: str):
