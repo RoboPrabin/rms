@@ -105,7 +105,8 @@ class BookClosure:
             st.info("No book closure records found.")
         else:
             st.dataframe(df, use_container_width=True)
-            self.show_edit_function()
+            if self.role == "USER":
+                self.show_edit_function()
 
     def show_edit_function(self):
         st.markdown("### ✏️ Edit Book Closure")
@@ -393,6 +394,7 @@ class BookClosure:
             mode = st.radio("Mode", ['Add Book Closure', 'View/Edit Book Closure', 'Add/View Holidays'], horizontal=True, index=0)
         else:
             mode = st.radio("Mode", ['View Book Closure'], horizontal=True, index=0)
+
         st.markdown("---")
         if mode == "Add Book Closure":
             mode2 = st.radio("Select Data Entry Mode", ["Upload File", "Manual Entry"], horizontal=True)
