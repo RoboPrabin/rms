@@ -60,7 +60,7 @@ class BusinessRatio:
         return df2
 
     def render_page(self):
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+        col1, col2, col3,  col5 = st.columns([1, 1, 1, 1])
 
         with col1:
             selected_date = st.date_input(
@@ -80,11 +80,11 @@ class BusinessRatio:
                 value=220
             )
 
-        with col4:
-            rate = st.number_input(
-                "Rate",
-                value=40
-            )
+        # with col4:
+        #     rate = st.number_input(
+        #         "Rate",
+        #         value=40
+        #     )
 
         with col5:
             st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
@@ -127,7 +127,7 @@ class BusinessRatio:
         if calc_button:
             final_df["volumeRequired"] = final_df["todayAdjustBalanceDueAmount"] * times
             final_df["tradeVolume"] = final_df["total"] * trade_day
-            final_df["opportunityCost"] = final_df["total"] * rate
+            final_df["opportunityCost"] = final_df["total"] * 40
             final_df['expectedVolume'] = final_df["volumeRequired"] / trade_day
             final_df['expectationmet'] = (final_df['total'] > final_df['expectedVolume']).map({True: "YES", False: "NO"})
             final_df['Sortage/Exceed By'] = final_df['expectedVolume'] - final_df["total"]
