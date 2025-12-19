@@ -10,6 +10,7 @@ live_holdings_url = base_path + "_Live Holdings.py"
 live_rm_performance_url = base_path + "_live_rm_performance_page.py" 
 dpm_3_url = base_path + "_dpm3.py" 
 automation_url = base_path + "Automations.py" 
+gallery_url = base_path + "Gallery.py" 
 
 
 

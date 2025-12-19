@@ -11,7 +11,6 @@ app_state.restore_state_from_query_params()
 app_state.sync_query_params_from_session()
 app_state.check_authenticaiton_state()
 username, role = app_state.get_current_user_info()
-print("logging out", username)
 db.end_session(username=username)
 
 st.session_state.clear()
