@@ -5,6 +5,10 @@ showErrorDetails = false
 
 
 
+[server]
+maxUploadSize = 1024  # in MB
+
+
 
 [logger]
 level="error"

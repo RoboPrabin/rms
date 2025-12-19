@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit.components.v1 as components
 import math
 from time import sleep
@@ -188,110 +189,246 @@ class Gallery:
             st.rerun()
 
 
+
     # def render_gallery_section(self):
     #     conn = db.get_connection()
     #     cur = conn.cursor()
 
-    #     col1, col2, col3 = st.columns([2, 2, 1])
-
+    #     # --- Filters ---
+    #     cur.execute("SELECT id, name FROM photo_category ORDER BY name")
+    #     categories = cur.fetchall()
+    #     category_map = {name: cid for cid, name in categories}
+    #     col1, col2, col3 = st.columns(3)
     #     with col1:
-    #         cur.execute("SELECT id, name FROM photo_category ORDER BY name")
-    #         categories = cur.fetchall()
-    #         category_map = {name: cid for cid, name in categories}
-    #         category_filter = st.selectbox(
-    #             "Category",
-    #             ["All"] + list(category_map.keys())
+    #         selected_category = st.selectbox("Filter by Category", ["All"] + list(category_map.keys()))
+
+    #     album_map = {}
+    #     selected_album = "All"
+    #     if selected_category != "All":
+    #         cur.execute(
+    #             "SELECT id, title FROM photo_album WHERE category_id=%s ORDER BY created_at",
+    #             (category_map[selected_category],)
     #         )
-
-    #     album_filter = None
-
-    #     if category_filter != "All":
+    #         albums = cur.fetchall()
+    #         album_map = {title: aid for aid, title in albums}
     #         with col2:
-    #             cur.execute(
-    #                 "SELECT id, title FROM photo_album WHERE category_id=%s",
-    #                 (category_map[category_filter],)
-    #             )
-    #             albums = cur.fetchall()
-    #             album_map = {title: aid for aid, title in albums}
-    #             album_filter = st.selectbox(
-    #                 "Album",
-    #                 ["All"] + list(album_map.keys())
-    #             )
+    #             selected_album = st.selectbox("Filter by Album", ["All"] + list(album_map.keys()))
 
-    #     with col3:
-    #         st.markdown("<br>", unsafe_allow_html=True)  
-    #         my_only = st.checkbox("My uploads")
+    #     my_only = st.checkbox("Show only my uploads")
 
+    #     # --- Build query ---
     #     query = """
-    #         SELECT
-    #             p.original_filename,
-    #             p.file_path,
-    #             p.uploaded_by,
-    #             a.title,
-    #             c.name
+    #         SELECT p.original_filename, p.file_path, p.uploaded_by, a.title, c.name
     #         FROM photo p
-    #         JOIN photo_category c ON c.id = p.category_id
-    #         JOIN photo_album a ON a.id = p.album_id
+    #         LEFT JOIN photo_album a ON a.id = p.album_id
+    #         LEFT JOIN photo_category c ON c.id = p.category_id
     #         WHERE 1=1
     #     """
     #     params = []
 
-    #     if category_filter != "All":
+    #     if selected_category != "All":
     #         query += " AND c.id = %s"
-    #         params.append(category_map[category_filter])
+    #         params.append(category_map[selected_category])
 
-    #     if album_filter and album_filter != "All":
+    #     if selected_album != "All":
     #         query += " AND a.id = %s"
-    #         params.append(album_map[album_filter])
+    #         params.append(album_map[selected_album])
 
     #     if my_only:
     #         query += " AND p.uploaded_by = %s"
     #         params.append(self.username)
 
     #     query += " ORDER BY p.uploaded_at DESC"
-
     #     cur.execute(query, params)
     #     rows = cur.fetchall()
-
     #     if not rows:
     #         st.info("No photos found")
     #         return
-    #     # Number of columns per row
-    #     cols_per_row = 3
-    #     num_photos = len(rows)
-    #     num_rows = math.ceil(num_photos / cols_per_row)
+
+    #     # --- Pagination ---
+    #     total_photos = len(rows)
+    #     total_pages = math.ceil(total_photos / self.PHOTOS_PER_PAGE)
+    #     with col3:
+    #         page = st.number_input("Page", min_value=1, max_value=total_pages, value=1)
+    #     start = (page - 1) * self.PHOTOS_PER_PAGE
+    #     end = start + self.PHOTOS_PER_PAGE
+    #     rows_page = rows[start:end]
+
+    #     # --- Dialog function using decorator ---
+    #     @st.dialog(".", width='medium')
+    #     def show_full_image(fname, path, category, album, user):
+    #         st.image(path, use_column_width=True, width='content')
+    #         st.markdown(f"**Category:** {category}  \n**Album:** {album}  \n**Uploaded by:** {user}")
+
+    #     # --- Display thumbnails ---
+    #     cols_per_row = 4
+    #     num_rows = math.ceil(len(rows_page) / cols_per_row)
 
     #     for row_idx in range(num_rows):
     #         cols = st.columns(cols_per_row)
     #         for col_idx in range(cols_per_row):
     #             idx = row_idx * cols_per_row + col_idx
-    #             if idx >= num_photos:
+    #             if idx >= len(rows_page):
     #                 break
-    #             fname, path, user, album, category = rows[idx]
+    #             fname, path, user, album, category = rows_page[idx]
+    #             thumb_path = self.get_thumbnail(path)
+
     #             with cols[col_idx]:
-    #                 st.image(path, use_column_width=True)
+    #                 st.image(thumb_path, use_column_width=True, caption=category, clamp=True)
+    #                 # st.caption(f"\n{category} → {album}\n\nBy: {user}")
     #                 st.markdown(
     #                         f"""
     #                         <p style="margin:0">{category}: <b>{album}</b></p>
-    #                         <p style="margin:0; color:gray">By: {user}</p>
+    #                         <p style="margin:0 0 5px 0; color:gray">By: {user}</p>
     #                         """,
     #                         unsafe_allow_html=True
     #                     )
+
+    #                 # Open dialog on button click
+    #                 if st.button("View Full Image", key=f"view_{idx}"):
+    #                     show_full_image(fname, path, category, album, user)
     #         st.markdown("---")
+
+
+    # def render_gallery_section(self):
+    #     conn = db.get_connection()
+    #     cur = conn.cursor()
+
+    #     # --- Fetch categories ---
+    #     cur.execute("SELECT id, name FROM photo_category ORDER BY name")
+    #     categories = cur.fetchall()
+    #     category_map = {name: cid for cid, name in categories}
+
+    #     # --- Fetch distinct uploaders ---
+    #     cur.execute("SELECT DISTINCT uploaded_by FROM photo ORDER BY uploaded_by")
+    #     uploaders = [row[0] for row in cur.fetchall()]
+
+    #     # --- Filters UI ---
+    #     col1, col2, col3 = st.columns([2, 2, 2])
+    #     with col1:
+    #         selected_category = st.selectbox("Filter by Category", ["All"] + list(category_map.keys()))
+    #     with col2:
+    #         selected_uploader = st.selectbox("Filter by Uploaded By", ["All"] + uploaders)
+    #     with col3:
+    #         sort_option = st.selectbox("Sort By", ["Latest", "Oldest"])
+
+    #     my_only = st.checkbox("Show only my uploads")
+
+    #     # --- Fetch albums for selected category ---
+    #     album_map = {}
+    #     selected_album = "All"
+    #     if selected_category != "All":
+    #         cur.execute(
+    #             "SELECT id, title FROM photo_album WHERE category_id=%s ORDER BY created_at",
+    #             (category_map[selected_category],)
+    #         )
+    #         albums = cur.fetchall()
+    #         album_map = {title: aid for aid, title in albums}
+    #         selected_album = st.selectbox("Filter by Album", ["All"] + list(album_map.keys()))
+
+    #     # --- Build query ---
+    #     query = """
+    #         SELECT p.original_filename, p.file_path, p.uploaded_by, a.title, c.name, p.uploaded_at
+    #         FROM photo p
+    #         LEFT JOIN photo_album a ON a.id = p.album_id
+    #         LEFT JOIN photo_category c ON c.id = p.category_id
+    #         WHERE 1=1
+    #     """
+    #     params = []
+
+    #     if selected_category != "All":
+    #         query += " AND c.id = %s"
+    #         params.append(category_map[selected_category])
+
+    #     if selected_album != "All":
+    #         query += " AND a.id = %s"
+    #         params.append(album_map[selected_album])
+
+    #     if selected_uploader != "All":
+    #         query += " AND p.uploaded_by = %s"
+    #         params.append(selected_uploader)
+
+    #     if my_only:
+    #         query += " AND p.uploaded_by = %s"
+    #         params.append(self.username)
+
+    #     # --- Sorting ---
+    #     query += " ORDER BY p.uploaded_at DESC" if sort_option == "Latest" else " ORDER BY p.uploaded_at ASC"
+
+    #     cur.execute(query, params)
+    #     rows = cur.fetchall()
+    #     if not rows:
+    #         st.info("No photos found")
+    #         return
+
+    #     # --- Pagination ---
+    #     total_photos = len(rows)
+    #     total_pages = math.ceil(total_photos / self.PHOTOS_PER_PAGE)
+    #     page = st.number_input("Page", min_value=1, max_value=total_pages, value=1)
+    #     start = (page - 1) * self.PHOTOS_PER_PAGE
+    #     end = start + self.PHOTOS_PER_PAGE
+    #     rows_page = rows[start:end]
+
+    #     # --- Dialog function ---
+    #     @st.dialog(".", width='medium')
+    #     def show_full_image(fname, path, category, album, user):
+    #         st.image(path, use_column_width=True)
+    #         st.markdown(f"**Category:** {category}  \n**Album:** {album}  \n**Uploaded by:** {user}")
+
+    #     # --- Display thumbnails ---
+    #     cols_per_row = 4
+    #     num_rows = math.ceil(len(rows_page) / cols_per_row)
+    #     for row_idx in range(num_rows):
+    #         cols = st.columns(cols_per_row)
+    #         for col_idx in range(cols_per_row):
+    #             idx = row_idx * cols_per_row + col_idx
+    #             if idx >= len(rows_page):
+    #                 break
+    #             fname, path, user, album, category, _ = rows_page[idx]
+    #             thumb_path = self.get_thumbnail(path)
+
+    #             with cols[col_idx]:
+    #                 st.image(thumb_path, use_column_width=True)
+    #                 st.markdown(
+    #                     f"""
+    #                     <p style="margin:0">{category}: <b>{album}</b></p>
+    #                     <p style="margin:0 0 5px 0; color:gray">By: {user}</p>
+    #                     """,
+    #                     unsafe_allow_html=True
+    #                 )
+    #                 if st.button("View Full Image", key=f"view_{idx}"):
+    #                     show_full_image(fname, path, category, album, user)
+
+    #         st.markdown("---")
+
 
 
     def render_gallery_section(self):
         conn = db.get_connection()
         cur = conn.cursor()
 
-        # --- Filters ---
+        # --- Fetch categories ---
         cur.execute("SELECT id, name FROM photo_category ORDER BY name")
         categories = cur.fetchall()
+
         category_map = {name: cid for cid, name in categories}
-        col1, col2, col3 = st.columns(3)
+
+        # --- Fetch distinct uploaders ---
+        cur.execute("SELECT DISTINCT uploaded_by FROM photo ORDER BY uploaded_by")
+        uploaders = [row[0] for row in cur.fetchall()]
+   
+        # --- Filters UI ---
+        col1, col2, col3 = st.columns([2, 2, 2])
         with col1:
             selected_category = st.selectbox("Filter by Category", ["All"] + list(category_map.keys()))
+        with col2:
+            selected_uploader = st.selectbox("Filter by Uploaded By", ["All"] + uploaders)
+        with col3:
+            sort_option = st.selectbox("Sort By", ["Latest", "Oldest"])
 
+
+        # st.badge(f"Total image: {total_images} ", color='green')
+        # --- Fetch albums for selected category ---
         album_map = {}
         selected_album = "All"
         if selected_category != "All":
@@ -301,14 +438,15 @@ class Gallery:
             )
             albums = cur.fetchall()
             album_map = {title: aid for aid, title in albums}
-            with col2:
-                selected_album = st.selectbox("Filter by Album", ["All"] + list(album_map.keys()))
+            selected_album = st.selectbox("Filter by Album", ["All"] + list(album_map.keys()), width=360)
 
+        st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
         my_only = st.checkbox("Show only my uploads")
-
+        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
         # --- Build query ---
         query = """
-            SELECT p.original_filename, p.file_path, p.uploaded_by, a.title, c.name
+            SELECT p.id, p.original_filename, p.file_path, p.uploaded_by, a.title, c.name, p.uploaded_at
             FROM photo p
             LEFT JOIN photo_album a ON a.id = p.album_id
             LEFT JOIN photo_category c ON c.id = p.category_id
@@ -324,60 +462,92 @@ class Gallery:
             query += " AND a.id = %s"
             params.append(album_map[selected_album])
 
+        if selected_uploader != "All":
+            query += " AND p.uploaded_by = %s"
+            params.append(selected_uploader)
+
         if my_only:
             query += " AND p.uploaded_by = %s"
             params.append(self.username)
 
-        query += " ORDER BY p.uploaded_at DESC"
+        # --- Sorting ---
+        query += " ORDER BY p.uploaded_at DESC" if sort_option == "Latest" else " ORDER BY p.uploaded_at ASC"
+
         cur.execute(query, params)
         rows = cur.fetchall()
         if not rows:
             st.info("No photos found")
             return
 
-        # --- Pagination ---
+        # --- Pagination setup ---
+        if "gallery_page" not in st.session_state:
+            st.session_state.gallery_page = 1
+
         total_photos = len(rows)
         total_pages = math.ceil(total_photos / self.PHOTOS_PER_PAGE)
-        with col3:
-            page = st.number_input("Page", min_value=1, max_value=total_pages, value=1)
+        page = st.session_state.gallery_page
         start = (page - 1) * self.PHOTOS_PER_PAGE
         end = start + self.PHOTOS_PER_PAGE
         rows_page = rows[start:end]
 
-        # --- Dialog function using decorator ---
-        @st.dialog(".", width='medium')
+        # --- Dialog for full image ---
+        @st.dialog("Full Image", width='medium')
         def show_full_image(fname, path, category, album, user):
-            st.image(path, use_column_width=True, width='content')
+            st.image(path, use_column_width=True)
             st.markdown(f"**Category:** {category}  \n**Album:** {album}  \n**Uploaded by:** {user}")
 
         # --- Display thumbnails ---
         cols_per_row = 4
         num_rows = math.ceil(len(rows_page) / cols_per_row)
-
         for row_idx in range(num_rows):
             cols = st.columns(cols_per_row)
             for col_idx in range(cols_per_row):
                 idx = row_idx * cols_per_row + col_idx
                 if idx >= len(rows_page):
                     break
-                fname, path, user, album, category = rows_page[idx]
-                thumb_path = self.get_thumbnail(path)
+                pid, fname, path, user, album, category, _ = rows_page[idx]
+                thumb_path = self.get_thumbnail(path)  # Assuming you have this function
 
                 with cols[col_idx]:
-                    st.image(thumb_path, use_column_width=True, caption=category, clamp=True)
-                    # st.caption(f"\n{category} → {album}\n\nBy: {user}")
+                    st.image(thumb_path, use_column_width=True)
                     st.markdown(
-                            f"""
-                            <p style="margin:0">{category}: <b>{album}</b></p>
-                            <p style="margin:0 0 5px 0; color:gray">By: {user}</p>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-                    # Open dialog on button click
-                    if st.button("View Full Image", key=f"view_{idx}"):
+                        f"""
+                        <p style="margin:0">{category}: <b>{album}</b></p>
+                        <p style="margin:0 0 5px 0; color:gray">By: {user}</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    if st.button("View Full Image", key=f"view_{pid}"):
                         show_full_image(fname, path, category, album, user)
+
             st.markdown("---")
+        # st.markdown("---")
+
+        # --- Centered pagination buttons ---
+        with st.container():
+            cols = st.columns([2,1.3,1.2,1,3])  # 7 columns to leave space on sides
+            # Put buttons in the middle 4 columns
+            with cols[1]:
+                if st.button("⏮️ First Page") and page != 1:
+                    st.session_state.gallery_page = 1
+                    st.rerun()
+            with cols[2]:
+                if st.button("◀️ Previous") and page > 1:
+                    st.session_state.gallery_page = page - 1
+                    st.rerun()
+            with cols[3]:
+                if st.button("Next ▶️") and page < total_pages:
+                    st.session_state.gallery_page = page + 1
+                    st.rerun()
+            with cols[4]:
+                if st.button("⏭️ Last Page") and page != total_pages:
+                    st.session_state.gallery_page = total_pages
+                    st.rerun()
+
+
+        # Optional: show page info
+        st.markdown(f"Page {page} of {total_pages} ({total_photos} photos)")
+
 
 
     def add_category(self):
