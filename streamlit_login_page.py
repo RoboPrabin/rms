@@ -25,7 +25,8 @@ class LoginPage:
     # Validation helpers
     # ---------------------------
     def handle_unregistered_user(self):
-        st.error("You are not registered yet. Please contact your admin.", icon="❌")
+        st.error("Please enter you credentials.", icon="❌")
+        # st.error("You are not registered yet. Please contact your admin.", icon="❌")
         st.stop()
 
     def handle_role_not_assigned(self):
@@ -91,33 +92,47 @@ class LoginPage:
     # Main form
     # ---------------------------
     def show_login_form(self):
-        st.title("🔐 Login Portal", anchor=False)
+        # st.title("RM Management System")
 
-        with st.form("login_form"):
-            username = st.text_input("Username", icon="🧑🏻‍🦱").upper()
-            password = st.text_input("Password", type="password", icon="🔑")
-            submitted = st.form_submit_button("Login")
+        # Center content
+        col1, col2, col3 = st.columns([1, 18, 1])
+        with col2:
+            # st.markdown(
+            #    """
+            #     <div style="text-align: center; margin-bottom: 8px;">
+            #         <h2 style="color: #076b38; font-family: 'Arial Black', sans-serif; font-weight: bold;">RM Management System</h2>
+            #     </div>
+            #     """,
+            #     unsafe_allow_html=True
+            # )
 
-            if not submitted:
-                return
+            st.header("🔐 RMS Login", anchor=False)
+            with st.form("login_form", clear_on_submit=False):
+                username = st.text_input("Username", placeholder="Enter username", icon="🧑🏻‍💼", width='stretch').upper()
+                password = st.text_input("Password", type="password", placeholder="Enter password", icon="🔑", width='stretch')
+                # st.markdown("<br>", unsafe_allow_html=True)
+                submitted = st.form_submit_button("‎‎ ‎‎‎ ‎‎‎ ‎‎‎ ‎ Login‎‎ ‎‎‎ ‎‎‎ ‎‎‎ ‎", width='content',)
 
-            user = get_user_by_username(username)
-            if user is None:
-                self.handle_unregistered_user()
-                return
+                if not submitted:
+                    return
 
-            if user["role"] is None:
-                self.handle_role_not_assigned()
-                return
+                user = get_user_by_username(username)
+                if user is None:
+                    self.handle_unregistered_user()
+                    return
 
-            helper.show_message(str(user), color="yellow")
+                if user["role"] is None:
+                    self.handle_role_not_assigned()
+                    return
 
-            if user["status"] == "BLOCKED":
-                self.handle_blocked_user()
-            elif password == user["password"]:
-                self.handle_successful_login(user)
-            else:
-                self.handle_failed_login(username)
+                helper.show_message(str(user), color="yellow")
+
+                if user["status"] == "BLOCKED":
+                    self.handle_blocked_user()
+                elif password == user["password"]:
+                    self.handle_successful_login(user)
+                else:
+                    self.handle_failed_login(username)
 
     # ---------------------------
     # Page renderer
