@@ -649,6 +649,64 @@ class Gallery:
 
             st.markdown("---")
 
+
+
+    def delete_album(self):
+        conn = db.get_connection()
+        cur = conn.cursor()
+
+        # --- Select category ---
+        cur.execute("SELECT id, name FROM photo_category ORDER BY name")
+        categories = cur.fetchall()
+        category_map = {name: cid for cid, name in categories}
+
+        selected_category = st.selectbox(
+            "Select Category",
+            ["-- Select --"] + list(category_map.keys())
+        )
+        if selected_category == "-- Select --":
+            st.info("Select a category to continue")
+            return
+
+        category_id = category_map[selected_category]
+
+        # --- Select album created by current user ---
+        cur.execute(
+            "SELECT id, title FROM photo_album WHERE category_id=%s AND created_by=%s ORDER BY created_at",
+            (category_id, self.username)
+        )
+        albums = cur.fetchall()
+        if not albums:
+            st.info("No albums created by you in this category")
+            return
+
+        album_map = {title: aid for aid, title in albums}
+        selected_album = st.selectbox("Select Album to Delete", list(album_map.keys()))
+
+        # --- Confirm delete ---
+        if st.button(f"Delete Album '{selected_album}'", key=f"delete_album_{album_map[selected_album]}"):
+            if st.confirm(f"Are you sure you want to delete album '{selected_album}'? This will delete all photos inside it."):
+                try:
+                    album_id = album_map[selected_album]
+
+                    # Delete all photos in the album from filesystem and DB
+                    cur.execute("SELECT file_path FROM photo WHERE album_id=%s", (album_id,))
+                    photo_paths = [row[0] for row in cur.fetchall()]
+                    for path in photo_paths:
+                        if os.path.exists(path):
+                            os.remove(path)
+
+                    cur.execute("DELETE FROM photo WHERE album_id=%s", (album_id,))
+                    cur.execute("DELETE FROM photo_album WHERE id=%s AND created_by=%s", (album_id, self.username))
+                    conn.commit()
+
+                    st.success(f"Album '{selected_album}' and its photos have been deleted ✅")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to delete album: {e}")
+
+
+
     def render_page(self):
         tab = st.radio(
             "Select action",
@@ -661,11 +719,13 @@ class Gallery:
         elif tab == "📂 Add/Rename Category":
             self.add_category()
         elif tab == "🎞️ Transfer/Rename Album":
-            mode = st.radio("Select option", ['Rename', 'Transfer Album'], horizontal=True)
+            mode = st.radio("Select option", ['Rename', 'Transfer Album', 'Delete Album'], horizontal=True)
             if mode == "Rename":
                 self.rename_album()
-            else:
+            elif mode == "Transfer Album":
                 self.transfer_photo()
+            else:
+                self.delete_album()
         elif tab == "🗑 Delete My Photos":
             self.render_my_photos_section()
         else:
