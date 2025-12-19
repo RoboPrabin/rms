@@ -90,8 +90,8 @@ class Gallery:
             # ---------- ADD ALBUM ----------
             st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
             with st.expander(f"➕ Add new album for category: {selected_category}"):
-                album_title = st.text_input("Album title").title()
-                album_desc = st.text_area("Description")
+                album_title = st.text_input("Album title *").title()
+                album_desc = st.text_area("Description (Optional)")
 
                 if st.button("Create album"):
                     if not album_title.strip():
