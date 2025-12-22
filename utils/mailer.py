@@ -16,7 +16,8 @@ def send_email(
     to_email: str,
     username:str,
     password:str,
-    url:str = "https://holdings.trishakti.com.np:9999",
+    full_name:str,
+    url:str = "https://rms.trishakti.com.np:9999",
     sender_email: str = sender_email,
     sender_password: str = sender_password,
     display_name: str = display_name,
@@ -34,7 +35,7 @@ def send_email(
     #     msg.add_alternative(body, subtype="html")
     # else:
     msg.set_content(f"""
-    Hello,
+    Dear {full_name.title()},
 
     Your account has been created successfully.
 
@@ -78,7 +79,7 @@ def send_bulk_email(
 
         # ✅ Send all emails using the same connection
         for _, row in selected_df.iterrows():
-            to_email = row["email"]
+            to_email = str(row["EMAIL"]).upper()
                 # ✅ Skip if email is None, empty, or NaN
             if not to_email or pd.isna(to_email):
                 print("Skipped empty email")
@@ -94,7 +95,7 @@ def send_bulk_email(
                         body
                         + "\n\nUSERNAME: " + str(row["username"])
                         + "\nPASSWORD: " + str(row["password"])
-                        + "\nURL: " + str("https://holdings.trishakti.com.np:9999/"),
+                        + "\nURL: " + str("https://rms.trishakti.com.np:9999/"),
                         "plain"
                     )
                 )
@@ -111,7 +112,7 @@ def send_bulk_email(
     except Exception:
         # If connection fails, mark all as failed
         for _, row in selected_df.iterrows():
-            results.append((row["email"], False))
+            results.append((row["EMAIL"], False))
 
     return results
 

@@ -436,8 +436,8 @@ class DPM3:
 
     def render_page(self):
         
-        selected_radio_bt = st.radio("Select option", [ 'View Holdings', 'Sunday Holdings (DPM3) report'], index=1, horizontal=True)
-        # selected_radio_bt = st.radio("Select option", ['Import DPM3', 'View Holdings', 'Sunday Holdings (DPM3) report'], index=1, horizontal=True)
+        # selected_radio_bt = st.radio("Select option", [ 'View Holdings', 'Sunday Holdings (DPM3) report'], index=1, horizontal=True)
+        selected_radio_bt = st.radio("Select option", ['Import DPM3', 'View Holdings', 'Sunday Holdings (DPM3) report'], index=1, horizontal=True)
         if selected_radio_bt == "Import DPM3":
             if not db.is_sunday_file_uploaded():
                 self.show_import_file()

@@ -84,8 +84,8 @@ class CreateAppUser:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias)
-                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias)
+                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_atempts)
+                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_atempts)
                                 """),
                                 {
                                     "id": user_id,
@@ -100,6 +100,7 @@ class CreateAppUser:
                                     "alias":alias.split("-")[0].strip().upper(),
                                     "created_at": datetime.now(),
                                     "created_by": self.username.upper(),
+                                    "failed_atempts": 0,
                                     "status": "ACTIVE",
                                 }
                             )
@@ -108,7 +109,8 @@ class CreateAppUser:
                             mailer.send_email(
                                             to_email=email,
                                             username=username,
-                                            password=password
+                                            password=password,
+                                            full_name=full_name
                                             )
                         st.success("Email sent succcessfully", icon="✅")
                         sleep(1.5)
