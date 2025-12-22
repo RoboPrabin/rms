@@ -172,7 +172,8 @@ class CreateAppUser:
             df_users = self.app_user.copy()
             df_users["display"] = df_users["username"] + " - " + df_users["full_name"]
             options = df_users["display"].tolist()
-
+            # print("Options:", options)
+            # print(df_users)
             # --- DB values for current user ---
             db_alias = self.df_users.loc[
                 self.df_users["Username"] == selected_user, "Alias"
@@ -181,6 +182,11 @@ class CreateAppUser:
             db_onboarded_by = self.df_users.loc[
                 self.df_users["Username"] == selected_user, "Onboarded By"
             ].values[0]
+            
+            db_role = self.df_users.loc[
+                self.df_users["Username"] == selected_user, "Role"
+            ].values[0]
+            
 
             db_status = self.df_users.loc[
                 self.df_users["Username"] == selected_user, "Status"
@@ -189,11 +195,13 @@ class CreateAppUser:
             # --- Resolve DB → display for users ---
             alias_display = df_users.loc[df_users["username"] == db_alias, "display"].values[0]
             onboarded_by_display = df_users.loc[df_users["username"] == db_onboarded_by, "display"].values[0]
+            role_display = df_users.loc[df_users["role"] == db_role, "role"].values[0]
+
 
             # --- Resolve display → index (Streamlit requirement) ---
             alias_index = options.index(alias_display)
             onboarded_by_index = options.index(onboarded_by_display)
-
+            role_index = self.user_roles.index(role_display)
             # --- Status options ---
             status_options = ["ACTIVE", "BLOCKED"]
             status_index = status_options.index(db_status) if db_status in status_options else 0
@@ -226,7 +234,7 @@ class CreateAppUser:
 
                 col5, col6 = st.columns(2)
                 with col5:
-                    new_role = st.selectbox("Role", self.user_roles)
+                    new_role = st.selectbox("Role",self.user_roles, index=role_index)
                 with col6:
                     new_password = st.text_input(
                         "Password",
@@ -309,7 +317,7 @@ class CreateAppUser:
 
     def get_all_app_users(self):
         df_users = pd.read_sql(
-            'SELECT username, full_name FROM app_user ORDER BY alias;',
+            'SELECT username, full_name, role FROM app_user ORDER BY alias;',
             # 'SELECT alias, full_name FROM app_user ORDER BY alias;',
             con=self.engine
         )
