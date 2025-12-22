@@ -181,7 +181,7 @@ class RMTag:
     # Main UI
     # ---------------------------
     def render_ui(self):
-        if self.role == "BRO":
+        if self.role in ["BRO", "VIEWER", "USER"]:
             mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client"], horizontal=True, index=0)
         else:
             mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client","Single Transfer" ,"Bulk Tag", "Bulk Transfer"], horizontal=True, index=0)
