@@ -80,6 +80,7 @@ class Uarf:
 
         selected_df = df.iloc[selection.selection.rows] if selection.selection.rows else pd.DataFrame()
 
+
         # Initialize sending state
         if "sending" not in st.session_state:
             st.session_state.sending = False
@@ -117,7 +118,6 @@ class Uarf:
                 with st.spinner("Sending credentials… please wait"):
                     results = send_bulk_email(
                         selected_df,
-                        subject="RMS Credentials",
                         body="Your RMS login details:\n"
                     )
                 for email, ok in results:

@@ -79,12 +79,10 @@ def send_bulk_email(
 
         # ✅ Send all emails using the same connection
         for _, row in selected_df.iterrows():
-            to_email = str(row["EMAIL"]).upper()
+            to_email = str(row["EMAIL"]).lower()
                 # ✅ Skip if email is None, empty, or NaN
             if not to_email or pd.isna(to_email):
-                print("Skipped empty email")
                 continue
-
 
             msg = MIMEMultipart()
             msg["From"] = formataddr((display_name, sender_email))
@@ -93,8 +91,8 @@ def send_bulk_email(
             msg.attach(
                     MIMEText(
                         body
-                        + "\n\nUSERNAME: " + str(row["username"])
-                        + "\nPASSWORD: " + str(row["password"])
+                        + "\n\nUSERNAME: " + str(row["USERNAME"]).lower()
+                        + "\nPASSWORD: " + str(row["PASSWORD"])
                         + "\nURL: " + str("https://rms.trishakti.com.np:9999/"),
                         "plain"
                     )

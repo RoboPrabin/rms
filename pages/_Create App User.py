@@ -63,7 +63,7 @@ class CreateAppUser:
                 roles = [r for r in roles if r not in ("ADMIN", "SYSTEM")]
                 role = st.selectbox("Role", roles)
             with col8:
-                alias = st.selectbox("Alias", options)
+                alias = st.selectbox("Alias", options, accept_new_options=True)
             
             submitted = st.form_submit_button("Create App User", icon="➕")
 
@@ -84,8 +84,8 @@ class CreateAppUser:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_atempts)
-                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_atempts)
+                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts)
+                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts)
                                 """),
                                 {
                                     "id": user_id,
@@ -100,8 +100,8 @@ class CreateAppUser:
                                     "alias":alias.split("-")[0].strip().upper(),
                                     "created_at": datetime.now(),
                                     "created_by": self.username.upper(),
-                                    "failed_atempts": 0,
                                     "status": "ACTIVE",
+                                    "failed_attempts": 0,
                                 }
                             )
                         st.success(f"User '{username}' created successfully.")
@@ -322,7 +322,7 @@ class CreateAppUser:
         # Create radio buttons with horizontal layout
         selected_option = st.radio(
             "Choose an option:",
-            ("Create App User", "View App Users" ,"Add New Role"),
+            ("Create App User", "View App Users" ,"Add/View Role"),
             horizontal=True
         )
 
@@ -363,13 +363,13 @@ class CreateAppUser:
             # Show all roles from app_user_role table
             engine = create_engine(helper.get_holding_engine())
             with engine.begin() as conn:
-                result = conn.execute(text("SELECT role_type FROM app_user_role ORDER BY role_type"))
-                roles = [row[0] for row in result]
+                result = conn.execute(text("SELECT role_type, description FROM app_user_role ORDER BY role_type"))
+                roles = [row for row in result]
 
             st.markdown("---")
             st.subheader("👨‍💼 Existing Roles", anchor=False)
             if roles:
-                df_roles = pd.DataFrame(roles, columns=["Current Roles"])
+                df_roles = pd.DataFrame(roles, columns=["Role Type", "Description"])
                 df_roles.index += 1
                 st.dataframe(df_roles)
             else:
