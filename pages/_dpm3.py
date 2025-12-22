@@ -139,7 +139,17 @@ class DPM3:
     def enrich_with_client_code_and_branch(self, df):
         rows = db.get_kyc()
         kyc_df = pd.DataFrame(rows, columns=["CLIENT CODE","CLIENT NAME", "BRANCH", "BOID"])
-        kyc_df["BOID"] = kyc_df["BOID"].apply(lambda x: str(int(float(x))) if pd.notnull(x) else "")
+        # kyc_df["BOID"] = kyc_df["BOID"].apply(lambda x: str(int(float(x))) if pd.notnull(x) else "")
+        def safe_boid(x):
+            try:
+                if pd.notnull(x):
+                    return str(int(float(x)))
+                else:
+                    return ""
+            except (ValueError, TypeError):
+                return ""
+
+        kyc_df["BOID"] = kyc_df["BOID"].apply(safe_boid)
         merged = df.merge(kyc_df, on="BOID", how="left")
         merged["CLIENT CODE"] = merged["CLIENT CODE"].fillna("N/F")
         merged["CLIENT NAME"] = merged["CLIENT NAME"].fillna("N/F")
@@ -170,6 +180,7 @@ class DPM3:
         df = db.get_dpm3()  # Extract data from database
         # print(df)
         group_keys = ["BRO","CLIENT CODE","CLIENT NAME","BRANCH","BOID"]
+        
         sum_cols = ["FREE BALANCE", "PLEDGE BALANCE", "CURRENT BALANCE",
                     "FREE SHARE VALUATION",
                     "PLEDGE SHARE VALUATION", "TOTAL VALUATION"]
