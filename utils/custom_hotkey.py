@@ -156,7 +156,7 @@ def activate_client_code_hotkey():
             unsafe_allow_html=True
         )
 
-            st.subheader("📖 Ledger Transactions", anchor=False)
+            # st.subheader("📖 Ledger Transactions", anchor=False)
             data_rows = ledger.get("data", [])
             if data_rows:
                 df = pd.DataFrame(data_rows)
@@ -171,7 +171,7 @@ def activate_client_code_hotkey():
                 df = coerce_numeric_columns(df, number_cols)
 
                 df.rename(columns={"Transactiondate": "Transaction Date", "Clearancedate": "Clearance Date", "Referenceno": "Reference No", "Balancetype": "Balance Type"}, inplace=True)
-
+                
                 styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
                 st.dataframe(styled_df, width='content', hide_index=True)
             else:
@@ -188,8 +188,10 @@ def activate_client_code_hotkey():
                 df_ub.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
                 df_ub = coerce_numeric_columns(df_ub, num_cols)
                 df_ub.rename(columns={"Transactiondate": "Transaction Date"}, inplace=True)
-
+                df_ub.sort_values(by="Balance", ascending=False, inplace=True)
                 styled_df = df_ub.style.format(accounting_format, subset=num_cols).map(highlight_negative, subset=num_cols)
+                total_unbilled_transactions = df_ub['Balance'].sum()
+                st.badge(f"Unbilled Amount: {total_unbilled_transactions:,.2f}", color="blue")
                 st.dataframe(styled_df, use_container_width=True,  hide_index=True)
 
     # Call dialog if triggered
