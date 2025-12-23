@@ -3,9 +3,9 @@ import uuid
 from psycopg2 import sql
 import psycopg2
 import psycopg2.extras
+from psycopg2.extras import execute_batch
 import pandas as pd
 from utils import helper
-from psycopg2.extras import execute_batch
 from datetime import datetime, timedelta
 
 

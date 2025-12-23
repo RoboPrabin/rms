@@ -4,23 +4,20 @@ from db import db
 
 
 
-# userName = "tri-api"
-# password = "Bq!92Xw#Tz6@"
+userName = "tri-api"
+password = "Bq!92Xw#Tz6@"
 
-# base_api = "https://dgtrade.trishakti.com.np:8080/bom/"
+base_api = "https://dgtrade.trishakti.com.np:8080/bom/"
 
-# acCode_api = base_api + "tp-data/account/by-nepse"
-# login_api = base_api + "tp-data/authenticate"
-# ledger_api = base_api + "tp-data/account/ledger"
+acCode_api = base_api + "tp-data/account/by-nepse"
+login_api = base_api + "tp-data/authenticate"
+ledger_api = base_api + "tp-data/account/ledger"
 
-# response = requests.post(login_api, json={"userName": userName, "password": password})
+response = requests.post(login_api, json={"userName": userName, "password": password})
 
-# token  = response.json().get("token")
-# db.store_jwt_token(token)
+token  = response.json().get("token")
+db.store_jwt_token(token)
 
-
-# token = db.get_jwt_token()
-# print("TOKEN:", token)
 
 
 

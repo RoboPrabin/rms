@@ -140,7 +140,7 @@ def activate_client_code_hotkey():
 
             
             c1, c2, c3 = st.columns(3)
-            c1.metric("Opening", f"{float(ledger.get('opening', 0)):,.2f}", border=True, height=100)
+            c1.metric("Opening", f"{float(ledger.get('opening', 0)):,.2f}", border=True)
             c2.metric("Balance", f"{float(ledger.get('balance', 0)):,.2f}", border=True)
             c3.metric("Type", ledger.get("balanceType", "-"), border=True)
 
@@ -166,7 +166,7 @@ def activate_client_code_hotkey():
                 df.rename(columns={"Transactiondate": "Transaction Date", "Clearancedate": "Clearance Date", "Referenceno": "Reference No", "Balancetype": "Balance Type"}, inplace=True)
 
                 styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
-                st.dataframe(styled_df, use_container_width=True, height=300, hide_index=True)
+                st.dataframe(styled_df, use_container_width=True, hide_index=True)
             else:
                 st.warning("No ledger transactions found.")
 
@@ -183,7 +183,7 @@ def activate_client_code_hotkey():
                 df_ub.rename(columns={"Transactiondate": "Transaction Date"}, inplace=True)
 
                 styled_df = df_ub.style.format(accounting_format, subset=num_cols).map(highlight_negative, subset=num_cols)
-                st.dataframe(styled_df, use_container_width=True, height=200, hide_index=True)
+                st.dataframe(styled_df, use_container_width=True,  hide_index=True)
 
     # Call dialog if triggered
     if st.session_state.get("show_ledger_dialog"):

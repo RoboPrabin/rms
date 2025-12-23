@@ -111,9 +111,16 @@ class BookClosure:
         if df.empty:
             st.info("No book closure records found.")
         else:
+            search_term = st.text_input("Search Script").upper()
+            if search_term:
+                df = df[df['Script'].str.contains(search_term, na=False)]
+                if df.empty:
+                    st.warning(f"No records found for script containing '{search_term}'.")
+                    return
             st.dataframe(df, use_container_width=True)
             if self.role in ["USER", "ADMIN"]:
                 self.show_edit_function()
+
 
     def show_edit_function(self):
         st.divider()
@@ -405,7 +412,7 @@ class BookClosure:
                     count = 0
                     while count < n:
                         date += timedelta(days=1)
-                        if date.weekday() < 5 and date not in holidays:
+                        if date.weekday() != 5 and date not in holidays:  # Nepal: Sun-Fri business days
                             count += 1
                     return date
 
