@@ -353,59 +353,73 @@ def activate_client_code_hotkey():
                         st.error(f"Client Code: '{client_code.upper()}' not found")
                         return
 
-            if "ledger_dialog_data" in st.session_state:
-                ledger = st.session_state["ledger_dialog_data"]
+        if "ledger_dialog_data" in st.session_state:
+            ledger = st.session_state["ledger_dialog_data"]
+            # st.divider()
+            st.subheader("📒 Opening Summary", anchor=False)
+            ubilled = ledger.get("ubilledTransactions", [])
+
+            adjusted_balance = 0.0
+            if ubilled:
+                df_ub = pd.DataFrame(ubilled)
+                if "credit" in df_ub.columns:
+                    total_credit = df_ub["credit"].sum()
+                    adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
+
+            # c1, c2, c3, c4, c5 = st.columns(5)
+            # c1.metric("Opening", f"{float(ledger.get('opening', 0)):,.2f}", border=True)
+            # c2.metric("Balance", f"{float(ledger.get('balance', 0)):,.2f}", border=True)
+            # c3.metric("Type", ledger.get("balanceType", "-"), border=True)
+
+            # # c1, c2, c3 = st.columns(3)
+            # c4.metric("Collateral", f"{float(ledger.get('collateral', 0)):,.2f}", border=True)
+            # c5.metric("Adjusted Balance", f"{adjusted_balance:,.2f}", border=True)
+            
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Opening", f"{float(ledger.get('opening', 0)):,.2f}", border=True, height=100)
+            c2.metric("Balance", f"{float(ledger.get('balance', 0)):,.2f}", border=True)
+            c3.metric("Type", ledger.get("balanceType", "-"), border=True)
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Collateral", f"{float(ledger.get('collateral', 0)):,.2f}", border=True)
+            c2.metric("Adjusted Balance", f"{adjusted_balance:,.2f}", border=True)
+            st.divider()
+            st.subheader("📖 Ledger Transactions", anchor=False)
+            data_rows = ledger.get("data", [])
+            if data_rows:
+                df = pd.DataFrame(data_rows)
+                ordered_cols = [
+                    "transactionDate", "clearanceDate", "referenceNo",
+                    "voucherNo", "particulars", "dr", "cr", "balance", "balanceType"
+                ]
+                number_cols = ["Dr", "Cr", "Balance"]
+                df = df[[c for c in ordered_cols if c in df.columns]]
+                df.columns = df.columns.str.upper()
+                df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
+                df = coerce_numeric_columns(df, number_cols)
+
+                df.rename(columns={"Transactiondate": "Transaction Date", "Clearancedate": "Clearance Date", "Referenceno": "Reference No", "Balancetype": "Balance Type"}, inplace=True)
+
+                styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
+                st.dataframe(styled_df, use_container_width=True, height=300, hide_index=True)
+            else:
+                st.warning("No ledger transactions found.")
+
+            if ubilled:
                 st.divider()
-                st.subheader("Opening Summary")
-                ubilled = ledger.get("ubilledTransactions", [])
+                st.subheader("📌 Unbilled Transactions", anchor=False)
+                df_ub = pd.DataFrame(ubilled)
+                ub_cols = ["transactionDate", "particulars", "debit", "credit", "balance", "tr"]
+                num_cols = ["Debit", "Credit", "Balance"]
+                df_ub = df_ub[[c for c in ub_cols if c in df_ub.columns]]
+                df_ub.columns = df_ub.columns.str.upper()
+                df_ub.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
+                df_ub = coerce_numeric_columns(df_ub, num_cols)
+                df_ub.rename(columns={"Transactiondate": "Transaction Date"}, inplace=True)
 
-                adjusted_balance = 0.0
-                if ubilled:
-                    df_ub = pd.DataFrame(ubilled)
-                    if "credit" in df_ub.columns:
-                        total_credit = df_ub["credit"].sum()
-                        adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Opening", f"{float(ledger.get('opening', 0)):,.2f}")
-                c2.metric("Balance", f"{float(ledger.get('balance', 0)):,.2f}")
-                c3.metric("Type", ledger.get("balanceType", "-"))
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Collateral", f"{float(ledger.get('collateral', 0)):,.2f}")
-                c2.metric("Adjusted Balance", f"{adjusted_balance:,.2f}")
-
-                st.subheader("Ledger Transactions")
-                data_rows = ledger.get("data", [])
-                if data_rows:
-                    df = pd.DataFrame(data_rows)
-                    ordered_cols = [
-                        "transactionDate", "clearanceDate", "referenceNo",
-                        "voucherNo", "particulars", "dr", "cr", "balance", "balanceType"
-                    ]
-                    number_cols = ["Dr", "Cr", "Balance"]
-                    df = df[[c for c in ordered_cols if c in df.columns]]
-                    df.columns = df.columns.str.upper()
-                    df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
-                    df = coerce_numeric_columns(df, number_cols)
-
-                    styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
-                    st.dataframe(styled_df, use_container_width=True, height=300, hide_index=True)
-                else:
-                    st.warning("No ledger transactions found.")
-
-                if ubilled:
-                    st.subheader("Unbilled Transactions")
-                    df_ub = pd.DataFrame(ubilled)
-                    ub_cols = ["transactionDate", "particulars", "debit", "credit", "balance", "tr"]
-                    num_cols = ["Debit", "Credit", "Balance"]
-                    df_ub = df_ub[[c for c in ub_cols if c in df_ub.columns]]
-                    df_ub.columns = df_ub.columns.str.upper()
-                    df_ub.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
-                    df_ub = coerce_numeric_columns(df_ub, num_cols)
-
-                    styled_df = df_ub.style.format(accounting_format, subset=num_cols).map(highlight_negative, subset=num_cols)
-                    st.dataframe(styled_df, use_container_width=True, height=200, hide_index=True)
+                styled_df = df_ub.style.format(accounting_format, subset=num_cols).map(highlight_negative, subset=num_cols)
+                st.dataframe(styled_df, use_container_width=True, height=200, hide_index=True)
 
     # Call dialog if triggered
     if st.session_state.get("show_ledger_dialog"):
