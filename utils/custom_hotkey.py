@@ -14,7 +14,7 @@ LOGIN_API = BASE_API + "tp-data/authenticate"
 AC_CODE_API = BASE_API + "tp-data/account/by-nepse"
 LEDGER_API = BASE_API + "tp-data/account/ledger"
 
-
+# st.set_page_config(page_title="Custom Hotkeys", layout="wide")
 # ---------------- API HELPERS ----------------
 def get_token(username, password):
     resp = requests.post(
@@ -142,7 +142,7 @@ def activate_client_code_hotkey():
                     # <div>BRO: {st.session_state.get('rm_name', 'N/A')}</div>
             st.markdown(
             f"""
-            <div style="display: flex; justify-content: space-between; font-size: 1rem; color: #6b7280; line-height: 2; margin-bottom: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="display: flex;font-weight: bold;justify-content: space-between; font-size: 1rem; color: #6b7280; line-height: 2; margin-bottom: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
                 <div>
                     <div>Adjusted Balance: {adjusted_balance:,.2f}</div>
                     <div>Collateral: {float(ledger.get('collateral', 0)):,.2f}</div>
@@ -173,7 +173,7 @@ def activate_client_code_hotkey():
                 df.rename(columns={"Transactiondate": "Transaction Date", "Clearancedate": "Clearance Date", "Referenceno": "Reference No", "Balancetype": "Balance Type"}, inplace=True)
 
                 styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
-                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                st.dataframe(styled_df, width='content', hide_index=True)
             else:
                 st.warning("No ledger transactions found.")
 

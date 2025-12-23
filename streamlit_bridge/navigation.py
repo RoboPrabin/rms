@@ -123,6 +123,7 @@ def render_sidebar():
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         if username == "ADMIN":
             st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+            
         st.sidebar.page_link(page_url.automation_url, label="‎‎ ‎ Automations", icon="⚡")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")

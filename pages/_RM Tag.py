@@ -166,8 +166,9 @@ class RMTag:
             if len(results) == 1:
                 client_code_val, client_name_val, rm_name, rm_fullname = results[0]
                 st.success(
-                    f"{client_code_val} [{client_name_val}] mapped to {rm_name} - {rm_fullname.upper()}",
-                    icon="👍",
+                    f"{rm_fullname.upper()}",
+                    # f"{client_code_val} [{client_name_val}] mapped to {rm_name} - {rm_fullname.upper()}",
+                    icon="➡️",
                 )
             else:
                 st.info("Multiple matches found:")
