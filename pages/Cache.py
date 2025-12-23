@@ -7,8 +7,9 @@ from db import db
 from streamlit_bridge import app_state
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
+from utils import helper
 
-
+helper.eliminate_top_padding()
 # Authentication
 app_state.restore_state_from_query_params()
 app_state.sync_query_params_from_session()

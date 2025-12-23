@@ -41,6 +41,14 @@ from typing import Final
     
 #     # fallback
 #     return "Unknown"
+def eliminate_top_padding():
+    st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 0rem;  /* Adjust or set to 0rem */
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
 
 def get_platform_options():

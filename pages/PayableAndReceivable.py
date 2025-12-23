@@ -13,7 +13,7 @@ from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey
 class PayableAndReceivable:
     def __init__(self):
-
+        helper.eliminate_top_padding()
         st.set_page_config("Payable & Receivable", page_icon="💸", layout='wide')
 
         # Dates

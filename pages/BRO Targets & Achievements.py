@@ -11,6 +11,8 @@ from config import config
 from utils.custom_hotkey import activate_client_code_hotkey
 class RMPerformance:
     def __init__(self):
+        helper.eliminate_top_padding()
+
         st.set_page_config("BRO Performance", page_icon="📈", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")

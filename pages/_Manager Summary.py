@@ -9,6 +9,7 @@ import streamlit_bridge.app_state as app_state
 
 class ManagerSummaryPage:
     def __init__(self):
+        helper.eliminate_top_padding()
         st.set_page_config(page_title="Manager Summary", layout="wide", page_icon="👨‍💼")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()

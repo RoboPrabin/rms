@@ -18,6 +18,8 @@ import pandas as pd
 
 class BookClosure:
     def __init__(self):
+        helper.eliminate_top_padding()
+
         st.set_page_config("Book Closure", page_icon="📫", layout='wide')
         activate_client_code_hotkey()
         st.header("📫 Book Closure", anchor=False)

@@ -11,10 +11,11 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from nepali_datetime import date as nepali_date
 from utils.custom_hotkey import activate_client_code_hotkey
-
+from utils import helper
 
 class DPM3:
     def __init__(self):
+        helper.eliminate_top_padding()
         st.set_page_config("DPM3", page_icon="📦", layout='wide')
 
         # Dates

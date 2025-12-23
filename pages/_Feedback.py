@@ -2,11 +2,12 @@ import streamlit as st
 from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
 from db import db
-
+from utils import helper
 
 
 class Feedback:
     def __init__(self):
+        helper.eliminate_top_padding()
         st.set_page_config(page_title="Feedback", page_icon="💬", layout="centered")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()

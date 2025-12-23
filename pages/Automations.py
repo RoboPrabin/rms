@@ -21,6 +21,7 @@ from db import db
 
 class Uarf:
     def __init__(self):
+        helper.eliminate_top_padding()
         activate_client_code_hotkey()
 
 

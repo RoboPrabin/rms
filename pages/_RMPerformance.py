@@ -9,6 +9,7 @@ import streamlit_bridge.navigation as navigation
 
 class RMAchievement:
     def __init__(self):
+        helper.eliminate_top_padding()
         st.set_page_config("BRO Performance", page_icon="BRO", layout='wide')
 
         app_state.restore_state_from_query_params()

@@ -58,6 +58,7 @@ def coerce_numeric_columns(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 class Uarf:
     def __init__(self):
+        helper.eliminate_top_padding()
         st.set_page_config("Live RM Performance", page_icon="🟢", layout="wide")
 
         # Auth & UI

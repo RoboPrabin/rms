@@ -14,6 +14,8 @@ from utils.custom_hotkey import activate_client_code_hotkey
 
 class Uarf:
     def __init__(self):
+        helper.eliminate_top_padding()
+
         st.set_page_config("UARF", page_icon="🪪", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")

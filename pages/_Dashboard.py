@@ -12,7 +12,7 @@ from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey
 class Dashboard:
     def __init__(self):
-
+        helper.eliminate_top_padding()
         st.set_page_config("Dashboard", page_icon="🏠", layout='wide')
 
         # Dates
