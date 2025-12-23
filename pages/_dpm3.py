@@ -166,7 +166,7 @@ class DPM3:
         merged["BRO"] = merged["BRO"].fillna("N/A")
         return merged
 
-    @st.cache_data(ttl=6000)
+    @st.cache_data(ttl=3200)
     def get_dpm3_data(_self):
         df = db.get_dpm3()  # Extract data from database
         # print(df)

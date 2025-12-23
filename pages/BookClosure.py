@@ -1,3 +1,4 @@
+from utils import helper
 from io import BytesIO
 from config import config
 from db import db
@@ -9,13 +10,16 @@ from sqlalchemy import create_engine, text
 from utils import helper 
 from streamlit_bridge.navigation import render_sidebar
 from utils.custom_hotkey import activate_client_code_hotkey
+import psycopg2
+from datetime import datetime, timedelta
+import pandas as pd
 
 
 class BookClosure:
     def __init__(self):
         st.set_page_config("Book Closure", page_icon="📫", layout='wide')
-        st.header("📫 Book Closure", anchor=False)
         activate_client_code_hotkey()
+        st.header("📫 Book Closure", anchor=False)
 
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
@@ -101,8 +105,8 @@ class BookClosure:
     def show_all_book_closure(self):
         df = db.get_all_book_closure()
         df.drop(columns=['id', 'created_at', 'updated_at'], inplace=True)
-        from utils import helper
         df = helper.format_dataframe(df=df)
+        df.rename(columns={"Start_Date": "Start Date", "End_Date":"End Date", "Created_By": "Created By", "Updated_By": "Updated By"}, inplace=True)
         df.index = df.index + 1
         if df.empty:
             st.info("No book closure records found.")
@@ -112,6 +116,7 @@ class BookClosure:
                 self.show_edit_function()
 
     def show_edit_function(self):
+        st.divider()
         st.markdown("### ✏️ Edit Book Closure")
 
         df = db.get_all_book_closure()
@@ -325,12 +330,12 @@ class BookClosure:
         st.markdown("Upload an Excel file using the exact sample format.")
 
         sample_df = pd.DataFrame({
-            "script": ["SCRIPT-1", "SCRIPT-2"],
-            "start_date": ["2025-01-01", "2025-02-01"],
-            "end_date": ["2025-01-05", "2025-02-05"],
-            "t0": ["2025-01-06", "2025-02-06"],
-            "t1": ["2025-01-07", "2025-02-07"],
-            "t2": ["2025-01-08", "2025-02-08"]
+            "Script": ["SCRIPT-1", "SCRIPT-2"],
+            "Start Date": ["19-Dec-2025", "22-Dec-2025"],
+            "End Date": ["19-Dec-2025", "22-Dec-2025"],
+            # "t0": ["2025-01-06", "2025-02-06"],
+            # "t1": ["2025-01-07", "2025-02-07"],
+            # "t2": ["2025-01-08", "2025-02-08"]
         })
 
         buffer = BytesIO()
@@ -360,7 +365,7 @@ class BookClosure:
         # -----------------------------------------
         df = pd.read_excel(uploaded_file)
 
-        expected_cols = ["script", "start_date", "end_date", "t0", "t1", "t2"]
+        expected_cols = ["Script", "Start Date", "End Date"]
 
         if list(df.columns) != expected_cols:
             st.error(f"Invalid columns. Expected: {expected_cols}, Got: {list(df.columns)}")
@@ -380,8 +385,47 @@ class BookClosure:
         # -----------------------------------------
         # Process button
         # -----------------------------------------
-        if st.button("Insert Into Book Closure"):
+        if st.button("Insert Into Book Closure", icon="⬇️"):
             with st.spinner("Processing..."):
+                df.rename(columns={"Start Date": "start_date", "End Date": "end_date", "Script": "script"}, inplace=True)
+                # After renaming
+                df['end_date'] = pd.to_datetime(df['end_date'], format='%d-%b-%Y')
+
+                # Fetch holidays
+                conn = db.get_connection()
+                cur = conn.cursor()
+                cur.execute("SELECT holiday_date FROM holidays")
+                rows = cur.fetchall()
+                holidays = {datetime.strptime(row[0], '%Y-%m-%d').date() for row in rows}
+                cur.close()
+                conn.close()
+
+                def next_business_days(end_date, n, holidays):
+                    date = end_date.date()
+                    count = 0
+                    while count < n:
+                        date += timedelta(days=1)
+                        if date.weekday() < 5 and date not in holidays:
+                            count += 1
+                    return date
+
+                df['t0'] = df['end_date'].apply(lambda d: next_business_days(d, 1, holidays))
+                df['t1'] = df['end_date'].apply(lambda d: next_business_days(d, 2, holidays))
+                df['t2'] = df['end_date'].apply(lambda d: next_business_days(d, 3, holidays))
+
+                # Convert all to datetime first for consistent formatting
+                df['end_date'] = pd.to_datetime(df['end_date'])
+                df['t0'] = pd.to_datetime(df['t0'])
+                df['t1'] = pd.to_datetime(df['t1'])
+                df['t2'] = pd.to_datetime(df['t2'])
+
+                # Now apply strftime
+                df['end_date'] = df['end_date'].dt.strftime('%d-%b-%Y')
+                df['t0'] = df['t0'].dt.strftime('%d-%b-%Y')
+                df['t1'] = df['t1'].dt.strftime('%d-%b-%Y')
+                df['t2'] = df['t2'].dt.strftime('%d-%b-%Y')
+
+                # st.dataframe(df)
                 inserted = db.insert_book_closure_from_file(df, username=self.username)
 
             st.session_state.book_upload_done = True
