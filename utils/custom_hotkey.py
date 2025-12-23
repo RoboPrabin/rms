@@ -34,7 +34,6 @@ def get_account_code(token, nepse_code):
         timeout=30
     )
     resp.raise_for_status()
-    print(resp.json())
     return resp.json()
 
 
@@ -112,7 +111,9 @@ def activate_client_code_hotkey():
                         ac_code = get_account_code(token, client_code)
                         ledger = get_ledger(token, ac_code, from_date_str, to_date_str)
                         st.session_state["ledger_dialog_data"] = ledger
-                        st.session_state['rm_name'] = db.get_rm_name_from_client_rm_map_table(client_code=client_code)
+                        rm_name, client_name = db.get_table_rm_child_map_with_client_code(client_code=client_code)
+                        st.session_state['rm_name'] = rm_name
+                        st.session_state['client_name'] = client_name
                     except Exception as e:
                         st.error(f"Client Code: '{client_code.upper()}' not found")
                         return
@@ -120,7 +121,8 @@ def activate_client_code_hotkey():
         if "ledger_dialog_data" in st.session_state:
             ledger = st.session_state["ledger_dialog_data"]
             # st.divider()
-            st.subheader("📒 Opening Summary", anchor=False)
+            st.subheader(f"📒 Opening Summary", anchor=False)
+            st.badge(f"{client_name.upper()}", color="green")
             ubilled = ledger.get("ubilledTransactions", [])
 
             adjusted_balance = 0.0
@@ -186,4 +188,5 @@ def activate_client_code_hotkey():
         if "ledger_dialog_data" in st.session_state:
             del st.session_state["ledger_dialog_data"]
             del st.session_state['rm_name']
+            del st.session_state['client_name']
         # st.rerun()

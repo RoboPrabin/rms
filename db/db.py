@@ -536,11 +536,28 @@ def get_table_rm_child_map():
     conn.close()
     return row
 
-def get_rm_name_from_client_rm_map_table(client_code: str):
+# def get_rm_name_from_client_rm_map_table(client_code: str):
+#     conn = get_connection()
+#     cur = conn.cursor()
+#     cur.execute(
+#         """SELECT "rmName", "clientName", "clientCode"
+#            FROM client_rm_map
+#            WHERE "clientCode" = %s""",
+#         (client_code.upper(),)
+#     )
+#     row = cur.fetchone()
+#     cur.close()
+#     conn.close()
+
+#     # Return only rmName if row exists, else "N/A"
+#     return row[0] if row else "N/A"
+
+
+def get_table_rm_child_map_with_client_code(client_code: str):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        """SELECT "rmName", "clientName", "clientCode"
+        """SELECT "rmName", "clientName"
            FROM client_rm_map
            WHERE "clientCode" = %s""",
         (client_code.upper(),)
@@ -548,9 +565,9 @@ def get_rm_name_from_client_rm_map_table(client_code: str):
     row = cur.fetchone()
     cur.close()
     conn.close()
+    # Return (rmName, clientName) if row exists, else ("N/A", "N/A")
+    return (row[0], row[1]) if row else ("N/A", "N/A")
 
-    # Return only rmName if row exists, else "N/A"
-    return row[0] if row else "N/A"
 
 def get_user_by_username(username):
     conn = get_connection()
