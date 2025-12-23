@@ -1,3 +1,4 @@
+from time import sleep
 from utils import helper
 from io import BytesIO
 from config import config
@@ -208,6 +209,7 @@ class BookClosure:
 
             if success:
                 st.success("✅ Book Closure deleted successfully!")
+                sleep(1)
                 st.rerun()
             else:
                 st.error("❌ Failed to delete record.")

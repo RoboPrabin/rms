@@ -19,6 +19,56 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def get_floorsheet_by_scripts(scripts):
+    query = """
+    SELECT *
+    FROM floorsheet
+    WHERE uploaded_at LIKE CURRENT_DATE::text || '%%'
+      AND symbol = ANY(%s);
+"""
+    conn = None
+    df = pd.DataFrame()
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query, (scripts,))  # ✅ wrap list in tuple
+            rows = cur.fetchall()
+            df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
+    except Exception as e:
+        print("Error fetching floorsheet:", e)
+    finally:
+        if conn:
+            conn.close()
+    return df
+
+
+
+
+def get_today_floorsheet():
+    query = """
+        SELECT *
+        FROM floorsheet
+        WHERE uploaded_at LIKE CURRENT_DATE::text || '%';
+    """
+    conn = None
+    df = pd.DataFrame()
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            # Convert to DataFrame with column names
+            df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
+    except Exception as e:
+        print("Error fetching floorsheet:", e)
+    finally:
+        if conn:
+            conn.close()
+    return df
+
+
+
+
 
 def store_jwt_token(jwt_value: str):
     """
@@ -307,6 +357,30 @@ def get_all_book_closure():
     except Exception as e:
         print("DB Error:", e)
         return pd.DataFrame()
+
+def get_today_book_closure():
+    query = """
+        SELECT script, start_date
+        FROM book_closure
+        WHERE start_date = CURRENT_DATE
+        ORDER BY created_at DESC;
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]  # ✅ column names
+        cur.close()
+        conn.close()
+
+        return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
+
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+
+
 
 
 def get_all_holidays():

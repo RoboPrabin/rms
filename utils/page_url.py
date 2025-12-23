@@ -5,6 +5,9 @@ business_ratio_url = base_path + "BusinessRatio.py"
 book_closure_url = base_path + "BookClosure.py" 
 view_feedback_url = base_path + "ViewFeedback.py" 
 active_session_url = base_path + "ActiveSession.py" 
+pay_rec_url = base_path + "PayableAndReceivable.py" 
+
+
 cache_url = base_path + "Cache.py" 
 bro_targets_and_achievements_url = base_path + "BRO Targets & Achievements.py" 
 live_holdings_url = base_path + "_Live Holdings.py" 

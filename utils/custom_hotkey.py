@@ -85,7 +85,7 @@ def activate_client_code_hotkey():
         with st.form("ledger_form"):
             col1, col2, col3 = st.columns(3)
             with col1:
-                client_code = st.text_input("Client Code (NEPSE)").upper()
+                client_code = st.text_input("Client Code (NEPSE)", value=st.session_state.get('client_code', '')).upper()
 
             with col2:
                 from_date = st.date_input(
@@ -119,6 +119,7 @@ def activate_client_code_hotkey():
                         rm_name, client_name = get_rm_and_client_name(client_code)
                         st.session_state['rm_name'] = rm_name
                         st.session_state['client_name'] = client_name
+                        st.session_state['client_code'] = client_code
                     except Exception as e:
                         st.error(f"Client Code: '{client_code.upper()}' not found")
                         return
@@ -126,8 +127,9 @@ def activate_client_code_hotkey():
         if "ledger_dialog_data" in st.session_state:
             ledger = st.session_state["ledger_dialog_data"]
             # st.divider()
-            st.subheader(f"📒 Opening Summary", anchor=False)
-            st.badge(f"{st.session_state['client_name']}", color="green")
+            # st.subheader(f"📒 Opening Summary", anchor=False)
+            st.badge(f"{st.session_state['client_name']} [{st.session_state.get('client_code', '')}] || {st.session_state.get('rm_name', 'N/A')}", color="green")
+        
             ubilled = ledger.get("ubilledTransactions", [])
 
             adjusted_balance = 0.0
@@ -137,18 +139,23 @@ def activate_client_code_hotkey():
                     total_credit = df_ub["credit"].sum()
                     adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
 
+                    # <div>BRO: {st.session_state.get('rm_name', 'N/A')}</div>
+            st.markdown(
+            f"""
+            <div style="display: flex; justify-content: space-between; font-size: 1rem; color: #6b7280; line-height: 2; margin-bottom: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <div>
+                    <div>Adjusted Balance: {adjusted_balance:,.2f}</div>
+                    <div>Collateral: {float(ledger.get('collateral', 0)):,.2f}</div>
+                </div>
+                <div style="text-align: right;">
+                    <br>
+                    <div>Balance: {float(ledger.get('balance', 0)):,.2f} {ledger.get('balanceType', '-')}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Opening", f"{float(ledger.get('opening', 0)):,.2f}", border=True)
-            c2.metric("Balance", f"{float(ledger.get('balance', 0)):,.2f}", border=True)
-            c3.metric("Type", ledger.get("balanceType", "-"), border=True)
-
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Collateral", f"{float(ledger.get('collateral', 0)):,.2f}", border=True)
-            c2.metric("Adjusted Balance", f"{adjusted_balance:,.2f}", border=True)
-            c3.metric("BRO", f"{st.session_state.get('rm_name', 'N/A')}", border=True)
-            st.divider()
             st.subheader("📖 Ledger Transactions", anchor=False)
             data_rows = ledger.get("data", [])
             if data_rows:
