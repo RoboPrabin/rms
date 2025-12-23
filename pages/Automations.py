@@ -1,3 +1,4 @@
+from utils.custom_hotkey import activate_client_code_hotkey
 from time import sleep
 import secrets
 import string
@@ -20,6 +21,9 @@ from db import db
 
 class Uarf:
     def __init__(self):
+        activate_client_code_hotkey()
+
+
         st.set_page_config("Automations", page_icon="⚡", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
@@ -36,6 +40,7 @@ class Uarf:
         self.holding_engine = helper.get_holding_engine()
 
         st.header("⚡ Automations", anchor=False)
+
 
     # ✅ Strong password generator
     def generate_strong_password(self, length=12):

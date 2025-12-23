@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
-
+from utils.custom_hotkey import activate_client_code_hotkey
 class RMPerformance:
     def __init__(self):
         st.set_page_config("BRO Performance", page_icon="📈", layout='wide')
@@ -17,6 +17,7 @@ class RMPerformance:
 
         self.today_np_date = nepali_date.today()
         today_np = nepali_date.today()
+        activate_client_code_hotkey()
         # Authentication & User Info
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()

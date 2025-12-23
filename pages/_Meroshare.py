@@ -6,6 +6,7 @@ import streamlit as st
 import sqlalchemy
 from config import config
 from utils import helper
+from utils.custom_hotkey import activate_client_code_hotkey
 
 class Meroshare:
     def __init__(self):
@@ -14,6 +15,8 @@ class Meroshare:
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
+
+        activate_client_code_hotkey()
         helper.adjust_ui()
         render_sidebar()
         self.total_accounts = 0

@@ -9,6 +9,7 @@ import uuid
 from sqlalchemy import create_engine, text
 from utils import helper 
 from streamlit_bridge.navigation import render_sidebar
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class CreateAppUser:
@@ -19,6 +20,8 @@ class CreateAppUser:
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
         self.username, self.role = app_state.get_current_user_info()
+
+        activate_client_code_hotkey()
 
         render_sidebar()
         helper.adjust_ui()

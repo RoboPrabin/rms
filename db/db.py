@@ -20,6 +20,46 @@ def get_connection():
     )
 
 
+def store_jwt_token(jwt_value: str):
+    """
+    Insert or replace the single JWT value in dg_api_token table.
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO dg_api_token (id, jwt)
+                VALUES (1, %s)
+                ON CONFLICT (id)
+                DO UPDATE SET jwt = EXCLUDED.jwt;
+            """, (jwt_value,))
+        conn.commit()
+        helper.show_message("JWT updated successfully.", "green")
+    except Exception as e:
+        helper.show_message(f"Error updating JWT: {e}", "red")
+    finally:
+        if conn:
+            conn.close()
+
+
+def get_jwt_token() -> str | None:
+    """
+    Fetch the single JWT stored in dg_api_token.
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT jwt FROM dg_api_token LIMIT 1;")
+            row = cur.fetchone()
+            return row[0] if row else None
+    except Exception as e:
+        helper.show_message(f"Error fetching JWT: {e}", "red")
+        return None
+    finally:
+        if conn:
+            conn.close()
 
 
 

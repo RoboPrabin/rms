@@ -9,7 +9,7 @@ from db import db
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils import helper
-
+from utils.custom_hotkey import activate_client_code_hotkey
 class Floorsheet:
     def __init__(self):
         st.set_page_config(page_title="Floorsheet", page_icon="📄", layout="wide")
@@ -19,6 +19,7 @@ class Floorsheet:
         self.username, self.role = app_state.get_current_user_info()
         navigation.render_sidebar()
         today = datetime.today()
+        activate_client_code_hotkey()
 
         # Get the day name (e.g. Monday, Tuesday)
         self.day_name = today.strftime("%A")

@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, text
 from db import db
 from PIL import Image
 import os
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class Gallery:
@@ -36,6 +37,8 @@ class Gallery:
 
     def __init__(self):
         st.set_page_config("Gallery", page_icon="📸", layout='wide')
+
+        activate_client_code_hotkey()
 
         # Authentication
         app_state.restore_state_from_query_params()

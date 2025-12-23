@@ -8,12 +8,15 @@ import uuid
 from sqlalchemy import create_engine, text
 from utils import helper 
 from streamlit_bridge.navigation import render_sidebar
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class BookClosure:
     def __init__(self):
         st.set_page_config("Book Closure", page_icon="📫", layout='wide')
         st.header("📫 Book Closure", anchor=False)
+        activate_client_code_hotkey()
+
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()

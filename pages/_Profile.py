@@ -8,6 +8,7 @@ from utils import page_url
 from utils import helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class Settings:
@@ -18,6 +19,8 @@ class Settings:
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
 
+
+        activate_client_code_hotkey()
 
         self.username, self.role = app_state.get_current_user_info()
         self.user =db.get_user_by_username(username=self.username)

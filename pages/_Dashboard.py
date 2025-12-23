@@ -1,3 +1,4 @@
+import streamlit_hotkeys as hotkeys
 import plotly.express as px
 from datetime import datetime, timedelta
 from nepali_datetime import date as nepali_date
@@ -8,9 +9,10 @@ from utils import helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils.formatting import *
-
+from utils.custom_hotkey import activate_client_code_hotkey
 class Dashboard:
     def __init__(self):
+
         st.set_page_config("Dashboard", page_icon="🏠", layout='wide')
 
         # Dates
@@ -23,7 +25,9 @@ class Dashboard:
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
 
+
         self.username, self.role = app_state.get_current_user_info()
+        activate_client_code_hotkey()
 
         # Sidebar
         navigation.render_sidebar()
@@ -39,6 +43,9 @@ class Dashboard:
 
         self.yesterday_date = yesterday.strftime("%Y-%m-%d")
         self.week_day = yesterday.strftime("%A")
+
+
+
 
     def has_today_floorsheet_data(self):
         query = """

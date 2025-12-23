@@ -7,6 +7,7 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
 from sqlalchemy import create_engine, text
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class DigitalVault:
@@ -17,10 +18,13 @@ class DigitalVault:
 
         self.today_np_date = nepali_date.today()
         today_np = nepali_date.today()
+
+        activate_client_code_hotkey()
         # Authentication & User Info
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
+
         self.username, self.role = app_state.get_current_user_info()
         navigation.render_sidebar()
 

@@ -9,6 +9,7 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils.formatting import *
 from datetime import date
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class BusinessRatio:
@@ -18,7 +19,7 @@ class BusinessRatio:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
-
+        activate_client_code_hotkey()
         self.username, self.role = app_state.get_current_user_info()
         st.title("⚖️ Ratio of Due Amount with Business Turnover", anchor=False)
         # Sidebar

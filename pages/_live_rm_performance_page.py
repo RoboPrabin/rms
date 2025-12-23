@@ -11,7 +11,7 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
 from pandas.io.formats.style import Styler
-
+from utils.custom_hotkey import activate_client_code_hotkey
 # ---------- Reusable helpers ----------
 
 SUMMARY_COLS = [
@@ -74,7 +74,7 @@ class Uarf:
         # Create engine once
         self.engine = create_engine(helper.get_holding_engine())
         
-        
+        activate_client_code_hotkey()
 
     def get_kyc_data(_self):
         rows = db.get_kyc()

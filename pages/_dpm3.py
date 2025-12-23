@@ -10,6 +10,7 @@ from db import db
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from nepali_datetime import date as nepali_date
+from utils.custom_hotkey import activate_client_code_hotkey
 
 
 class DPM3:
@@ -19,6 +20,7 @@ class DPM3:
         # Dates
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
+        activate_client_code_hotkey()
 
         # Authentication & User Info
         app_state.restore_state_from_query_params()

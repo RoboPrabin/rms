@@ -12,7 +12,8 @@ import uuid
 from sqlalchemy import text
 from utils import helper
 from sqlalchemy import create_engine
-
+from utils.custom_hotkey import activate_client_code_hotkey
+        
 
 class RMTag:
     def __init__(self):
@@ -25,6 +26,7 @@ class RMTag:
         st.title("🏷️ RM Tag", anchor=False)
         self.conn = db.get_connection()
         self.holding_engine = helper.get_holding_engine()
+        activate_client_code_hotkey()
 
     # ---------------------------
     # Utility functions
