@@ -20,7 +20,7 @@ from config.config import due_list_flag_path
 import secrets
 import string
 from typing import Final
-
+import nepali_datetime
 
 # def get_user_agent() -> str:
 #     js = """
@@ -41,6 +41,64 @@ from typing import Final
     
 #     # fallback
 #     return "Unknown"
+
+def validate_phone(phone: str) -> bool:
+    """
+    Validate a phone number:
+    - Must be exactly 10 digits
+    - Must start with 9
+    """
+    # Regex: start with 9, followed by 9 digits (total 10)
+    pattern = r"^9\d{9}$"
+    return bool(re.match(pattern, phone))
+
+
+def validate_email(email: str) -> bool:
+    """
+    Validate an email address using regex.
+    Returns True if valid, False otherwise.
+    """
+    if not email:
+        return False
+
+    # Basic RFC 5322 compliant regex for email validation
+    pattern = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    return re.match(pattern, email) is not None
+
+
+def convert_ad_to_bs(ad_date: str) -> str:
+    try:
+        ad_dt = datetime.strptime(ad_date, "%Y-%m-%d")
+        bs_date = nepali_datetime.date.from_datetime_date(ad_dt.date())
+        return bs_date.strftime("%Y-%m-%d")
+    except Exception as e:
+        return ""
+
+
+def get_default_platforms():
+    return  [
+            "TMS",
+            "DG",
+            "OFFICIAL_EMAIL",
+            "OFFICIAL_PHONE_NUMBER"
+        ]
+def get_employee_types():
+    return  [
+            "BRO",
+            "FRO",
+            "GENERAL STAFF",
+            "INTERN",]
+
+def get_work_locations():
+    return  [
+            "KATHMANDU",
+            "LALITPUR",
+            "BANEPA",
+            "POKHARA",
+            "HETAUDA",
+            "MAHENDRANAGAR",
+        ]
+
 def eliminate_top_padding():
     st.markdown("""
     <style>

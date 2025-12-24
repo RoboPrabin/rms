@@ -3,7 +3,7 @@ import uuid
 from psycopg2 import sql
 import psycopg2
 import psycopg2.extras
-from psycopg2.extras import execute_batch
+from psycopg2.extras import execute_batch, execute_values
 import pandas as pd
 from utils import helper
 from datetime import datetime, timedelta
@@ -18,6 +18,249 @@ def get_connection():
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
     )
+
+
+
+def update_it_platforms( uarf_id, platform_flags):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # 1️⃣ Update platform flags
+        for platform, created in platform_flags.items():
+            cur.execute("""
+                UPDATE uarf_platform_access
+                SET access_created = %s
+                WHERE uarf_id = %s AND platform_name = %s;
+            """, (created, uarf_id, platform))
+
+        # 2️⃣ Check if all required platforms are created
+        cur.execute("""
+            SELECT COUNT(*) FROM uarf_platform_access
+            WHERE uarf_id = %s AND access_required = TRUE AND access_created = FALSE;
+        """, (uarf_id,))
+        remaining = cur.fetchone()[0]
+
+        if remaining == 0:
+            # Mark request as CREATED
+            cur.execute("""
+                UPDATE uarf_request
+                SET status = 'CREATED', updated_at = NOW()
+                WHERE id = %s;
+            """, (uarf_id,))
+
+        conn.commit()
+        return True
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+
+
+def approve_by_hr(
+    uarf_id,
+    employee_id,
+    office_phone,
+    office_email,
+    department,
+    designation,
+    joining_date,
+    work_location
+):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        sql = """
+            UPDATE uarf_request
+            SET
+                employee_id = %s,
+                office_phone = %s,
+                office_email = %s,
+                department = %s,
+                designation = %s,
+                joining_date = %s,
+                work_location = %s,
+                status = 'APPROVED_BY_HR',
+                updated_at = NOW()
+            WHERE id = %s;
+        """
+
+        cur.execute(sql, (
+            employee_id,
+            office_phone,
+            office_email,
+            department,
+            designation,
+            joining_date,
+            work_location,
+            uarf_id
+        ))
+
+        conn.commit()
+        return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+def reject_by_hr(uarf_id, rejection_reason="Not specified"):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE uarf_request
+            SET status = 'REJECTED_BY_HR',
+                rejection_reason = %s,
+                updated_at = NOW()
+            WHERE id = %s;
+        """, (rejection_reason, uarf_id))
+
+        conn.commit()
+        return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+def reject_by_it(uarf_id, rejection_reason="Not specified"):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE uarf_request
+            SET status = 'REJECTED_BY_IT',
+                    rejection_reason = %s,
+                updated_at = NOW(),
+            WHERE id = %s;
+        """, (rejection_reason, uarf_id))
+
+        conn.commit()
+        return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+
+def submit_manager_request(
+        full_name,
+        dob_bs,
+        dob_ad,
+        citizenship_number,
+        citizenship_issued_place,
+        personal_phone,
+        personal_email,
+        supervisor_name,
+        selected_platforms,
+        employee_type,
+        username
+    ):
+        conn = None
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+
+            # 1️⃣ Insert into uarf_request and fetch UUID
+            insert_uarf_sql = """
+                INSERT INTO uarf_request (
+                    status,
+                    full_name,
+                    dob_bs,
+                    dob_ad,
+                    citizenship_number,
+                    citizenship_issued_place,
+                    personal_phone,
+                    personal_email,
+                    supervisor_name,
+                    created_by,
+                    employee_type
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                RETURNING id;
+            """
+
+            cur.execute(
+                insert_uarf_sql,
+                (
+                    "SUBMITTED",
+                    full_name.upper(),
+                    dob_bs,
+                    dob_ad,
+                    citizenship_number.upper(),
+                    citizenship_issued_place.upper(),
+                    personal_phone,
+                    personal_email.lower(),
+                    supervisor_name.upper(),
+                    username.upper(),
+                    employee_type.upper()
+                )
+            )
+
+            uarf_id = cur.fetchone()["id"]
+
+            # 2️⃣ Prepare platform rows
+            platform_rows = [
+                (uarf_id, platform, required)
+                for platform, required in selected_platforms.items()
+            ]
+
+            insert_platform_sql = """
+                INSERT INTO uarf_platform_access (
+                    uarf_id,
+                    platform_name,
+                    access_required
+                )
+                VALUES %s;
+            """
+
+            execute_values(
+                cur,
+                insert_platform_sql,
+                platform_rows
+            )
+
+            conn.commit()
+
+            return True
+            
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            return False
+
+        finally:
+            if conn:
+                conn.close()
+
+
 
 def get_floorsheet_by_scripts(scripts):
     query = """
