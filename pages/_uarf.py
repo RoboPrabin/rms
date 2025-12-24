@@ -35,11 +35,11 @@ class Uarf:
 
         # DB Connection
         self.holding_engine = helper.get_holding_engine()
-
         st.header("🪪 User Access Request Form", anchor=False)
     
 
 
+    # MANAGER FUNCTION START ________________________________________
     @st.dialog("Confirmation")
     def confirm_manager(self, full_name, dob_bs, dob_ad, citizenship_number, citizenship_issued_place, personal_phone, personal_email, supervisor_name, selected_platforms, employee_type):
         st.badge("You cant't edit or delete once submitted.", color='red')
@@ -62,53 +62,86 @@ class Uarf:
             sleep(1)
             st.rerun()
 
-    @st.dialog("Confirmation")
-    def confirm_hr(self,  selected_id,
-                    employee_id,
-                    office_phone,
-                    office_email,
-                    department,
-                    designation,
-                    joining_date,
-                    work_location):
-        st.badge("You cant't edit or delete once submitted.", color='red')
-        st.write(f"Are you sure you want to submit UARF to IT ?")
-        if st.button("Submit"):
-            if db.approve_by_hr(
-                    selected_id,
-                    employee_id,
-                    office_phone,
-                    office_email,
-                    department,
-                    designation,
-                    joining_date,
-                    work_location
-                ):
-                st.success("✅ UARF approved and forwarded to IT.")
-                sleep(1)
-                st.rerun()
-                sleep(2)
-                self.selected_index = 1
-            else:
-                st.error("❌ HR approval failed.")
-
-
-    # MANAGER FUNCTION START ________________________________________
     def _get_manager_pending_requests(self):
         return pd.read_sql(F"""
-            SELECT full_name, status, rejection_reason, created_at
+            SELECT id, full_name, status, rejection_reason, created_at
             FROM uarf_request
             WHERE supervisor_name = '{self.username}'
             ORDER BY created_at;
         """, self.holding_engine)
 
+
+    def manager_edit_form(self, uarf, df_access_platforms:pd.DataFrame):
+        card = st.container(border=True)
+        with card:
+            st.text_area("Rejection reason:", value=uarf['rejection_reason'])
+            st.markdown("---")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                full_name = st.text_input("Full Name *", value=uarf["full_name"], key="edit_full_name")
+                dob_ad = st.date_input("Date of Birth (AD) *", value=uarf["dob_ad"], key="edit_dob_ad")
+                dob_bs = st.text_input("Date of Birth (BS) *", value=uarf["dob_bs"], key="edit_dob_bs")
+            with col2:
+                citizenship_number = st.text_input("Citizenship Number *", value=uarf["citizenship_number"])
+                citizenship_issued_place = st.text_input("Citizenship Issued Place *", value=uarf["citizenship_issued_place"])
+                employee_type = st.selectbox("Employee Type *", ["Select"] + helper.get_employee_types(), index=helper.get_employee_types().index(uarf["employee_type"]) + 1)
+            with col3:
+                personal_email = st.text_input("Personal Email *", value=uarf["personal_email"])
+                personal_phone = st.text_input("Personal Phone *", value=uarf["personal_phone"])
+                supervisor_name = st.text_input("Supervisor Name", value=uarf["supervisor_name"], disabled=True)
+
+
+            platform_access_map = (
+                df_access_platforms
+                .set_index("platform_name")["access_required"]
+                .to_dict()
+            )
+            platforms = helper.get_default_platforms()
+            selected_platforms = {}
+            cols = st.columns(4)
+            for idx, platform in enumerate(platforms):
+                with cols[idx % 4]:
+                    selected_platforms[platform] = st.checkbox(
+                            platform,
+                            value=platform_access_map.get(platform, True),
+                            # key=f"edit_platform_{platform}"
+                        )
+
+            submitted = st.button("📨 Resubmit UARF")
+
+            if submitted:
+                # call DB update logic
+                db.update_manager_request(
+                    uarf["id"],
+                    full_name,
+                    dob_bs,
+                    dob_ad,
+                    citizenship_number,
+                    citizenship_issued_place,
+                    personal_phone,
+                    personal_email,
+                    uarf["supervisor_name"],
+                    selected_platforms,
+                    employee_type
+                )
+                st.success("✅ UARF resubmitted successfully.")
+                sleep(1)
+                st.rerun()
+
+
+
     def manager_ui(self):
-        view = st.radio("Select View", ["Submit UARF", "View Submitted UARFs"], horizontal=True, index=1)
+        view = st.radio("Select View", ["Submit UARF", "Pending/Approved", "Rejected"], horizontal=True, index=1)
+        df = self._get_manager_pending_requests()
+        # Normal pending/approved list
+        normal_df = df[~df["status"].isin(["REJECTED_BY_HR", "REJECTED_BY_IT"])]
+        rejected_df = df[df["status"].isin(["REJECTED_BY_HR", "REJECTED_BY_IT"])]
+
         if view == "Submit UARF":
-            # st.subheader("👔 Manager Section", anchor=False)
             # with st.form("manager_uarf_form", clear_on_submit=True):
             card = st.container(border=True)
             with card:
+                st.subheader("👔 Basic Information", anchor=False)
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
@@ -195,26 +228,111 @@ class Uarf:
                 # st.success("✅ UARF submitted successfully and forwarded to HR.")
                 # sleep(1)
                 # st.rerun()
-        else:
-            df = self._get_manager_pending_requests()
-            if df.empty:
-                st.info("You have no any UARFs.", icon="ℹ️")
+        
+        elif view == "Pending/Approved":
+            if normal_df.empty and rejected_df.empty:
+                st.info("You have no UARFs.", icon="ℹ️")
                 st.stop()
-            df.rename(columns={"full_name":"Employee Name", 
-                               "status": "Status", 
-                               "created_at":"Requested At",
-                               "rejection_reason":"Rejection Reason"}, inplace=True)
-            df.index = df.index + 1
-            st.dataframe(df, width='stretch', hide_index=False)
-    
 
+            if not normal_df.empty:
+                st.subheader("Pending / Approved UARFs", anchor=False)
+                normal_df.drop(columns=['id'], inplace=True)
+                normal_df.rename(columns={"full_name":"Employee Name", 
+                    "status": "Status", 
+                    "created_at":"Requested At",
+                    "rejection_reason":"Rejection Reason"}, inplace=True)
+                normal_df.index = normal_df.index + 1
+                st.dataframe(normal_df, width='stretch', hide_index=False)
+        
+        else:
+           if rejected_df.empty:
+               st.info("No rejection yet.", icon="ℹ️")
+               st.stop()
+
+            # Show rejected UARFs separately
+           if not rejected_df.empty:
+                st.subheader("Rejected UARFs (Editable)", anchor=False)
+                # Create display-only dataframe
+                display_df = rejected_df.copy()
+                if display_df.empty():
+                    st.info("no data")
+                    st.stop()
+
+
+                display_df.rename(columns={
+                    "full_name": "Employee Name",
+                    "status": "Status",
+                    "created_at": "Requested At",
+                    "rejection_reason": "Rejection Reason"
+                }, inplace=True)
+
+                display_df.drop(columns=["id"], inplace=True)
+                display_df.index = display_df.index + 1
+
+                st.dataframe(display_df, width="stretch", hide_index=False)
+
+                st.markdown("---")
+                st.info("You can now edit the details and resubmit.")
+
+                # Still use original rejected_df for logic
+                selected_id = st.selectbox(
+                    "Select a rejected UARF to edit",
+                    rejected_df["id"],
+                    format_func=lambda x: rejected_df.loc[
+                        rejected_df["id"] == x, "full_name"
+                    ].values[0]
+                )
+
+                uarf = self._get_uarf_details(selected_id)
+                df_access_platforms = self.get_access_request_platforms(uarf_id=uarf["id"])
+
+                self.manager_edit_form(uarf, df_access_platforms)
+
+
+    def get_access_request_platforms(self, uarf_id):
+        return pd.read_sql(F"""
+            SELECT uarf_id, platform_name, access_required
+            FROM uarf_platform_access
+            WHERE uarf_id = '{uarf_id}'
+            ORDER BY created_at;
+        """, self.holding_engine)
 
     # HR FUNCTION START ________________________________________
+    @st.dialog("Confirmation")
+    def confirm_hr(self,  selected_id,
+                    employee_id,
+                    office_phone,
+                    office_email,
+                    department,
+                    designation,
+                    joining_date,
+                    work_location):
+        st.badge("You cant't edit or delete once submitted.", color='red')
+        st.write(f"Are you sure you want to submit UARF to IT ?")
+        if st.button("Submit"):
+            if db.approve_by_hr(
+                    selected_id,
+                    employee_id,
+                    office_phone,
+                    office_email,
+                    department,
+                    designation,
+                    joining_date,
+                    work_location
+                ):
+                st.success("✅ UARF approved and forwarded to IT.")
+                sleep(1)
+                st.rerun()
+                sleep(2)
+                self.selected_index = 1
+            else:
+                st.error("❌ HR approval failed.")
+    
     def _get_hr_pending_requests(self):
         return pd.read_sql("""
             SELECT id, full_name
             FROM uarf_request
-            WHERE status = 'SUBMITTED'
+            WHERE status = 'PENDING'
             ORDER BY created_at;
         """, self.holding_engine)
 
@@ -355,12 +473,12 @@ class Uarf:
             if df.empty:
                 st.info("No UARFs available.", icon="ℹ️")
                 st.stop()
+            df = helper.rename_all_columns(df=df)
             df.index = df.index + 1
             st.dataframe(df, width='stretch', hide_index=False)
 
 
     # IT FUNCTION START ________________________________________
-
     def view_all_uarfs(self):
         df = pd.read_sql("""
             SELECT *
@@ -385,7 +503,6 @@ class Uarf:
             WHERE uarf_id = %s
             AND access_required = TRUE;
         """, self.holding_engine, params=(uarf_id,))
-
 
     def it_ui(self):
         st.subheader("💻 IT Section", anchor=False)
@@ -490,10 +607,13 @@ class Uarf:
             if df.empty:
                 st.info("No UARFs available.", icon="ℹ️")
                 st.stop()
-
+            df = helper.rename_all_columns(df=df)
             df.index = df.index + 1
             st.dataframe(df, width='stretch', hide_index=False)
 
+
+
+    # MAIN RENDER FUNCTION ________________________________________
     def render_page(self):
         if self.role == "MANAGER":
             self.manager_ui()

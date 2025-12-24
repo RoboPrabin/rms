@@ -41,6 +41,23 @@ import nepali_datetime
     
 #     # fallback
 #     return "Unknown"
+def rename_all_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Rename all DataFrame columns by converting snake_case to Title Case with spaces.
+    
+    Example:
+        citizenship_number -> Citizenship Number
+        status -> Status
+        created_at -> Created At
+    """
+    def format_col(col: str) -> str:
+        # Replace underscores with spaces, capitalize each word
+        return col.replace("_", " ").title()
+    
+    new_columns = {col: format_col(col) for col in df.columns}
+    return df.rename(columns=new_columns)
+
+
 
 def validate_phone(phone: str) -> bool:
     """
@@ -79,6 +96,8 @@ def get_default_platforms():
     return  [
             "TMS",
             "DG",
+            "webcdas",
+            "CM",
             "OFFICIAL_EMAIL",
             "OFFICIAL_PHONE_NUMBER"
         ]

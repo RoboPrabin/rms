@@ -19,6 +19,101 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def update_manager_request(
+    uarf_id,
+    full_name,
+    dob_bs,
+    dob_ad,
+    citizenship_number,
+    citizenship_issued_place,
+    personal_phone,
+    personal_email,
+    supervisor_name,
+    selected_platforms,
+    employee_type
+):
+    """
+    Update a rejected UARF with new details from the Manager.
+    Also updates the platforms selected by the Manager.
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # 1️⃣ Update uarf_request table
+        cur.execute("""
+            UPDATE uarf_request
+            SET full_name = %s,
+                dob_bs = %s,
+                dob_ad = %s,
+                citizenship_number = %s,
+                citizenship_issued_place = %s,
+                personal_phone = %s,
+                personal_email = %s,
+                supervisor_name = %s,
+                status = 'PENDING',  -- reset status for HR review
+                updated_at = NOW(),
+                employee_type = %s,
+                rejection_reason = NULL
+            WHERE id = %s;
+        """, (
+            full_name,
+            dob_bs,
+            dob_ad,
+            citizenship_number,
+            citizenship_issued_place,
+            personal_phone,
+            personal_email,
+            supervisor_name,
+            employee_type,
+            uarf_id
+        ))
+
+        # 2️⃣ Update uarf_platform_access table
+        # First, reset all access_required flags to False
+        cur.execute("""
+            UPDATE uarf_platform_access
+            SET access_required = FALSE,
+                access_created = FALSE
+            WHERE uarf_id = %s;
+        """, (uarf_id,))
+
+        # Then insert/update selected platforms
+        for platform, required in selected_platforms.items():
+            if required:
+                # Check if platform row exists
+                cur.execute("""
+                    SELECT id FROM uarf_platform_access
+                    WHERE uarf_id = %s AND platform_name = %s;
+                """, (uarf_id, platform))
+                row = cur.fetchone()
+                if row:
+                    cur.execute("""
+                        UPDATE uarf_platform_access
+                        SET access_required = TRUE,
+                            access_created = FALSE
+                        WHERE id = %s;
+                    """, (row[0],))
+                else:
+                    cur.execute("""
+                        INSERT INTO uarf_platform_access (
+                            uarf_id, platform_name, access_required, access_created, created_at
+                        ) VALUES (%s, %s, TRUE, FALSE, NOW());
+                    """, (uarf_id, platform))
+
+        conn.commit()
+        return True
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print("Error updating UARF:", e)
+        return False
+
+    finally:
+        if conn:
+            conn.close()
 
 
 def update_it_platforms( uarf_id, platform_flags):
@@ -209,7 +304,7 @@ def submit_manager_request(
             cur.execute(
                 insert_uarf_sql,
                 (
-                    "SUBMITTED",
+                    "PENDING",
                     full_name.upper(),
                     dob_bs,
                     dob_ad,
