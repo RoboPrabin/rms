@@ -194,12 +194,13 @@ def render_sidebar():
         st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
+        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
+        
         st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
         st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
         st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")

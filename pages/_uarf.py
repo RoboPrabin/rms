@@ -231,7 +231,7 @@ class Uarf:
         
         elif view == "Pending/Approved":
             if normal_df.empty and rejected_df.empty:
-                st.info("You have no UARFs.", icon="ℹ️")
+                st.info("You have no UARFs.", icon="ℹ📢")
                 st.stop()
 
             if not normal_df.empty:
@@ -246,7 +246,7 @@ class Uarf:
         
         else:
            if rejected_df.empty:
-               st.info("No rejection yet.", icon="ℹ️")
+               st.info("No rejection yet.", icon="ℹ📢")
                st.stop()
 
             # Show rejected UARFs separately
@@ -254,10 +254,6 @@ class Uarf:
                 st.subheader("Rejected UARFs (Editable)", anchor=False)
                 # Create display-only dataframe
                 display_df = rejected_df.copy()
-                if display_df.empty():
-                    st.info("no data")
-                    st.stop()
-
 
                 display_df.rename(columns={
                     "full_name": "Employee Name",
@@ -272,7 +268,7 @@ class Uarf:
                 st.dataframe(display_df, width="stretch", hide_index=False)
 
                 st.markdown("---")
-                st.info("You can now edit the details and resubmit.")
+                st.info("You can now edit the details and resubmit.", icon='📢')
 
                 # Still use original rejected_df for logic
                 selected_id = st.selectbox(
@@ -352,7 +348,7 @@ class Uarf:
             df = self._get_hr_pending_requests()
             total_pending_request = len(df)
             if df.empty:
-                st.info("No pending requests for HR.")
+                st.info("No pending requests for HR.", icon="📢")
                 return
 
             st.badge(f"Pending requests: {total_pending_request}", color='green')
@@ -445,23 +441,12 @@ class Uarf:
                         joining_date,
                         work_location)
                 
-                # if db.approve_by_hr(
-                #     selected_id,
-                #     employee_id,
-                #     office_phone,
-                #     office_email,
-                #     department,
-                #     designation,
-                #     joining_date,
-                #     work_location
-                # ):
-                #     st.success("✅ UARF approved and forwarded to IT.")
-                #     sleep(1)
-                #     st.rerun()
-                # else:
-                #     st.error("❌ HR approval failed.")
+               
 
             if reject:
+                if rejection_reason is None or rejection_reason == "":
+                    st.toast("Please provide rejection reason.", icon="ℹ️")
+                    st.stop()
                 if db.reject_by_hr(selected_id, rejection_reason=rejection_reason):
                     st.success("✅ UARF Rejected.")
                     sleep(1)
@@ -471,7 +456,7 @@ class Uarf:
         else:
             df = self.view_all_uarfs()
             if df.empty:
-                st.info("No UARFs available.", icon="ℹ️")
+                st.info("No UARFs available.", icon="📢")
                 st.stop()
             df = helper.rename_all_columns(df=df)
             df.index = df.index + 1
@@ -512,7 +497,7 @@ class Uarf:
             df = self._get_it_pending_requests()
             total_pending_request = len(df)
             if df.empty:
-                st.info("No requests pending IT action.")
+                st.info("No requests pending IT action.", icon="📢")
                 return
             st.badge(f"Pending Requests: {total_pending_request}", color='green')
             selected_id = st.selectbox(
