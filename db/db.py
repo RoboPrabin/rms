@@ -382,22 +382,22 @@ def get_floorsheet_by_scripts(scripts):
 
 
 
-def get_today_floorsheet(selected_date):
+def get_today_floorsheet_range(from_selected_date, to_selected_date):
     query = """
-    SELECT *
-    FROM floorsheet
-    WHERE uploaded_at LIKE %s || '%%';
-    """
+       SELECT *
+        FROM floorsheet
+        WHERE to_date(substr(uploaded_at, 1, 10), 'YYYY-MM-DD') 
+            BETWEEN %s AND %s;
+
+            """
 
     conn = None
     df = pd.DataFrame()
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            # cur.execute(query)
-            cur.execute(query, (selected_date,))
+            cur.execute(query, (from_selected_date, to_selected_date))
             rows = cur.fetchall()
-            # Convert to DataFrame with column names
             df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
     except Exception as e:
         print("Error fetching floorsheet:", e)
@@ -405,6 +405,7 @@ def get_today_floorsheet(selected_date):
         if conn:
             conn.close()
     return df
+
 
 
 

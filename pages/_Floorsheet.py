@@ -111,7 +111,7 @@ class Floorsheet:
         return df.groupby("branch")["amount"].sum().reset_index().rename(columns={"amount": "total"})
 
     def render_ui(self):
-        st.title("📄 Floorsheet Records")
+        st.title("📄 Floorsheet Records", anchor=False)
         col1, col2, col3 = st.columns(3)
         search_term = ""
 

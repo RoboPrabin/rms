@@ -34,13 +34,13 @@ class PayableAndReceivable:
         navigation.render_sidebar()
         st.header("💸 Payables & Receivables", anchor=False)
 
-        self.selected_floorsheet_date = st.date_input("Select floorsheet date", width=410)
+                
 
 
-    @st.cache_data(ttl=600)
-    def get_today_floorsheet_and_book_closure(_self, selected_date):
-        df_floorsheet = db.get_today_floorsheet(selected_date)
-        df_book_closure = db.get_today_book_closure(selected_date)
+    # @st.cache_data(ttl=600)
+    def get_today_floorsheet_and_book_closure(_self, from_selected_date, to_selected_date):
+        df_floorsheet = db.get_today_floorsheet_range(from_selected_date, to_selected_date)
+        df_book_closure = db.get_today_book_closure(from_selected_date)
         return df_floorsheet, df_book_closure
 
 
@@ -48,20 +48,20 @@ class PayableAndReceivable:
         # --- Fetch data ---
         # df_book_closure = db.get_today_book_closure()
         # df_today = db.get_today_floorsheet(selected_date=self.selected_floorsheet_date)
-
-        df_floorsheet, df_book_closure = self.get_today_floorsheet_and_book_closure(selected_date = self.selected_floorsheet_date)
+        df_floorsheet, df_book_closure = pd.DataFrame(), pd.DataFrame()
+        col1, col2 , col3= st.columns([1,1,1])
+        with st.form("floorsheet_range", border=False):
+            with col1:
+                self.from_floorsheet_date = st.date_input("From date", width=410)
+            with col2:
+                self.to_floorsheet_date = st.date_input("To date", width=410)
+        # with col3:
+            if st.form_submit_button("📥 Fetch Floorsheet"):
+                print(self.from_floorsheet_date)
+                print(self.to_floorsheet_date)
+                df_floorsheet, df_book_closure = self.get_today_floorsheet_and_book_closure(from_selected_date = self.from_floorsheet_date, to_selected_date = self.to_floorsheet_date)
+                print(df_floorsheet)
         st.divider()
-        # col1, col2 = st.columns(2)
-        # with col1:
-        #     st.caption("Floorsheet")
-        #     st.dataframe(df_floorsheet)
-        # with col2:
-        #     st.caption("Book Closure")
-        #     st.dataframe(df_book_closure)
-
-        # print(df_floorsheet)
-        # print("************************************************************************")
-        # print(df_book_closure)
         if df_floorsheet.empty:
             st.info("Floorsheet not found.", icon="📢")
             st.stop()
@@ -120,7 +120,7 @@ class PayableAndReceivable:
     def render_page(self):
         totals, df_floorsheet, df_bc = self.calculate_totals()
         # t3_day = datetime.now() + timedelta(days=3)
-        t3_day = self.selected_floorsheet_date + timedelta(days=3)
+        t3_day = self.from_floorsheet_date + timedelta(days=3)
         t3_weekday = t3_day.strftime('%A')  # Monday, Tuesday, etc.
         st.subheader(f"Settlement Amount for   {t3_weekday},   {t3_day.strftime('%Y-%m-%d')}  : Rs. {(totals['settlement_amount']):,.2f}", anchor=False)
         st.caption(f"BC Buy:   " + str(totals['total_bc_buy']) + ", BC Sell:  " + str(totals['total_bc_sell']))

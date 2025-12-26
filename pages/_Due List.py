@@ -23,22 +23,45 @@ class DueList:
         self.intranet_engine = helper.get_holding_engine()
 
 
+    # @st.cache_data(ttl=120)
+    # def load_due_list_data_all(_self, username):
+    #      # --- Load data ---
+    #     query = 'SELECT * FROM due_list'
+    #     params = None
+    #     df = pd.read_sql(query, _self.intranet_engine, params=params)
+    #     return df
+
     @st.cache_data(ttl=120)
     def load_due_list_data_all(_self, username):
-         # --- Load data ---
-        query = 'SELECT * FROM due_list'
-        params = None
-        df = pd.read_sql(query, _self.intranet_engine, params=params)
+        query = """
+            SELECT d.*,
+                COALESCE(m."rmName", 'N/A') AS "rmName"
+            FROM due_list d
+            LEFT JOIN client_rm_map m ON d."clientCode" = m."clientCode"
+        """
+        df = pd.read_sql(query, _self.intranet_engine)
         return df
     
     
-    # @st.cache_data(ttl=6000)
+    # def load_due_list_data_bro(_self):
+    #     # --- Load data ---
+    #     alias = helper.get_alias_name(_self.username.upper())
+    #     query = 'SELECT * FROM due_list WHERE "rmName" = %s'
+    #     params = (alias,)
+    #     df = pd.read_sql(query, _self.intranet_engine, params=params)
+    #     return df
+
+    @st.cache_data(ttl=120)
     def load_due_list_data_bro(_self):
-         # --- Load data ---
-        if _self.role == "BRO":
-            alias = helper.get_alias_name(_self.username.upper())
-            query = 'SELECT * FROM due_list WHERE "rmName" = %s'
-            params = (alias,)
+        alias = helper.get_alias_name(_self.username.upper())
+        query = """
+            SELECT d.*,
+                COALESCE(m."rmName", 'N/A') AS "rmName"
+            FROM due_list d
+            LEFT JOIN client_rm_map m ON d."clientCode" = m."clientCode"
+            WHERE COALESCE(m."rmName", 'N/A') = %s
+        """
+        params = (alias,)
         df = pd.read_sql(query, _self.intranet_engine, params=params)
         return df
 
@@ -50,10 +73,12 @@ class DueList:
             df: pd.DataFrame = _self.load_due_list_data_bro()
         else:
             df: pd.DataFrame = _self.load_due_list_data_all(username = _self.username)
+            print(df)
 
         # --- Layout for filters at top ---
         col1, col2, col3, col4 = st.columns(4)
-
+        
+        df = df.iloc[:, 1:]
         with col1:
             selected_date = st.date_input("Filter by date", datetime.today())
 
@@ -135,7 +160,8 @@ class DueList:
 
         # --- Rename for display ---
         df_filtered = df_filtered.rename(columns={"rmName": "Bro"})
-
+        cols = ["Bro"] + [col for col in df_filtered.columns if col != "Bro" and col != "rmName"]
+        df_filtered = df_filtered.rename(columns={"rmName": "Bro"})[cols]
         # --- Display badges ---
         row_count = len(df_filtered)
         due_balance_sum = df_filtered["adjustedBalance"].sum()
