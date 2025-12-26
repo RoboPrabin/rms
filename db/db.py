@@ -382,18 +382,20 @@ def get_floorsheet_by_scripts(scripts):
 
 
 
-def get_today_floorsheet():
+def get_today_floorsheet(selected_date):
     query = """
-        SELECT *
-        FROM floorsheet
-        WHERE uploaded_at LIKE CURRENT_DATE::text || '%';
+    SELECT *
+    FROM floorsheet
+    WHERE uploaded_at LIKE %s || '%%';
     """
+
     conn = None
     df = pd.DataFrame()
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute(query)
+            # cur.execute(query)
+            cur.execute(query, (selected_date,))
             rows = cur.fetchall()
             # Convert to DataFrame with column names
             df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
@@ -696,24 +698,45 @@ def get_all_book_closure():
         print("DB Error:", e)
         return pd.DataFrame()
 
-def get_today_book_closure():
+# def get_today_book_closure():
+#     query = """
+#         SELECT script, start_date
+#         FROM book_closure
+#         WHERE start_date = CURRENT_DATE
+#         ORDER BY created_at DESC;
+#     """
+#     try:
+#         conn = get_connection()
+#         cur = conn.cursor()
+#         cur.execute(query)
+#         rows = cur.fetchall()
+#         cols = [desc[0] for desc in cur.description]  # ✅ column names
+#         cur.close()
+#         conn.close()
+
+#         return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
+
+#     except Exception as e:
+#         print("DB Error:", e)
+#         return pd.DataFrame()
+
+
+def get_today_book_closure(selected_date):
     query = """
-        SELECT script, start_date
+        SELECT *
         FROM book_closure
-        WHERE start_date = CURRENT_DATE
+        WHERE start_date = %s
         ORDER BY created_at DESC;
     """
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(query)
+        cur.execute(query, (selected_date,))
         rows = cur.fetchall()
-        cols = [desc[0] for desc in cur.description]  # ✅ column names
+        cols = [desc[0] for desc in cur.description]
         cur.close()
         conn.close()
-
-        return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
-
+        return pd.DataFrame(rows, columns=cols)
     except Exception as e:
         print("DB Error:", e)
         return pd.DataFrame()

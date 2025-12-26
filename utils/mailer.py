@@ -48,7 +48,7 @@ def send_email(
     Regards,
     RMS Team
     Trishakti Securities Limited
-    Kathamndu, Nepal
+    Kathmandu, Nepal
     """)
 
     try:

@@ -135,8 +135,8 @@ class Gallery:
             st.session_state.uploader_key = 0
 
         uploaded_files = st.file_uploader(
-            "Upload photos",
-            type=["jpg", "jpeg", "png"],
+            "Upload photos/videos",
+            type=["jpg", "jpeg", "png", "mp4", "mov", "avi"],
             accept_multiple_files=True,
             key=f"photo_uploader_{st.session_state.uploader_key}"
         )
@@ -191,6 +191,7 @@ class Gallery:
             conn.commit()
             st.success("Photos uploaded successfully ✅")
             st.session_state.uploader_key += 1
+            sleep(1)
             st.rerun()
 
 

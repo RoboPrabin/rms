@@ -70,7 +70,6 @@ class Uarf:
             ORDER BY created_at;
         """, self.holding_engine)
 
-
     def manager_edit_form(self, uarf, df_access_platforms:pd.DataFrame):
         card = st.container(border=True)
         with card:
@@ -127,8 +126,6 @@ class Uarf:
                 st.success("✅ UARF resubmitted successfully.")
                 sleep(1)
                 st.rerun()
-
-
 
     def manager_ui(self):
         view = st.radio("Select View", ["Submit UARF", "Pending/Approved", "Rejected"], horizontal=True, index=1)
@@ -231,7 +228,7 @@ class Uarf:
         
         elif view == "Pending/Approved":
             if normal_df.empty and rejected_df.empty:
-                st.info("You have no UARFs.", icon="ℹ📢")
+                st.info("You have no UARFs.", icon="📢")
                 st.stop()
 
             if not normal_df.empty:
@@ -246,7 +243,7 @@ class Uarf:
         
         else:
            if rejected_df.empty:
-               st.info("No rejection yet.", icon="ℹ📢")
+               st.info("No rejection yet.", icon="📢")
                st.stop()
 
             # Show rejected UARFs separately
@@ -592,6 +589,7 @@ class Uarf:
             if df.empty:
                 st.info("No UARFs available.", icon="ℹ️")
                 st.stop()
+                
             df = helper.rename_all_columns(df=df)
             df.index = df.index + 1
             st.dataframe(df, width='stretch', hide_index=False)
@@ -600,12 +598,15 @@ class Uarf:
 
     # MAIN RENDER FUNCTION ________________________________________
     def render_page(self):
-        if self.role == "MANAGER":
+        if self.role in  ["MANAGER", "MANAGEMENT", "BRO"]:
             self.manager_ui()
         elif self.role == "HR":
             self.hr_ui()
-        else:
+        elif self.role in ['IT', 'ADMIN']:
             self.it_ui()
+        else:
+            st.info("Role not found. Contact your admin", icon="📢")
+            st.stop()
         
 if __name__ == "__main__":
     Uarf().render_page()

@@ -115,7 +115,8 @@ def render_sidebar():
     if role == "USER":
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+        # st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
@@ -161,6 +162,8 @@ def render_sidebar():
         # st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
         
         # st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
+        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+
         st.sidebar.page_link(page_url.automation_url, label="‎‎ ‎ Automations", icon="⚡")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
@@ -210,14 +213,11 @@ def render_sidebar():
         st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
-    
-    
-    
-    
     if role == "BRO":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
+        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
         st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
