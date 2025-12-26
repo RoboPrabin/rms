@@ -28,19 +28,32 @@ class Floorsheet:
         self.intranet_engine = helper.get_holding_engine()
 
     # ✔ FIX: Proper decorator placement
+    # @st.cache_data(ttl=6000)
+    # def get_floorsheet_by_date(_self, selected_date: date):
+    #     query = """
+    #         SELECT *
+    #         FROM floorsheet
+    #         WHERE DATE(uploaded_at) = %s
+    #         ORDER BY uploaded_at DESC;
+    #     """
+    #     return pd.read_sql(query, _self.intranet_engine, params=(selected_date,))
+
     @st.cache_data(ttl=6000)
     def get_floorsheet_by_date(_self, selected_date: date):
         query = """
-            SELECT *
-            FROM floorsheet
-            WHERE DATE(uploaded_at) = %s
-            ORDER BY uploaded_at DESC;
+            SELECT f.*,
+                COALESCE(m."rmName", 'N/A') AS "rmName"
+            FROM floorsheet f
+            LEFT JOIN client_rm_map m ON f.clientcode = m."clientCode"
+            WHERE DATE(f.uploaded_at) = %s
+            ORDER BY f.uploaded_at DESC;
         """
         return pd.read_sql(query, _self.intranet_engine, params=(selected_date,))
 
     # ✔ Cache client summary per date
     @st.cache_data(ttl=6000)
     def compute_client_summary(_self, df: pd.DataFrame):
+        print(df.columns)
         def client_summary_func(x):
             buy = x["transaction_type"] == "Buy"
             sell = x["transaction_type"] == "Sell"
@@ -54,7 +67,7 @@ class Floorsheet:
                 "total_traded_volume": x["amount"].sum(),
             })
         return (
-                df.groupby(["clientcode", "clientname"], group_keys=False, observed=True)
+                df.groupby(["clientcode", "clientname", "rmName"], group_keys=False, observed=True)
                 .apply(client_summary_func, include_groups=False)
                 .reset_index()
             )
@@ -107,7 +120,7 @@ class Floorsheet:
 
         # ✔ Query is executed only ONCE because cached
         df = self.get_floorsheet_by_date(selected_date)
-
+        # print(df.columns)
         # --- Filtering UI (unchanged) ---
         with col2:
             filter_option = st.selectbox(
@@ -152,7 +165,7 @@ class Floorsheet:
         # --- RADIO BUTTON ---
         view_mode = st.radio(
             "Select View",
-            ["Floorsheet", "Client Summary", "Branch Summary", "Branch Piechart"],
+            ["Floorsheet", "Client Summary", "Branch Summary", "Branch Piechart", "BRO Summary"],
             horizontal=True,
             key="view_mode"
         )
@@ -196,11 +209,12 @@ class Floorsheet:
                     "amount":"Amount",
                     "stockcomm":"Commission Gain",
                     "branch":"Branch",
-                    "transaction_type": "Transaction Type"
+                    "transaction_type": "Transaction Type",
+                    "rmName": "BRO"
                 }, inplace=True)
 
                 desired = [
-                    "Branch","Client Code","Client Name","Symbol","Transaction Type",
+                    "BRO","Branch","Client Code","Client Name","Symbol","Transaction Type",
                     "Quantity","Rate","Amount","Commission Gain","Buyer Broker","Seller Broker"
                 ]
                 display_df = display_df[desired]
@@ -224,11 +238,12 @@ class Floorsheet:
                     "total_sell_amount":"Total Sell Amount",
                     "total_commission":"Total Commission Gain",
                     "total_traded_quantity":"Total Traded Quantity",
-                    "total_traded_volume":"Total Traded Volume"
+                    "total_traded_volume":"Total Traded Volume",
+                    "rmName":"BRO"
                 }, inplace=True)
 
                 desired = [
-                    "Client Code","Client Name","Total Buy Quantity","Total Buy Amount",
+                    "BRO","Client Code","Client Name","Total Buy Quantity","Total Buy Amount",
                     "Total Sell Quantity","Total Sell Amount","Total Traded Quantity",
                     "Total Traded Volume","Total Commission Gain"
                 ]
@@ -240,13 +255,13 @@ class Floorsheet:
 
                 st.markdown("---")
                 with st.expander("📜 Client Transaction Details (Buy/Sell)"):
-                    details = df[["clientcode","clientname","symbol","quantity","amount","stockcomm","transaction_type"]]
+                    details = df[["rmName","clientcode","clientname","symbol","quantity","amount","stockcomm","transaction_type"]]
                     details = details.copy()
                     details.index = details.index + 1
                     details.rename(columns={
                         "clientcode":"Client Code","clientname":"Client Name",
                         "symbol":"Symbol","quantity":"Quantity","amount":"Amount",
-                        "stockcomm":"Commission Gain","transaction_type":"Transaction Type"
+                        "stockcomm":"Commission Gain","transaction_type":"Transaction Type", "rmName":"BRO"
                     }, inplace=True)
 
                     numeric = details.select_dtypes(include=["int64","float64"]).columns
@@ -322,7 +337,85 @@ class Floorsheet:
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No 'branch' column found in data.")
+            elif view_mode == "BRO Summary":
+                st.subheader("👨🏻‍🦱 BRO Summary", anchor=False)
+                if display_df.empty:
+                    st.info("No data")
+                    return
 
+                df2 = display_df.copy()
+
+                # Compute per row
+                df2["is_buyer"] = (df2["transaction_type"] == "Buy").astype(int)
+                df2["is_seller"] = (df2["transaction_type"] == "Sell").astype(int)
+                df2["purchase_turnover"] = df2.apply(lambda row: row["amount"] if row["transaction_type"] == "Buy" else 0, axis=1)
+                df2["sales_turnover"] = df2.apply(lambda row: row["amount"] if row["transaction_type"] == "Sell" else 0, axis=1)
+                df2["total"] = df2["purchase_turnover"] + df2["sales_turnover"]
+
+                # Group by rmName
+                grouped = df2.groupby("rmName").agg(
+                    buyer_count=("is_buyer", "sum"),
+                    seller_count=("is_seller", "sum"),
+                    purchase_turnover=("purchase_turnover", "sum"),
+                    sales_turnover=("sales_turnover", "sum"),
+                    total=("total", "sum")
+                ).reset_index()
+
+                # Unique buyers/sellers per BRO
+                buyers = df2[df2["is_buyer"] == 1].groupby("rmName")["clientcode"].nunique()
+                sellers = df2[df2["is_seller"] == 1].groupby("rmName")["clientcode"].nunique()
+                both = df2.groupby("rmName")["clientcode"].apply(lambda x: set(df2[df2["rmName"] == x.name]["clientcode"].unique()) &
+                                                            set(df2[(df2["rmName"] == x.name) & (df2["is_buyer"] == 1)]["clientcode"].unique()) &
+                                                            set(df2[(df2["rmName"] == x.name) & (df2["is_seller"] == 1)]["clientcode"].unique())).map(len)
+
+                grouped = grouped.merge(buyers.rename("unique_buyers"), on="rmName", how="left")
+                grouped = grouped.merge(sellers.rename("unique_sellers"), on="rmName", how="left")
+                grouped["both_traders"] = grouped.apply(lambda row: len(set(df2[(df2["rmName"] == row["rmName"]) & df2["is_buyer"] == 1]["clientcode"]) &
+                                                                        set(df2[(df2["rmName"] == row["rmName"]) & df2["is_seller"] == 1]["clientcode"])), axis=1)
+
+                totals = grouped[["unique_buyers", "unique_sellers", "both_traders", "purchase_turnover", "sales_turnover", "total"]].sum()
+
+                grouped.drop(columns=['buyer_count', 'seller_count'], inplace=True)
+                grouped.rename(columns={
+                    "rmName": "BRO",
+                    "unique_buyers": "Total Buyers",
+                    "unique_sellers": "Total Sellers",
+                    "both_traders": "Both Traders",
+                    "purchase_turnover": "Purchase Turnover",
+                    "sales_turnover": "Sales Turnover",
+                    "total": "Total"
+                }, inplace=True)
+
+                grouped["BRO Contribution %"] = (grouped["Total"] / grouped["Total"].sum() * 100).round(2)
+                grouped = grouped.sort_values(by="Total", ascending=False)
+
+                numeric_cols = [ "Purchase Turnover", "Sales Turnover", "Total"]
+                # grouped = grouped["BRO" + numeric_cols]
+                grouped[numeric_cols] = grouped[numeric_cols].map(lambda x: f"{x:,}")
+
+                grouped.reset_index(drop=True, inplace=True)
+                grouped.index = grouped.index + 1
+                column_order = ['BRO','Total Buyers', 'Total Sellers', 'Both Traders', 'Purchase Turnover', 'Sales Turnover','Total', 'BRO Contribution %']
+                grouped = grouped[column_order]
+                st.dataframe(grouped, use_container_width=True)
+
+                # # Totals
+                # total_df = pd.DataFrame([{
+                #     "BRO": "TOTAL",
+                #     "Total Buyers": totals["unique_buyers"],
+                #     "Total Sellers": totals["unique_sellers"],
+                #     "Both Traders": totals["both_traders"],
+                #     "Purchase Turnover": totals["purchase_turnover"],
+                #     "Sales Turnover": totals["sales_turnover"],
+                #     "Total": totals["total"]
+                # }])
+
+                # total_df[numeric_cols] = total_df[numeric_cols].map(lambda x: f"{x:,.0f}")
+                # total_df[["Purchase Turnover", "Sales Turnover", "Total"]] = total_df[["Purchase Turnover", "Sales Turnover", "Total"]].map(lambda x: "Rs. " + x)
+
+                # st.markdown("---")
+                # st.subheader("➤ Summary Totals", anchor=False)
+                # st.dataframe(total_df, hide_index=True, use_container_width=True)
 
 if __name__ == "__main__":
     Floorsheet().render_ui()
