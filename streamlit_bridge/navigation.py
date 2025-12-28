@@ -115,7 +115,7 @@ def render_sidebar():
     if role == "USER":
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        # st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
@@ -191,6 +191,8 @@ def render_sidebar():
     
     if role in ["MANAGEMENT", "MANAGER"]:
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
+        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
         st.sidebar.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
@@ -198,10 +200,8 @@ def render_sidebar():
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        
         st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
         st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
@@ -209,7 +209,6 @@ def render_sidebar():
         st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
         st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        # st.sidebar.page_link(page_url.active_session_url, label="‎‎ ‎ Active Sessions", icon="🕓")
         st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
@@ -222,7 +221,6 @@ def render_sidebar():
         st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
         st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
@@ -235,14 +233,9 @@ def render_sidebar():
     if role == "HR":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        # st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
+        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        # st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
-        # st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
-        # st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-        # st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
         st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
         st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
@@ -253,15 +246,10 @@ def render_sidebar():
     if role == "IT":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
+        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
-        # st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        # st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
-        # st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
-        # st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-        # st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
         st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
         st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")

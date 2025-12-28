@@ -6,7 +6,7 @@ import psycopg2.extras
 from psycopg2.extras import execute_batch, execute_values
 import pandas as pd
 from utils import helper
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 
 def get_connection():
@@ -355,6 +355,43 @@ def submit_manager_request(
             if conn:
                 conn.close()
 
+def get_today_floorsheet(selected_date):
+    query = """
+        SELECT *
+        FROM floorsheet
+        WHERE uploaded_at LIKE %s
+        ORDER BY uploaded_at DESC;
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Format today's date as string (YYYY-MM-DD%)
+        today_pattern = str(selected_date )+ "%"
+        # today_pattern = date.today().strftime("%Y-%m-%d") + "%"
+        cur.execute(query, (today_pattern,))
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]
+        cur.close()
+        conn.close()
+        return pd.DataFrame(rows, columns=cols)
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+
+def get_floorsheet_by_script_and_date_range(script, start_date, end_date):
+    query = """
+        SELECT *
+        FROM floorsheet
+        WHERE symbol = %s
+          AND uploaded_at::date BETWEEN %s AND %s
+    """
+    conn = get_connection()
+
+    with conn.cursor() as cur:
+        cur.execute(query, (script, start_date, end_date))
+        rows = cur.fetchall()
+        columns = [desc.name for desc in cur.description]
+        return pd.DataFrame(rows, columns=columns)
 
 
 def get_floorsheet_by_scripts(scripts):
@@ -405,10 +442,6 @@ def get_today_floorsheet_range(from_selected_date, to_selected_date):
         if conn:
             conn.close()
     return df
-
-
-
-
 
 
 def store_jwt_token(jwt_value: str):
@@ -699,40 +732,63 @@ def get_all_book_closure():
         print("DB Error:", e)
         return pd.DataFrame()
 
-# def get_today_book_closure():
+
+# def get_today_book_closure(selected_date):
 #     query = """
-#         SELECT script, start_date
+#         SELECT *
 #         FROM book_closure
-#         WHERE start_date = CURRENT_DATE
+#         WHERE start_date = %s
 #         ORDER BY created_at DESC;
 #     """
 #     try:
 #         conn = get_connection()
 #         cur = conn.cursor()
-#         cur.execute(query)
+#         cur.execute(query, (selected_date,))
 #         rows = cur.fetchall()
-#         cols = [desc[0] for desc in cur.description]  # ✅ column names
+#         cols = [desc[0] for desc in cur.description]
 #         cur.close()
 #         conn.close()
-
-#         return pd.DataFrame(rows, columns=cols)  # ✅ return DataFrame
-
+#         return pd.DataFrame(rows, columns=cols)
 #     except Exception as e:
 #         print("DB Error:", e)
 #         return pd.DataFrame()
 
 
-def get_today_book_closure(selected_date):
+def get_today_book_closure_range(selected_date):
     query = """
-        SELECT *
+        SELECT script
         FROM book_closure
-        WHERE start_date = %s
+        WHERE %s BETWEEN start_date AND end_date
         ORDER BY created_at DESC;
     """
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(query, (selected_date,))
+        today = selected_date # get today's date
+        # today = date.today()   # get today's date
+        cur.execute(query, (today,))
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]
+        cur.close()
+        conn.close()
+        return pd.DataFrame(rows, columns=cols)
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+
+def get_today_book_closure_only(selected_date):
+    query = """
+        SELECT *
+        FROM book_closure
+        WHERE t0 = %s
+        ORDER BY created_at DESC;
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        today = selected_date   # get today's date
+        # today = date.today()   # get today's date
+        cur.execute(query, (today,))
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         cur.close()
@@ -811,6 +867,36 @@ def holiday_exists(holiday_date):
         print("DB Error:", e)
         return False
 
+def get_t3_date(selected_date):
+    """
+    Calculate T+3 working date in Nepal:
+    - Skip holidays listed in 'holiday' table (column: holiday_date)
+    - Skip Saturdays
+    Returns:
+        datetime.date object of next valid working day
+    """
+
+    # 1️⃣ Initial T+3 date
+    t3_date = selected_date + timedelta(days=3)
+    # t3_date = datetime.now().date() + timedelta(days=3)
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Fetch all holiday dates from table
+            cur.execute("SELECT holiday_date FROM holidays;")
+            holidays = [row[0] for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+    # Convert holidays to set for fast lookup
+    holiday_set = set(holidays)
+
+    # 2️⃣ Loop until we find a valid working day
+    while t3_date in holiday_set or t3_date.weekday() == 5:  # 5 = Saturday
+        t3_date += timedelta(days=1)
+
+    return t3_date
 
 def insert_holiday(holiday_date, holiday_description, created_by):
     query = """

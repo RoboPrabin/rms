@@ -73,7 +73,6 @@ class DueList:
             df: pd.DataFrame = _self.load_due_list_data_bro()
         else:
             df: pd.DataFrame = _self.load_due_list_data_all(username = _self.username)
-            print(df)
 
         # --- Layout for filters at top ---
         col1, col2, col3, col4 = st.columns(4)

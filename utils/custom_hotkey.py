@@ -76,7 +76,7 @@ def activate_client_code_hotkey():
     </style>
     """, unsafe_allow_html=True)
 
-    if st.button("", shortcut="L", key="hidden_open_ledger", type='tertiary'):
+    if st.button("", shortcut="Ctrl+L", key="hidden_open_ledger", type='tertiary'):
         st.session_state.show_ledger_dialog = True
 
     # Decorated dialog function

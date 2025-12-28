@@ -59,7 +59,7 @@ class DigitalVault:
         platform_list = list(platform_dict.keys())
 
         # --- Platform Dropdown ---
-        selected_platform = st.selectbox("Select Platform", platform_list)
+        selected_platform = st.selectbox("Select Platform", platform_list, accept_new_options=True)
 
         # Auto-fill URL based on platform
         auto_url = platform_dict.get(selected_platform, "")
