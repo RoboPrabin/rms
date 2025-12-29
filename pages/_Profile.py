@@ -14,6 +14,8 @@ from utils.custom_hotkey import activate_client_code_hotkey
 class Settings:
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "utility"
+
         # st.set_page_config(page_title="Dashboard")
         st.set_page_config(page_title=f"Profile",page_icon="💼",layout="wide")
         app_state.restore_state_from_query_params()

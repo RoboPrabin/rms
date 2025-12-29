@@ -16,6 +16,7 @@ from utils import helper
 class DPM3:
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "business"
         st.set_page_config("DPM3", page_icon="📦", layout='wide')
 
         # Dates

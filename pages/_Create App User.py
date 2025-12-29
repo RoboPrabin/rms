@@ -15,6 +15,7 @@ from utils.custom_hotkey import activate_client_code_hotkey
 class CreateAppUser:
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "user"
         self.header = "Create App User"
         st.set_page_config(page_title=self.header, layout="wide", page_icon="➕")
         app_state.restore_state_from_query_params()

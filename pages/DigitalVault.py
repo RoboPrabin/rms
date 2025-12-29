@@ -13,6 +13,7 @@ from utils.custom_hotkey import activate_client_code_hotkey
 class DigitalVault:
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "utility"
         st.set_page_config("Digital Vault", page_icon="🔐", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")

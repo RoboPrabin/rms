@@ -138,6 +138,7 @@ class Dashboard:
 
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = ""
         st.set_page_config("Dashboard", page_icon="🏠", layout="wide")
 
         # --- Dates ---

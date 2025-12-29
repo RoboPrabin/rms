@@ -15,7 +15,7 @@ from utils.custom_hotkey import activate_client_code_hotkey
 class BusinessRatio:
     def __init__(self):
         helper.eliminate_top_padding()
-
+        st.session_state.active_menu = "business"
         st.set_page_config("Business Ratio", page_icon="⚖️", layout='wide')
         # Authentication
         app_state.restore_state_from_query_params()

@@ -14,6 +14,7 @@ class PayableAndReceivable:
 
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "business"
         st.set_page_config(
             page_title="Payable & Receivable",
             page_icon="💸",
@@ -130,6 +131,8 @@ class PayableAndReceivable:
             st.markdown("<br>", unsafe_allow_html=True)
             # st.divider()
             col1, col2= st.columns(2)
+            if total_payable_receivable <0:
+                st.balloons()
             col1.metric(label=f"Total Payables/Receivables on {db.get_t3_date(selected_date=self.selected_date)}", value=f"Rs. {total_payable_receivable:,.2f}", border=True)
             st.divider()
 

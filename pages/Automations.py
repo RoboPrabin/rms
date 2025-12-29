@@ -22,6 +22,7 @@ from db import db
 class Uarf:
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "user"
         activate_client_code_hotkey()
 
 

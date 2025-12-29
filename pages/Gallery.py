@@ -37,7 +37,7 @@ class Gallery:
 
     def __init__(self):
         helper.eliminate_top_padding()
-
+        st.session_state.active_menu = "business"
         st.set_page_config("Gallery", page_icon="📸", layout='wide')
 
         activate_client_code_hotkey()

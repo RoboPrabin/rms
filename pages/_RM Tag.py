@@ -18,6 +18,7 @@ from utils.custom_hotkey import activate_client_code_hotkey
 class RMTag:
     def __init__(self):
         helper.eliminate_top_padding()
+        st.session_state.active_menu = "rm"
         st.set_page_config(page_title="RM Tag", page_icon="🏷️", layout="wide")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
