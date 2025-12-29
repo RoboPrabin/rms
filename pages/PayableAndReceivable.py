@@ -131,8 +131,8 @@ class PayableAndReceivable:
             st.markdown("<br>", unsafe_allow_html=True)
             # st.divider()
             col1, col2= st.columns(2)
-            if total_payable_receivable <0:
-                st.balloons()
+            # if total_payable_receivable <0:
+                # st.balloons()
             col1.metric(label=f"Total Payables/Receivables on {db.get_t3_date(selected_date=self.selected_date)}", value=f"Rs. {total_payable_receivable:,.2f}", border=True)
             st.divider()
 
@@ -149,7 +149,11 @@ class PayableAndReceivable:
             col1, col2= st.columns(2)
             col1.metric(label="Sell after Book Closure", value=f"Rs. {sell_after_bc:,.2f}")
             col2.metric(label="Buy after Book Closure", value=f"Rs. {buy_after_bc:,.2f}")
-
+            st.divider()
+            summary_df = helper.rename_all_columns(df=summary_df)
+            summary_df.index = summary_df.index + 1
+            st.subheader(f"📌 Book Closure T0 data")
+            st.dataframe(summary_df)
 
 
 

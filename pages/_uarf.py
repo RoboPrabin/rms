@@ -596,7 +596,7 @@ class Uarf:
             st.dataframe(df, width='stretch', hide_index=False)
 
 
-
+    
     # MAIN RENDER FUNCTION ________________________________________
     def render_page(self):
         if self.role in  ["MANAGER", "MANAGEMENT", "BRO"]:
@@ -605,6 +605,12 @@ class Uarf:
             self.hr_ui()
         elif self.role in ['IT', 'ADMIN']:
             self.it_ui()
+        elif self.role in ['USER']:
+            df = self.view_all_uarfs()
+            df = helper.rename_all_columns(df=df)
+            df.index = df.index + 1
+            st.badge(f"Total: {len(df)}", color='green')
+            st.dataframe(df)
         else:
             st.info("Role not found. Contact your admin", icon="📢")
             st.stop()
