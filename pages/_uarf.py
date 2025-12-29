@@ -517,12 +517,13 @@ class Uarf:
                     st.text_input("DOB (BS)", uarf["dob_bs"], disabled=True)
                     st.text_input("Citizenship No", uarf["citizenship_number"], disabled=True)
                     st.text_input("Personal Phone", uarf["personal_phone"], disabled=True)
+                    st.text_input("Supervisor", uarf["supervisor_name"], disabled=True)
 
                 with col2:
                     st.date_input("DOB (AD)", uarf["dob_ad"], disabled=True)
                     st.text_input("Issued Place", uarf["citizenship_issued_place"], disabled=True)
                     st.text_input("Personal Email", uarf["personal_email"], disabled=True)
-                    st.text_input("Supervisor", uarf["supervisor_name"], disabled=True)
+                    st.text_input("Employee Type", uarf["employee_type"], disabled=True) 
                 st.subheader("🔐 Platform Access Requested", anchor=False)
                 platforms = self._get_platforms(selected_id)
                 platform_flags = {}
