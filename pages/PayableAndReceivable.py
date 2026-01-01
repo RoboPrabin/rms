@@ -11,16 +11,16 @@ from utils.custom_hotkey import activate_client_code_hotkey
 class PayableAndReceivable:
     def __init__(self):
         st.set_page_config("Payable & Receivable", page_icon="💸", layout='wide')
-        # helper.eliminate_top_padding()
+        helper.eliminate_top_padding()
 
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
 
-        # self.username, self.role = app_state.get_current_user_info()
-        # activate_client_code_hotkey()
+        self.username, self.role = app_state.get_current_user_info()
+        activate_client_code_hotkey()
 
-        # navigation.render_sidebar()
+        navigation.render_sidebar()
         st.header("💸 Payables & Receivables", anchor=False)
         self.selected_date = st.date_input("Select Date")
 
