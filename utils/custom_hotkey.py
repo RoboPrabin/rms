@@ -59,10 +59,6 @@ def get_rm_and_client_name(client_code):
 
 # ---------------- HOTKEY + DIALOG ----------------
 def activate_client_code_hotkey():
-
-
-    # Add this early in every page script (before other widgets)
-
     # Completely invisible hidden button with shortcut
     st.markdown("""
     <style>

@@ -1,171 +1,221 @@
-from db import db
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from nepali_datetime import date as nepali_date
-
+from db import db
 from utils import helper
-from utils.custom_hotkey import activate_client_code_hotkey
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
-
+from utils.formatting import *
+from utils.custom_hotkey import activate_client_code_hotkey
 
 class PayableAndReceivable:
-
     def __init__(self):
-        helper.eliminate_top_padding()
-        st.session_state.active_menu = "business"
-        st.set_page_config(
-            page_title="Payable & Receivable",
-            page_icon="💸",
-            layout="wide"
-        )
+        st.set_page_config("Payable & Receivable", page_icon="💸", layout='wide')
+        # helper.eliminate_top_padding()
 
-        # Dates
-        self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
-        self.today_date = datetime.now().strftime("%Y-%m-%d")
-        self.today_np_date = nepali_date.today()
+        # app_state.restore_state_from_query_params()
+        # app_state.sync_query_params_from_session()
+        # app_state.check_authenticaiton_state()
 
-        # Auth
-        app_state.restore_state_from_query_params()
-        app_state.sync_query_params_from_session()
-        app_state.check_authenticaiton_state()
+        # self.username, self.role = app_state.get_current_user_info()
+        # activate_client_code_hotkey()
 
-        self.username, self.role = app_state.get_current_user_info()
-        activate_client_code_hotkey()
-
-        # Sidebar
-        navigation.render_sidebar()
+        # navigation.render_sidebar()
         st.header("💸 Payables & Receivables", anchor=False)
-        self.selected_date = st.date_input("Select date")
-        self.weekday = self.selected_date.strftime("%A")
-        # Cache data
-        self.floorsheet_df = db.get_today_floorsheet(selected_date=self.selected_date)
-        if self.floorsheet_df.empty:
-            st.info(f"Floorsheet not found to selected date. Please choose different date.")
+        self.selected_date = st.date_input("Select Date")
+
+        self.weekday_name = self.selected_date.strftime("%A")
+
+    def calculate_commission(self, amount: float) -> float:
+        if amount <= 50_000:
+            return round(max(amount * 0.0036, 10), 2)
+        elif amount <= 500_000:
+            return round(amount * 0.0033, 2)
+        elif amount <= 2_000_000:
+            return round(amount * 0.0031, 2)
+        elif amount <= 10_000_000:
+            return round(amount * 0.0027, 2)
+        else:
+            return round(amount * 0.0024, 2)
+
+    def get_floorsheet_by_script_and_date_range(self, script, start_date, end_date):
+        query = """
+            SELECT *
+            FROM floorsheet
+            WHERE symbol = %s
+            AND uploaded_at::date BETWEEN %s AND %s
+        """
+        conn = db.get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query, (script, start_date, end_date))
+            rows = cur.fetchall()
+            columns = [desc.name for desc in cur.description]
+            return pd.DataFrame(rows, columns=columns)
+
+    def load_data(self, selected_date):
+        key = str(selected_date)
+        if key not in st.session_state:
+            st.session_state[key] = {
+                'floorsheet': db.get_today_floorsheet(selected_date=selected_date),
+                'bc_range': db.get_today_book_closure_range(selected_date=selected_date),
+                'bc_t0': db.get_today_book_closure_only(selected_date=selected_date)
+            }
+        data = st.session_state[key]
+        return data['floorsheet'].copy(), data['bc_range'].copy(), data['bc_t0'].copy()
+
+    def uat_page(self):
+        floorsheet_df, book_closure_df, df_bc_t0 = self.load_data(self.selected_date)
+
+        if floorsheet_df.empty:
+            st.info(f"Floorsheet not found as of date {self.selected_date}")
             st.stop()
-        self.book_closure_df = db.get_today_book_closure_range(selected_date=self.selected_date)
-        self.book_closure_only_df = db.get_today_book_closure_only(selected_date = self.selected_date)
 
-    # --------------------------------------------------
-    # 🔹 Utility Methods
-    # --------------------------------------------------
+        floorsheet_df['broker_comm'] = floorsheet_df['amount'].apply(self.calculate_commission)
+        floorsheet_df['sebon_comm'] = floorsheet_df['broker_comm'] * 0.006
+        floorsheet_df['tds'] = floorsheet_df['broker_comm'] * 0.12
 
-    @staticmethod
-    def calculate_buy_sell(df: pd.DataFrame):
-        if df.empty:
-            return 0.0, 0.0
+        total_tds = floorsheet_df['tds'].sum()
+        # st.header(f"TDS Buy/sell total: {total_tds}")
+        # st.dataframe(floorsheet_df)
 
-        grouped = (
-            df.assign(tt=df["transaction_type"].str.upper())
-              .groupby("tt")["amount"]
-              .sum()
-        )
+        buy_mask = floorsheet_df["transaction_type"].str.upper() == "BUY"
+        sell_mask = floorsheet_df["transaction_type"].str.upper() == "SELL"
 
-        return (
-            float(grouped.get("BUY", 0.0)),
-            float(grouped.get("SELL", 0.0))
-        )
+        total_buy_floorsheet = floorsheet_df.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]].fillna(0).sum().sum()
 
-    # --------------------------------------------------
-    # 🔹 Business Logic
-    # --------------------------------------------------
+        total_sell_floorsheet = (floorsheet_df.loc[sell_mask, "amount"].fillna(0).sum() -
+                                 floorsheet_df.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
+        
 
-    def today_floorsheet_summary(self):
-        buy, sell = self.calculate_buy_sell(self.floorsheet_df)
-        return buy, sell
+        col1,col2 = st.columns(2)
+        with col1:
+            st.error(f"Total Buy: {float(total_buy_floorsheet):,.2f}")
+        with col2:
+            st.success(f"Total sell: {float(total_sell_floorsheet):,.2f}")
+        st.markdown("---")
+        st.header("Reference", anchor=False)
+        st.subheader("Book closure data that is in range of start_date and end_date")
+        st.badge(f"Total BC: {len(book_closure_df)}")
+        book_closure_df.index = book_closure_df.index + 1
+        st.dataframe(book_closure_df, width='stretch')
 
-    def today_book_closure_summary(self):
-        if self.book_closure_df.empty or self.floorsheet_df.empty:
-            return 0.0, 0.0
+        scripts = book_closure_df["script"].dropna().unique().tolist()
 
-        scripts = self.book_closure_df["script"].dropna().unique()
-        filtered_df = self.floorsheet_df[
-            self.floorsheet_df["symbol"].isin(scripts)
-        ]
+        filtered_df = floorsheet_df[floorsheet_df["symbol"].isin(scripts)]
 
-        return self.calculate_buy_sell(filtered_df)
-
-    def book_closure_range_summary(self):
-        if self.book_closure_only_df.empty:
-            return pd.DataFrame()
-
-        results = []
-
-        for _, row in self.book_closure_only_df.iterrows():
-            fs_df = db.get_floorsheet_by_script_and_date_range(
-                row["script"],
-                row["start_date"],
-                row["end_date"]
-            )
-
-            buy, sell = self.calculate_buy_sell(fs_df)
-
-            results.append({
-                "script": row["script"],
-                "start_date": row["start_date"],
-                "end_date": row["end_date"],
-                "total_buy": buy,
-                "total_sell": sell,
-                "net_amount": buy - sell
-            })
-
-        return pd.DataFrame(results)
-
-    # --------------------------------------------------
-    # 🔹 UI Layer
-    # --------------------------------------------------
-    def render_page(self):
-        with st.spinner("Loading .....", show_time=True):
-            today_buy, today_sell = self.today_floorsheet_summary()
-            bc_today_buy, bc_today_sell = self.today_book_closure_summary()
-
-            summary_df = self.book_closure_range_summary()
-            range_buy = summary_df["total_buy"].sum() if not summary_df.empty else 0.0
-            range_sell = summary_df["total_sell"].sum() if not summary_df.empty else 0.0
-
-            buy_after_bc = (today_buy - bc_today_buy) - range_buy
-            sell_after_bc = (today_sell - bc_today_sell) - range_sell
-            total_payable_receivable = buy_after_bc - sell_after_bc
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            # st.divider()
-            col1, col2= st.columns(2)
-            # if total_payable_receivable <0:
-                # st.balloons()
-            col1.metric(label=f"Total Payables/Receivables on {db.get_t3_date(selected_date=self.selected_date)}", value=f"Rs. {total_payable_receivable:,.2f}", border=True)
-            st.divider()
-
-            col1, col2 = st.columns(2)
-            if self.selected_date.strftime("%Y-%m-%d") == datetime.now().strftime("%Y-%m-%d"):
-                col1.metric(label="Today's Floorsheet BUY", value=f"Rs. {today_buy:,.2f}")
-                col2.metric(label="Today's Floorsheet SELL", value=f"Rs. {today_sell:,.2f}")
-            else:
-                col1.metric(label=f"{self.weekday} Floorsheet BUY", value=f"Rs. {today_buy:,.2f}")
-                col2.metric(label=f"{self.weekday} Floorsheet SELL", value=f"Rs. {today_sell:,.2f}")
+        total_buy_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "amount"].sum()
+        total_sell_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "amount"].sum()
 
 
-            st.divider()
-            col1, col2= st.columns(2)
-            col1.metric(label="Sell after Book Closure", value=f"Rs. {sell_after_bc:,.2f}")
-            col2.metric(label="Buy after Book Closure", value=f"Rs. {buy_after_bc:,.2f}")
-            st.divider()
-            summary_df = helper.rename_all_columns(df=summary_df)
-            summary_df.index = summary_df.index + 1
-            st.subheader(f"📌 Book Closure T0 data")
-            st.dataframe(summary_df)
+        # st.header(f"bc_trans_script_buy_amount: {total_buy_bc:,.2f}")
+        # st.header(f"bc_trans_script_sell_amount: {total_sell_bc:,.2f}")
+
+        floorsheet_buy_after = total_buy_floorsheet - total_buy_bc
+        floorsheet_sell_after = total_sell_floorsheet - total_sell_bc
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("BC Buy Amount", f"{total_buy_bc:,.2f}")
+
+        with col2:
+            st.metric("BC Sell Amount", f"{total_sell_bc:,.2f}")
+
+        with col3:
+            st.metric("Buy After BC Deduct", f"{floorsheet_buy_after:,.2f}")
+
+        with col4:
+            st.metric("Sell After BC Deduct", f"{floorsheet_sell_after:,.2f}")
+        # st.header(f"floorsheet_buy_amount_after_deducting_bc_trans_script: {floorsheet_buy_after:,.2f}")
+        # st.header(f"floorsheet_sell_amount_after_deducting_bc_trans_script: {floorsheet_sell_after:,.2f}")
+
+        st.markdown("---")
+        st.header(f"Book closure data with T0 date",anchor=False)
+        df_bc_t0.drop(columns=['id', 'created_at', 'updated_by', 'updated_at'], inplace=True)
+        
+        df_bc_t0.index = df_bc_t0.index + 1
+        st.dataframe(df_bc_t0)
+
+        st.markdown("---")
+        st.header(f"Book closure data with range of start_date and end_date", anchor=False)
+        df_list = []
+        for _, row in df_bc_t0.iterrows():
+            df_range = self.get_floorsheet_by_script_and_date_range(str(row["script"]), str(row["start_date"]), str(row["end_date"]))
+            if not df_range.empty:
+                df_list.append(df_range)
+
+        df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
+        st.badge(f"Total data: {len(df_holder)}")
+        df_holder.drop(columns=["id"], inplace=True)
+        df_holder.index = df_holder.index + 1
+        st.dataframe(df_holder, width='stretch')
+
+        total_buy_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "BUY", "amount"].sum()
+        total_sell_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "SELL", "amount"].sum()
+
+        final_buy = total_buy_bc_t0 + floorsheet_buy_after
+        final_sell = total_sell_bc_t0 + floorsheet_sell_after
+
+        st.markdown("---")
+
+        net_amount = (final_buy - final_sell) + total_tds
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Floorsheet Buy (with T0)", final_buy)
+        with col2:   
+            st.metric("Floorsheet Sell (with T0)", final_sell)
+
+        if net_amount<0:
+            st.metric("Final Amount (Receivable)", f"{net_amount:,.2f}", border=True)
+        else:
+            st.metric("Final Amount (Payable)", f"{net_amount:,.2f}", border=True)
 
 
+    def uat_page_friday(self):
+        st.success(f"Today is Friday")
+        _, _, df_bc_t0 = self.load_data(self.selected_date)
 
+        st.markdown("---")
+        st.header(f"Book closure data with T0 date")
+        st.dataframe(df_bc_t0)
 
-# --------------------------------------------------
-# ✅ Run App
-# --------------------------------------------------
+        st.markdown("---")
+        st.header(f"Book closure data with range of start_date and end_date")
+        df_list = []
+        for _, row in df_bc_t0.iterrows():
+            df_range = self.get_floorsheet_by_script_and_date_range(str(row["script"]), str(row["start_date"]), str(row["end_date"]))
+            if not df_range.empty:
+                df_list.append(df_range)
+
+        df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
+        st.badge(f"Total data: {len(df_holder)}")
+
+        df_holder['broker_comm'] = df_holder['amount'].apply(self.calculate_commission)
+        df_holder['sebon_comm'] = df_holder['broker_comm'] * 0.006
+        df_holder['tds'] = df_holder['broker_comm'] * 0.12
+        st.dataframe(df_holder, width='stretch')
+
+        buy_mask = df_holder["transaction_type"].str.upper() == "BUY"
+        sell_mask = df_holder["transaction_type"].str.upper() == "SELL"
+
+        total_buy_floorsheet = df_holder.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]].fillna(0).sum().sum()
+
+        total_sell_floorsheet = (df_holder.loc[sell_mask, "amount"].fillna(0).sum() -
+                                 df_holder.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
+
+        st.header(f"Total buy: {total_buy_floorsheet:,.2f}")
+        st.header(f"Total sell: {total_sell_floorsheet:,.2f}")
+
+        final_value = (total_buy_floorsheet - total_sell_floorsheet) + df_holder['tds'].sum()
+        st.header(f"Final Rec/Pay: {final_value:,.2f}")
+
+    def render_ui(self):
+        if self.weekday_name.upper() == 'FRIDAY':
+            self.uat_page_friday()
+        else:
+            self.uat_page()
+
 if __name__ == "__main__":
-    PayableAndReceivable().render_page()
-
-
-
+    PayableAndReceivable().render_ui()
 
 
 
@@ -188,30 +238,58 @@ if __name__ == "__main__":
 # import streamlit_bridge.navigation as navigation
 # from utils.formatting import *
 # from utils.custom_hotkey import activate_client_code_hotkey
+
 # class PayableAndReceivable:
 #     def __init__(self):
-#         helper.eliminate_top_padding()
 #         st.set_page_config("Payable & Receivable", page_icon="💸", layout='wide')
 
-#         # Dates
-#         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
-#         self.today_date = datetime.now().strftime("%Y-%m-%d")
-#         self.today_np_date = nepali_date.today()
+#         # # Dates
+#         # helper.eliminate_top_padding()
+#         # self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
+#         # self.today_date = datetime.now().strftime("%Y-%m-%d")
+#         # self.today_np_date = nepali_date.today()
 
-#         # Authentication
-#         app_state.restore_state_from_query_params()
-#         app_state.sync_query_params_from_session()
-#         app_state.check_authenticaiton_state()
+#         # # Authentication
+#         # app_state.restore_state_from_query_params()
+#         # app_state.sync_query_params_from_session()
+#         # app_state.check_authenticaiton_state()
 
 
-#         self.username, self.role = app_state.get_current_user_info()
-#         activate_client_code_hotkey()
+#         # self.username, self.role = app_state.get_current_user_info()
+#         # activate_client_code_hotkey()
 
-#         # Sidebar
-#         navigation.render_sidebar()
+#         # # Sidebar
+#         # navigation.render_sidebar()
 #         st.header("💸 Payables & Receivables", anchor=False)
+#         self.selected_date = st.date_input("Select Date")
+#         self.weekday_name = self.selected_date.strftime("%A")
+#         self.bc_data = None
 
-                
+
+#     def calculate_commission(self,amount: float) -> float:
+#         """
+#         Calculate stock commission based on transaction amount.
+        
+#         Parameters:
+#             amount (float): Transaction amount in Rs.
+            
+#         Returns:
+#             commission (float): Commission in Rs.
+#         """
+#         if amount <= 50_000:
+#             # 0.36% or Rs. 10 whichever is higher
+#             commission = max(amount * 0.0036, 10)
+#         elif amount <= 500_000:
+#             commission = amount * 0.0033
+#         elif amount <= 2_000_000:
+#             commission = amount * 0.0031
+#         elif amount <= 10_000_000:
+#             commission = amount * 0.0027
+#         else:  # above 10 million
+#             commission = amount * 0.0024
+        
+#         return round(commission, 2)
+    
 
 #     def get_floorsheet_by_script_and_date_range(self,script, start_date, end_date):
 #         query = """
@@ -227,37 +305,57 @@ if __name__ == "__main__":
 #             rows = cur.fetchall()
 #             columns = [desc.name for desc in cur.description]
 #             return pd.DataFrame(rows, columns=columns)
+        
 
 
 
+#     def uat_page(self):
+
+#         floorsheet_df = db.get_today_floorsheet(selected_date=self.selected_date)
+#         # Calculate broker commission per row
+#         floorsheet_df['broker_comm'] = floorsheet_df['amount'].apply(self.calculate_commission)
+#         floorsheet_df['sebon_comm'] = floorsheet_df['broker_comm'] * 0.006  # 0.6%
+#         floorsheet_df['tds'] = floorsheet_df['broker_comm'] * 0.12  # 0.6%
+#         st.dataframe(floorsheet_df)
+
+#         total_tds = floorsheet_df['tds'].sum()
+#         st.header(f"TDS Buy/sell total: {total_tds}")
+#         if floorsheet_df.empty:
+#             st.info(f"Floorsheet not found as of date {self.selected_date}")
+#             st.stop()
+
+
+#         # --- BUY total (add commissions) ---
+#         buy_mask = floorsheet_df["transaction_type"].str.upper() == "BUY"
+#         total_buy_floorsheet = (
+#             floorsheet_df.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]]
+#             .fillna(0)  # handle any NaN
+#             .sum(axis=1) # sum per row
+#             .sum()       # sum all rows
+#         )
+
+#         # --- SELL total (subtract commissions) ---
+#         sell_mask = floorsheet_df["transaction_type"].str.upper() == "SELL"
+#         total_sell_floorsheet = (
+#             (floorsheet_df.loc[sell_mask, "amount"].fillna(0) -
+#             floorsheet_df.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum(axis=1))
+#             .sum()
+#         )
 
 
 
-#     def calculate_today_book_closure_buy_sell(self):
-#         """
-#         Calculate total BUY and SELL amounts from today's floorsheet
-#         for scripts present in today's book closure data.
+#         st.info(f"Total Buy: {float(total_buy_floorsheet):,.2f}")
+#         st.info(f"Total sell: {float(total_sell_floorsheet):,.2f}")
+#         # return {
+#         #     "total_buy": float(total_buy),
+#         #     "total_sell": float(total_sell),
+#         #     "floorsheet_df": floorsheet_df
+#         # }
 
-#         Returns:
-#             dict: {
-#                 'scripts': list[str],
-#                 'total_buy': float,
-#                 'total_sell': float,
-#                 'filtered_df': pd.DataFrame
-#             }
-#         """
-
-#         # 1. Get today's book-closure data
-#         book_closure_df = db.get_today_book_closure_range()
-
-#         if book_closure_df.empty:
-#             return {
-#                 "scripts": [],
-#                 "total_buy": 0.0,
-#                 "total_sell": 0.0,
-#                 "filtered_df": book_closure_df
-#             }
-
+#         book_closure_df = db.get_today_book_closure_range(selected_date=self.selected_date)
+#         st.header("Book closure data that is in range of start_date and end_date")
+#         st.badge(f"Total BC: {len(book_closure_df)}")
+#         st.dataframe(book_closure_df)    
 #         # 2. Extract unique scripts
 #         scripts = (
 #             book_closure_df["script"]
@@ -265,181 +363,171 @@ if __name__ == "__main__":
 #             .unique()
 #             .tolist()
 #         )
-
-#         # 3. Get today's floorsheet
-#         floorsheet_df = db.get_today_floorsheet()
-
-#         if floorsheet_df.empty:
-#             return {
-#                 "scripts": scripts,
-#                 "total_buy": 0.0,
-#                 "total_sell": 0.0,
-#                 "filtered_df": floorsheet_df
-#             }
-
-#         # 4. Filter floorsheet for book-closure scripts
+        
 #         filtered_df = floorsheet_df[
 #             floorsheet_df["symbol"].isin(scripts)
 #         ]
 
 #         # 5. Calculate BUY and SELL totals (amount-based)
-#         total_buy = (
+#         total_buy_bc = (
 #             filtered_df.loc[
 #                 filtered_df["transaction_type"].str.upper() == "BUY",
 #                 "amount"
 #             ].sum()
 #         )
 
-#         total_sell = (
+#         total_sell_bc = (
 #             filtered_df.loc[
 #                 filtered_df["transaction_type"].str.upper() == "SELL",
 #                 "amount"
 #             ].sum()
 #         )
 
-#         return {
-#             "scripts": scripts,
-#             "total_buy": float(total_buy),
-#             "total_sell": float(total_sell),
-#             "filtered_df": filtered_df
-#         }
+#         bc_trans_script_buy_amount = total_buy_bc
+#         bc_trans_script_sell_amount = total_sell_bc
+#         st.header(f"bc_trans_script_buy_amount: {bc_trans_script_buy_amount:,.2f}")
+#         st.header(f"bc_trans_script_sell_amount: {bc_trans_script_sell_amount:,.2f}")
 
+#         floorsheet_buy_amount_after_deducting_bc_trans_script = total_buy_floorsheet - total_buy_bc
+#         floorsheet_sell_amount_after_deducting_bc_trans_script = total_sell_floorsheet - total_sell_bc
 
-#     def calculate_today_floorsheet_buy_sell(self):
-#         """
-#         Calculate total BUY and SELL amounts from today's floorsheet.
+#         st.header(f"floorsheet_buy_amount_after_deducting_bc_trans_script: {floorsheet_buy_amount_after_deducting_bc_trans_script:,.2f}")
+#         st.header(f"floorsheet_sell_amount_after_deducting_bc_trans_script: {floorsheet_sell_amount_after_deducting_bc_trans_script:,.2f}")
+        
+#         st.markdown("---")
+#         st.header(f"Book closure data with T0 date")
+#         df_bc_t0 = db.get_today_book_closure_only(selected_date=self.selected_date)
+#         st.dataframe(df_bc_t0)
 
-#         Returns:
-#             dict: {
-#                 'total_buy': float,
-#                 'total_sell': float,
-#                 'floorsheet_df': pd.DataFrame
-#             }
-#         """
+#         st.markdown("---")
+#         st.header(f"Book closure data with range of start_date and end_date")
+#         df_list = []
 
-#         floorsheet_df = db.get_today_floorsheet()
+#         for _, row in df_bc_t0.iterrows():
+#             script = str(row["script"])
+#             start_date = str(row["start_date"])
+#             end_date = str(row["end_date"])
 
-#         if floorsheet_df.empty:
-#             return {
-#                 "total_buy": 0.0,
-#                 "total_sell": 0.0,
-#                 "floorsheet_df": floorsheet_df
-#             }
-
-#         total_buy = (
-#             floorsheet_df.loc[
-#                 floorsheet_df["transaction_type"].str.upper() == "BUY",
-#                 "amount"
-#             ].sum()
-#         )
-
-#         total_sell = (
-#             floorsheet_df.loc[
-#                 floorsheet_df["transaction_type"].str.upper() == "SELL",
-#                 "amount"
-#             ].sum()
-#         )
-
-#         return {
-#             "total_buy": float(total_buy),
-#             "total_sell": float(total_sell),
-#             "floorsheet_df": floorsheet_df
-#         }
-
-
-#     def calculate_book_closure_range_buy_sell(self):
-#         """
-#         For each script in today's book closure:
-#         - Fetch floorsheet data between start_date and end_date
-#         - Calculate total BUY and SELL amounts
-
-#         Returns:
-#             pd.DataFrame with:
-#             ['script', 'start_date', 'end_date', 'total_buy', 'total_sell', 'net_amount']
-#         """
-
-#         df_bc = db.get_today_book_closure_only()
-
-#         if df_bc.empty:
-#             return df_bc
-
-#         results = []
-
-#         for _, row in df_bc.iterrows():
-#             script = row["script"]
-#             start_date = row["start_date"]
-#             end_date = row["end_date"]
-
-#             # Fetch floorsheet for script + date range
-#             fs_df = self.get_floorsheet_by_script_and_date_range(
+#             df_range = self.get_floorsheet_by_script_and_date_range(
 #                 script=script,
 #                 start_date=start_date,
 #                 end_date=end_date
 #             )
 
-#             if fs_df.empty:
-#                 total_buy = 0.0
-#                 total_sell = 0.0
-#             else:
-#                 total_buy = (
-#                     fs_df.loc[
-#                         fs_df["transaction_type"].str.upper() == "BUY",
-#                         "amount"
-#                     ].sum()
-#                 )
+#             if not df_range.empty:
+#                 df_list.append(df_range)
 
-#                 total_sell = (
-#                     fs_df.loc[
-#                         fs_df["transaction_type"].str.upper() == "SELL",
-#                         "amount"
-#                     ].sum()
-#                 )
+#         # Final combined dataframe
+#         df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
+#         st.badge(f"Total data: {len(df_holder)}")
+#         st.dataframe(df_holder, width='stretch')
 
-#             results.append({
-#                 "script": script,
-#                 "start_date": start_date,
-#                 "end_date": end_date,
-#                 "total_buy": float(total_buy),
-#                 "total_sell": float(total_sell),
-#                 "net_amount": float(total_buy - total_sell)
-#             })
-
-#         return pd.DataFrame(results)
-
-
-#     def render_page(self):
-
-
-
-#         today_book_closure_result = self.calculate_today_book_closure_buy_sell()
-#         business_summary = self.calculate_today_floorsheet_buy_sell()
-#         st.header("Today's Floorsheet BUY: " + str(business_summary['total_buy']))
-#         st.header("Today's Floorsheet SELL: " + str(business_summary['total_sell']))
-
-
-
-
-
-
-#         st.subheader("📊 Book Closure – Buy/Sell Summary (Date Range Wise)")
-
-#         summary_df = self.calculate_book_closure_range_buy_sell()
-#         col1, col2, col3 = st.columns(3)
-
-#         today_buy_after_book_close = (business_summary['total_buy'] - today_book_closure_result['total_buy']) - summary_df['total_buy'].sum()
-#         today_sell_after_book_close = (business_summary['total_sell'] - today_book_closure_result['total_sell']) - summary_df['total_sell'].sum()
 #         st.markdown("---")
-#         st.header("Buy Amount after Book Closure: " + str(today_buy_after_book_close))
-#         st.header("Sell Amount after Book Closure: " + str(today_sell_after_book_close))
+#         total_buy_bc_t0 = (
+#             df_holder.loc[
+#                 df_holder["transaction_type"].str.upper() == "BUY",
+#                 "amount"
+#             ].sum()
+#         )
+
+#         total_sell_bc_t0 = (
+#             df_holder.loc[
+#                 df_holder["transaction_type"].str.upper() == "SELL",
+#                 "amount"
+#             ].sum()
+#         )
+
+#         final_buy = total_buy_bc_t0 + floorsheet_buy_amount_after_deducting_bc_trans_script
+#         final_sell = total_sell_bc_t0 + floorsheet_sell_amount_after_deducting_bc_trans_script
+
+#         st.markdown("---")
+#         st.header(f"After adding t0 in floorsheet buy: {final_buy}")
+#         st.header(f"After adding t0 in floorsheet sell: {final_sell}")
+
+#         net_amount = (final_buy - final_sell)
+#         if net_amount<0:
+#             net_amount = (final_buy - final_sell) + total_tds
+#         else:
+#             net_amount = (final_buy - final_sell) - total_tds
 
 
-#         st.header(f"Total Payables/Receivables is : {today_buy_after_book_close - today_sell_after_book_close}")
+#         st.header(f"Final amount: {net_amount:,.2f}")
+    
+    
+    
+#     def uat_page_friday(self):
+#         st.success(f"Today is Friday")
+#         st.markdown("---")
+#         st.header(f"Book closure data with T0 date")
+#         df_bc_t0 = db.get_today_book_closure_only(selected_date=self.selected_date)
+#         st.dataframe(df_bc_t0)
+
+#         st.markdown("---")
+#         st.header(f"Book closure data with range of start_date and end_date")
+#         df_list = []
+
+
+#         for _, row in df_bc_t0.iterrows():
+#             script = str(row["script"])
+#             start_date = str(row["start_date"])
+#             end_date = str(row["end_date"])
+
+#             df_range = self.get_floorsheet_by_script_and_date_range(
+#                 script=script,
+#                 start_date=start_date,
+#                 end_date=end_date
+#             )
+
+#             if not df_range.empty:
+#                 df_list.append(df_range)
+
+#         # Final combined dataframe
+#         df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
+#         st.badge(f"Total data: {len(df_holder)}")
+#         df_holder['broker_comm'] = df_holder['amount'].apply(self.calculate_commission)
+#         df_holder['sebon_comm'] = df_holder['broker_comm'] * 0.006  # 0.6%
+#         df_holder['tds'] = df_holder['broker_comm'] * 0.12  # 0.6%
+#         st.dataframe(df_holder, width='stretch')
 
 
 
+#         st.markdown("---")
+#         # --- BUY total (add commissions) ---
+#         buy_mask = df_holder["transaction_type"].str.upper() == "BUY"
+#         total_buy_floorsheet = (
+#             df_holder.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]]
+#             .fillna(0)  # handle any NaN
+#             .sum(axis=1) # sum per row
+#             .sum()       # sum all rows
+#         )
+
+#         # --- SELL total (subtract commissions) ---
+#         sell_mask = df_holder["transaction_type"].str.upper() == "SELL"
+#         total_sell_floorsheet = (
+#             (df_holder.loc[sell_mask, "amount"].fillna(0) -
+#             df_holder.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum(axis=1))
+#             .sum()
+#         )
+
+
+#         st.header(f"Total buy: {total_buy_floorsheet:,.2f}")
+#         st.header(f"Total sell: {total_sell_floorsheet:,.2f}")
+
+#         final_value = (total_buy_floorsheet - total_sell_floorsheet) + df_holder['tds'].sum()
+#         st.header(f"Final Rec/Pay: {final_value:,.2f}")
+
+
+
+
+
+#     def render_ui(self):
+#         if self.weekday_name.upper() == 'FRIDAY':
+#             self.uat_page_friday()
+#         else:
+#             self.uat_page()
 
 # # ---------------------------------------------------------
 # # ✅ Run App
 # # ---------------------------------------------------------
 # if __name__ == "__main__":
-#     PayableAndReceivable().render_page()
+#     PayableAndReceivable().render_ui()

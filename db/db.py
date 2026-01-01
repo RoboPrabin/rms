@@ -487,14 +487,60 @@ def get_jwt_token() -> str | None:
 
 
 
+# def insert_book_closure_from_file(df: pd.DataFrame, username: str):
+#     conn = get_connection()
+#     cur = conn.cursor()
+
+#     inserted = 0
+#     now = datetime.now()
+
+#     for _, row in df.iterrows():
+#         cur.execute("""
+#             INSERT INTO book_closure (
+#                 id, script, start_date, end_date, t0, t1, t2,
+#                 created_by, created_at, updated_by, updated_at
+#             )
+#             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+#         """, (
+#             str(uuid.uuid4()),
+#             row["script"],
+#             row["start_date"],
+#             row["end_date"],
+#             row["t0"],
+#             row["t1"],
+#             row["t2"],
+#             username,   # created_by
+#             now,             # created_at
+#             username,   # updated_by
+#             now              # updated_at
+#         ))
+
+#         inserted += 1
+
+#     conn.commit()
+#     cur.close()
+#     conn.close()
+
+#     return inserted
+
+
 def insert_book_closure_from_file(df: pd.DataFrame, username: str):
     conn = get_connection()
     cur = conn.cursor()
+
+    # Fetch existing scripts from DB
+    cur.execute("SELECT script FROM book_closure")
+    existing_scripts = {row[0] for row in cur.fetchall()}
 
     inserted = 0
     now = datetime.now()
 
     for _, row in df.iterrows():
+        script_name = row["script"]
+        if script_name in existing_scripts:
+            # Skip if script already exists
+            continue
+
         cur.execute("""
             INSERT INTO book_closure (
                 id, script, start_date, end_date, t0, t1, t2,
@@ -503,19 +549,20 @@ def insert_book_closure_from_file(df: pd.DataFrame, username: str):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             str(uuid.uuid4()),
-            row["script"],
+            script_name,
             row["start_date"],
             row["end_date"],
             row["t0"],
             row["t1"],
             row["t2"],
-            username,   # created_by
-            now,             # created_at
-            username,   # updated_by
-            now              # updated_at
+            username,
+            now,
+            username,
+            now
         ))
 
         inserted += 1
+        existing_scripts.add(script_name)  # Add to set to avoid duplicates within the same file
 
     conn.commit()
     cur.close()
@@ -897,6 +944,39 @@ def get_t3_date(selected_date):
         t3_date += timedelta(days=1)
 
     return t3_date
+
+
+
+def get_t3_back_date(selected_date):
+    """
+    Calculate T-3 working date in Nepal:
+    - Skip holidays listed in 'holiday' table (column: holiday_date)
+    - Skip Saturdays
+    Returns:
+        datetime.date object of previous valid working day
+    """
+
+    # 1️⃣ Initial T-3 date
+    t3_date = selected_date - timedelta(days=3)
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT holiday_date FROM holidays;")
+            # Convert strings to datetime.date
+            holidays = [row[0] if isinstance(row[0], datetime) else datetime.strptime(row[0], "%Y-%m-%d").date()
+                        for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+    holiday_set = set(holidays)
+
+    # 2️⃣ Loop until we find a valid working day
+    while t3_date in holiday_set or t3_date.weekday() == 5:  # 5 = Saturday
+        t3_date -= timedelta(days=1)  # move back 1 day
+
+    return t3_date
+
 
 def insert_holiday(holiday_date, holiday_description, created_by):
     query = """

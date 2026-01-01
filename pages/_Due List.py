@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 from db import db
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils import helper
 from utils.formatting import *
-from utils.custom_hotkey import activate_client_code_hotkey
+from utils.custom_hotkey import activate_client_code_hotkey, get_account_code, get_ledger, get_rm_and_client_name
 
 class DueList:
     def __init__(self):
@@ -16,7 +16,9 @@ class DueList:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
+
         activate_client_code_hotkey()
+        
         self.username, self.role = app_state.get_current_user_info()
         navigation.render_sidebar()
 
@@ -52,7 +54,7 @@ class DueList:
     #     df = pd.read_sql(query, _self.intranet_engine, params=params)
     #     return df
 
-    @st.cache_data(ttl=120)
+    # @st.cache_data(ttl=120)
     def load_due_list_data_bro(_self):
         alias = helper.get_alias_name(_self.username.upper())
         query = """
@@ -78,7 +80,7 @@ class DueList:
         # --- Layout for filters at top ---
         col1, col2, col3, col4 = st.columns(4)
         
-        df = df.iloc[:, 1:]
+        # df = df.iloc[:, 1:]
         with col1:
             selected_date = st.date_input("Filter by date", datetime.today())
 
@@ -203,7 +205,130 @@ class DueList:
         )
 
         # --- Display styled dataframe ---
-        st.dataframe(styled_df, use_container_width=True)
+        selection_row = st.dataframe(styled_df, width='stretch', selection_mode='single-row', key='selected_client', on_select='rerun')
+        # print(selection_row.get('clientCode'))
+        if selection_row.selection.rows:
+            row_idx = selection_row.selection.rows[0]
+            value = df_filtered.iloc[row_idx]["Client Code"]  # Access by position then column name
+            try:
+                _self.client_ledger_dialog(client_code=value)
+            except Exception as e:
+                pass
+
+
+    # Decorated dialog function
+    @st.dialog("Client Ledger", width='large')
+    def client_ledger_dialog(self, client_code):
+        with st.container(border=True):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                client_code = st.text_input("Client Code (NEPSE)", value=client_code).upper()
+
+            with col2:
+                from_date = st.date_input(
+                    "From Date",
+                    value=date(2025, 7, 17),
+                    max_value=date.today()
+                )
+
+            with col3:
+                to_date = st.date_input(
+                    "To Date",
+                    value=date.today(),
+                    min_value=from_date,
+                    max_value=date.today()
+                )
+
+            if not client_code:
+                st.error("Client code is required.")
+                return
+
+            with st.spinner("Fetching ledger…"):
+                try:
+                    from_date_str = from_date.strftime("%Y-%m-%d")
+                    to_date_str = to_date.strftime("%Y-%m-%d")
+
+                    token = db.get_jwt_token()
+                    ac_code = get_account_code(token, client_code)
+                    ledger = get_ledger(token, ac_code, from_date_str, to_date_str)
+                    st.session_state["ledger_dialog_data"] = ledger
+                    rm_name, client_name = get_rm_and_client_name(client_code)
+                    st.session_state['rm_name'] = rm_name
+                    st.session_state['client_name'] = client_name
+                    st.session_state['client_code'] = client_code
+                except Exception as e:
+                    st.error(f"Client Code: '{client_code.upper()}' not found")
+                    return
+
+        if "ledger_dialog_data" in st.session_state:
+            ledger = st.session_state["ledger_dialog_data"]
+            # st.divider()
+            # st.subheader(f"📒 Opening Summary", anchor=False)
+            st.badge(f"{st.session_state['client_name']} [{st.session_state.get('client_code', '')}] || {st.session_state.get('rm_name', 'N/A')}", color="green")
+        
+            ubilled = ledger.get("ubilledTransactions", [])
+
+            adjusted_balance = 0.0
+            if ubilled:
+                df_ub = pd.DataFrame(ubilled)
+                if "credit" in df_ub.columns:
+                    total_credit = df_ub["credit"].sum()
+                    adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
+
+                    # <div>BRO: {st.session_state.get('rm_name', 'N/A')}</div>
+            st.markdown(
+            f"""
+            <div style="display: flex;font-weight: bold;justify-content: space-between; font-size: 1rem; color: #6b7280; line-height: 2; margin-bottom: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <div>
+                    <div>Adjusted Balance: {adjusted_balance:,.2f}</div>
+                    <div>Collateral: {float(ledger.get('collateral', 0)):,.2f}</div>
+                </div>
+                <div style="text-align: right;">
+                    <br>
+                    <div>Balance: {float(ledger.get('balance', 0)):,.2f} {ledger.get('balanceType', '-')}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+            # st.subheader("📖 Ledger Transactions", anchor=False)
+            data_rows = ledger.get("data", [])
+            if data_rows:
+                df = pd.DataFrame(data_rows)
+                ordered_cols = [
+                    "transactionDate", "clearanceDate", "referenceNo",
+                    "voucherNo", "particulars", "dr", "cr", "balance", "balanceType"
+                ]
+                number_cols = ["Dr", "Cr", "Balance"]
+                df = df[[c for c in ordered_cols if c in df.columns]]
+                df.columns = df.columns.str.upper()
+                df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
+                df = coerce_numeric_columns(df, number_cols)
+
+                df.rename(columns={"Transactiondate": "Transaction Date", "Clearancedate": "Clearance Date", "Referenceno": "Reference No", "Balancetype": "Balance Type"}, inplace=True)
+                
+                styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
+                st.dataframe(styled_df, width='stretch', hide_index=True)
+            else:
+                st.warning("No ledger transactions found.")
+
+            if ubilled:
+                st.divider()
+                st.subheader("📌 Unbilled Transactions", anchor=False)
+                df_ub = pd.DataFrame(ubilled)
+                ub_cols = ["transactionDate", "particulars", "debit", "credit", "balance", "tr"]
+                num_cols = ["Debit", "Credit", "Balance"]
+                df_ub = df_ub[[c for c in ub_cols if c in df_ub.columns]]
+                df_ub.columns = df_ub.columns.str.upper()
+                df_ub.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
+                df_ub = coerce_numeric_columns(df_ub, num_cols)
+                df_ub.rename(columns={"Transactiondate": "Transaction Date"}, inplace=True)
+                df_ub.sort_values(by="Balance", ascending=False, inplace=True)
+                styled_df = df_ub.style.format(accounting_format, subset=num_cols).map(highlight_negative, subset=num_cols)
+                total_unbilled_transactions = df_ub['Balance'].sum()
+                st.badge(f"Unbilled Amount: {total_unbilled_transactions:,.2f}", color="blue")
+                st.dataframe(styled_df, use_container_width=True,  hide_index=True)
 
 
 
