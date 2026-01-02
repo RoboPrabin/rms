@@ -73,9 +73,13 @@ class DueList:
 
         # --- Load data based on role ---
         if _self.role == "BRO":
-            df: pd.DataFrame = _self.load_due_list_data_bro()
+            if 'due_bro' not in st.session_state:
+                st.session_state['due_bro'] = _self.load_due_list_data_bro()
+            df: pd.DataFrame =st.session_state['due_bro']
         else:
-            df: pd.DataFrame = _self.load_due_list_data_all(username = _self.username)
+            if 'bro' not in st.session_state:
+                st.session_state['bro'] = _self.load_due_list_data_all(username = _self.username)
+            df: pd.DataFrame = st.session_state['bro']
 
         # --- Layout for filters at top ---
         col1, col2, col3, col4 = st.columns(4)
@@ -273,14 +277,17 @@ class DueList:
                 df_ub = pd.DataFrame(ubilled)
                 if "credit" in df_ub.columns:
                     total_credit = df_ub["credit"].sum()
-                    adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
+                    if ledger.get('balanceType', '-') == 'CR':
+                        adjusted_balance = "{:,.2f} CR".format(float(ledger.get('balance', '0.00')) + total_credit)
+                    else:
+                        adjusted_balance = "{:,.2f} DR".format(float(ledger.get('balance', '0.00')) - total_credit)
 
                     # <div>BRO: {st.session_state.get('rm_name', 'N/A')}</div>
             st.markdown(
             f"""
             <div style="display: flex;font-weight: bold;justify-content: space-between; font-size: 1rem; color: #6b7280; line-height: 2; margin-bottom: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
                 <div>
-                    <div>Adjusted Balance: {adjusted_balance:,.2f}</div>
+                    <div>Adjusted Balance: {adjusted_balance}</div>
                     <div>Collateral: {float(ledger.get('collateral', 0)):,.2f}</div>
                 </div>
                 <div style="text-align: right;">

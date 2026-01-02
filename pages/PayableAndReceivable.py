@@ -160,9 +160,9 @@ class PayableAndReceivable:
         net_amount = (final_buy - final_sell) + total_tds
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Floorsheet Buy (with T0)", final_buy)
+            st.metric("Floorsheet Buy (with T0)", f"{final_buy:,.2f}")
         with col2:   
-            st.metric("Floorsheet Sell (with T0)", final_sell)
+            st.metric("Floorsheet Sell (with T0)", f"{final_sell:,.2f}")
 
         if net_amount<0:
             st.metric("Final Amount (Receivable)", f"{net_amount:,.2f}", border=True)

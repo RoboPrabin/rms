@@ -133,14 +133,19 @@ def activate_client_code_hotkey():
                 df_ub = pd.DataFrame(ubilled)
                 if "credit" in df_ub.columns:
                     total_credit = df_ub["credit"].sum()
-                    adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
+                    if ledger.get('balanceType', '-') == 'CR':
+                        adjusted_balance = "{:,.2f} CR".format(float(ledger.get('balance', '0.00')) + total_credit)
+                    else:
+                        adjusted_balance = "{:,.2f} DR".format(float(ledger.get('balance', '0.00')) - total_credit)
+
+                    # adjusted_balance = total_credit - float(ledger.get('balance', '0.00'))
 
                     # <div>BRO: {st.session_state.get('rm_name', 'N/A')}</div>
             st.markdown(
             f"""
             <div style="display: flex;font-weight: bold;justify-content: space-between; font-size: 1rem; color: #6b7280; line-height: 2; margin-bottom: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
                 <div>
-                    <div>Adjusted Balance: {adjusted_balance:,.2f}</div>
+                    <div>Adjusted Balance: {adjusted_balance}</div>
                     <div>Collateral: {float(ledger.get('collateral', 0)):,.2f}</div>
                 </div>
                 <div style="text-align: right;">

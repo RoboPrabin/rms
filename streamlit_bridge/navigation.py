@@ -154,10 +154,12 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
             st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
@@ -221,6 +223,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")

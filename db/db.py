@@ -7,7 +7,7 @@ from psycopg2.extras import execute_batch, execute_values
 import pandas as pd
 from utils import helper
 from datetime import datetime, timedelta, date
-
+import os
 
 def get_connection():
     return psycopg2.connect(
@@ -19,6 +19,90 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
+def get_cbr_filename() -> str | None:
+    """
+    Fetches the filename from cbr_filepath table.
+    Assumes single-row design with id = 1.
+    Returns only the filename.
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT filepath
+                FROM cbr_filepath
+                WHERE id = 1
+            """)
+            row = cur.fetchone()
+
+            if not row or not row["filepath"]:
+                return None
+
+            return row["filepath"]
+
+    except psycopg2.Error as e:
+        raise RuntimeError(f"Failed to fetch filename: {e}") from e
+
+    finally:
+        if conn:
+            conn.close()
+def get_cbr_created_date() -> str | None:
+    """
+    Fetches the filename from cbr_filepath table.
+    Assumes single-row design with id = 1.
+    Returns only the filename.
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT created_at
+                FROM cbr_filepath
+                WHERE id = 1
+            """)
+            row = cur.fetchone()
+
+            if not row or not row["created_at"]:
+                return None
+
+            return row["created_at"]
+
+    except psycopg2.Error as e:
+        raise RuntimeError(f"Failed to fetch filename: {e}") from e
+
+    finally:
+        if conn:
+            conn.close()
+
+
+def get_cost_benefit_data():
+    query = """
+        SELECT *
+        FROM cost_benefit
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description]   # ✅ get column names
+
+        cur.close()
+        conn.close()
+        df = pd.DataFrame(rows, columns=cols)        # ✅ return DataFrame with columns
+        # df.drop(columns=['uploaed_at'], inplace=True)
+        # df.round(2)
+        return df
+
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+    
 def update_manager_request(
     uarf_id,
     full_name,
