@@ -15,12 +15,7 @@ def dump_to_db(df: pd.DataFrame, table_name: str = "isin"):
     engine = create_engine(get_holding_engine())
 
     # Dump DataFrame to SQL table
-    df.to_sql(
-        name=table_name,
-        con=engine,
-        if_exists="replace",   # options: 'fail', 'replace', 'append'
-        index=False            # don’t write DataFrame index as a column
-    )
+    df.to_sql(name=table_name,con=engine,if_exists="replace",index=False)
     show_message(f"ISIN data dumped to isin table.", color="green")
 
 def get_total_pages():

@@ -96,12 +96,7 @@ def fetch_trading_average_price(table_name:str = "average_price"):
             df = pd.DataFrame(json_response)
             engine = create_engine(get_holding_engine())
             # Dump DataFrame to SQL table
-            df.to_sql(
-                name=table_name,
-                con=engine,
-                if_exists="replace",   # options: 'fail', 'replace', 'append'
-                index=False            # don’t write DataFrame index as a column
-            )
+            df.to_sql(name=table_name,con=engine,if_exists="replace", index=False)
             show_message(f"Average Price from NepalStockExchange dumped to table {table_name}.", color="green")
         else:
             show_message(f"NepalStoclExchange Request failed:" + response.text, 'red')
@@ -110,8 +105,8 @@ def fetch_trading_average_price(table_name:str = "average_price"):
 
 
 if __name__ == "__main__":
-    # fetch_trading_average_price()
-    from db import db
-    rows = db.get_table_average_price() 
-    df_avp = pd.DataFrame(rows, columns=["SYMBOL", "AVERAGE_PRICE"])
-    print(df_avp)
+    fetch_trading_average_price()
+    # from db import db
+    # rows = db.get_table_average_price() 
+    # df_avp = pd.DataFrame(rows, columns=["SYMBOL", "AVERAGE_PRICE"])
+    # print(df_avp)

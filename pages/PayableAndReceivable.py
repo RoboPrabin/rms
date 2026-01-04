@@ -112,7 +112,8 @@ class PayableAndReceivable:
 
         floorsheet_buy_after = total_buy_floorsheet - total_buy_bc
         floorsheet_sell_after = total_sell_floorsheet - total_sell_bc
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2= st.columns(2)
+        col3, col4 = st.columns(2)
 
         with col1:
             st.metric("BC Buy Amount", f"{total_buy_bc:,.2f}")
@@ -158,6 +159,7 @@ class PayableAndReceivable:
         st.markdown("---")
 
         net_amount = (final_buy - final_sell) + total_tds
+        st.badge(f"Total TDS: {total_tds:,.2f}", color="green")
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Floorsheet Buy (with T0)", f"{final_buy:,.2f}")

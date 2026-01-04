@@ -55,8 +55,6 @@ class DPM3:
         return pd.read_sql(query, self.holding_engine, params=(week_start,))
 
 
-
-
     def dump_data_to_db(self, df):
         group_keys = ["BRO","CLIENT CODE","CLIENT NAME","BRANCH","BOID"]
         existing_keys = [col for col in group_keys if col in df.columns]
@@ -168,9 +166,11 @@ class DPM3:
         merged["BRO"] = merged["BRO"].fillna("N/A")
         return merged
 
-    @st.cache_data(ttl=3200)
+    # @st.cache_data(ttl=3200)
     def get_dpm3_data(_self):
-        df = db.get_dpm3()  # Extract data from database
+        if 'dpm3' not in st.session_state:
+            st.session_state['dpm3'] = db.get_dpm3()
+        df =  st.session_state['dpm3']
         # print(df)
         group_keys = ["BRO","CLIENT CODE","CLIENT NAME","BRANCH","BOID"]
         
@@ -216,29 +216,26 @@ class DPM3:
                     df = func(df, *args)
             status.update(label="✅ Upload Completed", state="complete", expanded=False)
 
+    # def view_holdings(self):
 
-    # ===============================
-    # MAIN VIEW
-    # ===============================
+    #     # ---------------------------
+    #     # 1. Load DPM3 (RAW)
+    #     # ---------------------------
+    #     _, df_dpm3 = self.get_dpm3_data()
 
-    def view_holdings(self):
+    #     st.dataframe(_)
 
-        # ---------------------------
-        # 1. Load DPM3 (RAW)
-        # ---------------------------
-        _, df_dpm3 = self.get_dpm3_data()
+    #     df_dpm3 = df_dpm3.rename(columns={
+    #         "CLIENT CODE": "clientcode",
+    #         "CLIENT NAME": "clientname",
+    #         "SCRIPT": "symbol",
+    #         "CURRENT BALANCE": "quantity"
+    #     })
 
-        df_dpm3 = df_dpm3.rename(columns={
-            "CLIENT CODE": "clientcode",
-            "CLIENT NAME": "clientname",
-            "SCRIPT": "symbol",
-            "CURRENT BALANCE": "quantity"
-        })
-
-        # ---------------------------
-        # 2. Load Today's Floorsheet
-        # ---------------------------
-        df_fs = self.get_week_floorsheet()
+    #     # ---------------------------
+    #     # 2. Load Today's Floorsheet
+    #     # ---------------------------
+    #     df_fs = self.get_week_floorsheet()
 
         # ---------------------------
         # 3. Apply Floorsheet Delta
@@ -247,202 +244,201 @@ class DPM3:
         # 3. Apply Floorsheet Delta
         # ---------------------------
 
-        if df_fs.empty:
-            st.info("ℹ️ No floorsheet uploaded today. Showing DPM3 holdings only.")
-            df_live_stock = df_dpm3.copy()
-            df_live_stock["final_quantity"] = df_live_stock["quantity"]
+        # if df_fs.empty:
+        #     st.info("ℹ️ No floorsheet uploaded today. Showing DPM3 holdings only.")
+        #     df_live_stock = df_dpm3.copy()
+        #     df_live_stock["final_quantity"] = df_live_stock["quantity"]
 
-        else:
-            df_fs["signed_qty"] = df_fs["quantity"].where(
-                df_fs["transaction_type"].str.upper() == "BUY",
-                -df_fs["quantity"]
-            )
+        # else:
+            # df_fs["signed_qty"] = df_fs["quantity"].where(
+            #     df_fs["transaction_type"].str.upper() == "BUY",
+            #     -df_fs["quantity"]
+            # )
 
-            df_fs_delta = (
-                df_fs
-                .groupby(["clientcode", "symbol"], as_index=False)["signed_qty"]
-                .sum()
-            )
+            # df_fs_delta = (
+            #     df_fs
+            #     .groupby(["clientcode", "symbol"], as_index=False)["signed_qty"]
+            #     .sum()
+            # )
 
-            df_holdings = pd.merge(
-                df_dpm3,
-                df_fs_delta,
-                how="outer",
-                on=["clientcode", "symbol"]
-            )
+            # df_holdings = pd.merge(
+            #     df_dpm3,
+            #     df_fs_delta,
+            #     how="outer",
+            #     on=["clientcode", "symbol"]
+            # )
 
-            df_holdings["quantity"] = df_holdings["quantity"].fillna(0)
-            df_holdings["signed_qty"] = df_holdings["signed_qty"].fillna(0)
+            # df_holdings["quantity"] = df_holdings["quantity"].fillna(0)
+            # df_holdings["signed_qty"] = df_holdings["signed_qty"].fillna(0)
 
-            df_holdings["final_quantity"] = (
-                df_holdings["quantity"] + df_holdings["signed_qty"]
-            )
+            # df_holdings["final_quantity"] = (
+            #     df_holdings["quantity"] + df_holdings["signed_qty"]
+            # )
 
-            # ⚠️ Soft validation (DO NOT STOP)
-            violations = df_holdings[df_holdings["final_quantity"] < 0]
+            # # ⚠️ Soft validation (DO NOT STOP)
+            # violations = df_holdings[df_holdings["final_quantity"] < 0]
 
-            if not violations.empty:
-                st.warning("⚠️ Some sell transactions exceed Sunday holdings (intraday / unsettled trades).")
-                violations.reset_index(inplace=True, drop=True)
-                violations.index = violations.index + 1
-                st.badge(f"Total unusal DP Holdings : " + str(len(violations)), color='red')
-                st.dataframe(
-                    violations[["clientcode", "symbol", "quantity", "signed_qty", "final_quantity"]],
-                    width='stretch'
-                )
+            # if not violations.empty:
+            #     st.warning("⚠️ Some sell transactions exceed Sunday holdings (intraday / unsettled trades).")
+            #     violations.reset_index(inplace=True, drop=True)
+            #     violations.index = violations.index + 1
+            #     st.badge(f"Total unusal DP Holdings : " + str(len(violations)), color='red')
+            #     st.dataframe(
+            #         violations[["clientcode", "symbol", "quantity", "signed_qty", "final_quantity"]],
+            #         width='stretch'
+            #     )
 
-            # Clip negatives for UI
-            df_holdings["final_quantity"] = df_holdings["final_quantity"].clip(lower=0)
+            # # Clip negatives for UI
+            # df_holdings["final_quantity"] = df_holdings["final_quantity"].clip(lower=0)
 
-            # ✅ ALWAYS assign
-            df_live_stock = df_holdings.copy()
+            # # ✅ ALWAYS assign
+            # df_live_stock = df_holdings.copy()
 
 
 
-        # ---------------------------
-        # 4. Recalculate Balances & Valuation
-        # ---------------------------
-        df_live_stock = df_live_stock[df_live_stock["final_quantity"] > 0]
+        # # ---------------------------
+        # # 4. Recalculate Balances & Valuation
+        # # ---------------------------
+        # df_live_stock = df_live_stock[df_live_stock["final_quantity"] > 0]
 
-        df_live_stock["CURRENT BALANCE"] = df_live_stock["final_quantity"]
-        df_live_stock["FREE BALANCE"] = df_live_stock["CURRENT BALANCE"]
-        df_live_stock["PLEDGE BALANCE"] = 0
+        # df_live_stock["CURRENT BALANCE"] = df_live_stock["final_quantity"]
+        # df_live_stock["FREE BALANCE"] = df_live_stock["CURRENT BALANCE"]
+        # df_live_stock["PLEDGE BALANCE"] = 0
 
-        df_live_stock["FREE SHARE VALUATION"] = (
-            df_live_stock["FREE BALANCE"] * df_live_stock["CLOSING PRICE"]
-        )
+        # df_live_stock["FREE SHARE VALUATION"] = (
+        #     df_live_stock["FREE BALANCE"] * df_live_stock["CLOSING PRICE"]
+        # )
 
-        df_live_stock["PLEDGE SHARE VALUATION"] = (
-            df_live_stock["PLEDGE BALANCE"] * df_live_stock["CLOSING PRICE"]
-        )
+        # df_live_stock["PLEDGE SHARE VALUATION"] = (
+        #     df_live_stock["PLEDGE BALANCE"] * df_live_stock["CLOSING PRICE"]
+        # )
 
-        df_live_stock["TOTAL VALUATION"] = (
-            df_live_stock["FREE SHARE VALUATION"] +
-            df_live_stock["PLEDGE SHARE VALUATION"]
-        )
+        # df_live_stock["TOTAL VALUATION"] = (
+        #     df_live_stock["FREE SHARE VALUATION"] +
+        #     df_live_stock["PLEDGE SHARE VALUATION"]
+        # )
 
-        # ---------------------------
-        # 5. Client-Level Summary
-        # ---------------------------
-        group_keys = ["BRO", "clientcode", "clientname", "BRANCH", "BOID"]
+        # # ---------------------------
+        # # 5. Client-Level Summary
+        # # ---------------------------
+        # group_keys = ["BRO", "clientcode", "clientname", "BRANCH", "BOID"]
 
-        sum_cols = [
-            "FREE BALANCE",
-            "PLEDGE BALANCE",
-            "CURRENT BALANCE",
-            "FREE SHARE VALUATION",
-            "PLEDGE SHARE VALUATION",
-            "TOTAL VALUATION"
-        ]
+        # sum_cols = [
+        #     "FREE BALANCE",
+        #     "PLEDGE BALANCE",
+        #     "CURRENT BALANCE",
+        #     "FREE SHARE VALUATION",
+        #     "PLEDGE SHARE VALUATION",
+        #     "TOTAL VALUATION"
+        # ]
 
-        df_client_summary = (
-            df_live_stock
-            .groupby(group_keys, as_index=False)[sum_cols]
-            .sum()
-        )
+        # df_client_summary = (
+        #     df_live_stock
+        #     .groupby(group_keys, as_index=False)[sum_cols]
+        #     .sum()
+        # )
 
-        df_client_summary["SCRIPT COUNT"] = (
-            df_live_stock
-            .groupby(group_keys)["symbol"]
-            .count()
-            .values
-        )
+        # df_client_summary["SCRIPT COUNT"] = (
+        #     df_live_stock
+        #     .groupby(group_keys)["symbol"]
+        #     .count()
+        #     .values
+        # )
 
-        column_order = (
-            group_keys +
-            ["SCRIPT COUNT"] +
-            sum_cols
-        )
+        # column_order = (
+        #     group_keys +
+        #     ["SCRIPT COUNT"] +
+        #     sum_cols
+        # )
 
-        df_client_summary = df_client_summary[column_order]
+        # df_client_summary = df_client_summary[column_order]
 
-        # ---------------------------
-        # 6. UI – Client Table
-        # ---------------------------
-        st.badge(f"Total Clients: {len(df_client_summary):,}", color="green")
+        # # ---------------------------
+        # # 6. UI – Client Table
+        # # ---------------------------
+        # st.badge(f"Total Clients: {len(df_client_summary):,}", color="green")
 
-        selection = st.dataframe(
-            df_client_summary,
-            selection_mode="single-row",
-            key="client_table",
-            on_select="rerun"
-        )
+        # selection = st.dataframe(
+        #     df_client_summary,
+        #     selection_mode="single-row",
+        #     key="client_table",
+        #     on_select="rerun"
+        # )
 
-        # ---------------------------
-        # 7. Drill-down Dialog
-        # ---------------------------
-        if selection.selection.rows:
-            idx = selection.selection.rows[0]
-            selected = df_client_summary.iloc[idx]
+        # # ---------------------------
+        # # 7. Drill-down Dialog
+        # # ---------------------------
+        # if selection.selection.rows:
+        #     idx = selection.selection.rows[0]
+        #     selected = df_client_summary.iloc[idx]
 
-            client_code = selected["clientcode"]
-            client_name = selected["clientname"]
+        #     client_code = selected["clientcode"]
+        #     client_name = selected["clientname"]
 
-            client_scripts = (
-                df_live_stock[df_live_stock["clientcode"] == client_code]
-                .copy()
-            )
+        #     client_scripts = (
+        #         df_live_stock[df_live_stock["clientcode"] == client_code]
+        #         .copy()
+        #     )
 
-            client_scripts.reset_index(drop=True, inplace=True)
-            client_scripts.index += 1
+        #     client_scripts.reset_index(drop=True, inplace=True)
+        #     client_scripts.index += 1
 
-            view_cols = [
-                "symbol",
-                "FREE BALANCE",
-                "PLEDGE BALANCE",
-                "CURRENT BALANCE",
-                "CLOSING PRICE",
-                "FREE SHARE VALUATION",
-                "PLEDGE SHARE VALUATION",
-                "TOTAL VALUATION"
-            ]
+        #     view_cols = [
+        #         "symbol",
+        #         "FREE BALANCE",
+        #         "PLEDGE BALANCE",
+        #         "CURRENT BALANCE",
+        #         "CLOSING PRICE",
+        #         "FREE SHARE VALUATION",
+        #         "PLEDGE SHARE VALUATION",
+        #         "TOTAL VALUATION"
+        #     ]
 
-            self.show_client_dialog(
-                client_scripts[view_cols],
-                f"👨🏻‍💻 {client_name} - {client_code}"
-            )
+        #     self.show_client_dialog(
+        #         client_scripts[view_cols],
+        #         f"👨🏻‍💻 {client_name} - {client_code}"
+        #     )
 
 
     
-    # def view_holdings(self):
-    #     df_grouped,df_uploaded  = self.get_dpm3_data()
-    #     st.badge(f"Total rows: {len(df_grouped):,}", color="green")
-    #     print(df_uploaded.columns)
-    #     selection = st.dataframe(
-    #         df_grouped,
-    #         # column_order=df_grouped.columns.tolist(),
-    #         key="client_table",
-    #         selection_mode="single-row",
-    #         on_select="rerun"
-    #     )
+    def view_holdings(self):
+        df_grouped,df_uploaded  = self.get_dpm3_data()
+        st.badge(f"Total rows: {len(df_grouped):,}", color="green")
+        selection = st.dataframe(
+            df_grouped,
+            # column_order=df_grouped.columns.tolist(),
+            key="client_table",
+            selection_mode="single-row",
+            on_select="rerun"
+        )
 
-    #     if selection.selection.rows:
-    #         row_idx = selection.selection.rows[0]
-    #         selected_row = df_grouped.iloc[row_idx]
+        if selection.selection.rows:
+            row_idx = selection.selection.rows[0]
+            selected_row = df_grouped.iloc[row_idx]
 
-    #         selected_code = selected_row["CLIENT CODE"]
-    #         client_label = selected_row["CLIENT NAME"]
+            selected_code = selected_row["CLIENT CODE"]
+            client_label = selected_row["CLIENT NAME"]
 
-    #         client_scripts:pd.DataFrame = df_uploaded[df_uploaded["CLIENT CODE"] == selected_code].copy()
-    #         client_scripts.reset_index(drop=True, inplace=True)
-    #         client_scripts.index += 1
+            client_scripts:pd.DataFrame = df_uploaded[df_uploaded["CLIENT CODE"] == selected_code].copy()
+            client_scripts.reset_index(drop=True, inplace=True)
+            client_scripts.index += 1
 
-    #         # Choose only the visible columns
-    #         view_cols = [
-    #             "SCRIPT","FREE BALANCE","PLEDGE BALANCE","CURRENT BALANCE",
-    #             "CLOSING PRICE","FREE SHARE VALUATION",
-    #             "PLEDGE SHARE VALUATION","TOTAL VALUATION"
-    #         ]
+            # Choose only the visible columns
+            view_cols = [
+                "SCRIPT","FREE BALANCE","PLEDGE BALANCE","CURRENT BALANCE",
+                "CLOSING PRICE","FREE SHARE VALUATION",
+                "PLEDGE SHARE VALUATION","TOTAL VALUATION"
+            ]
 
-    #         # Open the dialog
-    #         self.show_client_dialog(client_scripts[view_cols], f"👨🏻‍💻 {client_label} - {selected_code}")
+            # Open the dialog
+            self.show_client_dialog(client_scripts[view_cols], f"👨🏻‍💻 {client_label} - {selected_code}")
 
 
     def render_page(self):
         if self.role in ["USER", "VIEWER"]:
             selected_radio_bt = st.radio("Select option", [ 'View Holdings'], horizontal=True)
         else:
-            selected_radio_bt = st.radio("Select option", ['Import DPM3', 'View Holdings', 'Sunday Holdings (DPM3) report'], index=1, horizontal=True)
+            selected_radio_bt = st.radio("Select option", ['Import DPM3', 'Latest Holdings', 'Weekly DPM3 only'], index=1, horizontal=True)
         
         if selected_radio_bt == "Import DPM3":
             if not db.is_sunday_file_uploaded():
@@ -450,7 +446,7 @@ class DPM3:
             else:
                 st.info(f"‎ ‎ ‎ DPM3 file has been uploaded on : " + str(db.get_last_sunday()), icon="📢")
         
-        elif selected_radio_bt == "Sunday Holdings (DPM3) report":
+        elif selected_radio_bt == "Weekly DPM3 only":
             df_grouped,df_uploaded  = self.get_dpm3_data()
             st.badge(f"Total rows: {len(df_grouped):,}", color="green")
             selection = st.dataframe(
