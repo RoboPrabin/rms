@@ -162,7 +162,7 @@ class RMPerformance:
 
         # Format for display only
         rm_summary_display = helper.format_dataframe(rm_summary_numeric.copy())
-        rm_summary_display['Achievement %'] = rm_summary_numeric['Achievement %'].astype(str) + '%'
+        rm_summary_display['Achievement %'] = rm_summary_numeric['Achievement %'].astype(float)
 
         # Sort & index
         rm_summary_numeric = rm_summary_numeric.sort_values('Total Turnover', ascending=False).reset_index(drop=True)
@@ -234,7 +234,7 @@ class RMPerformance:
                     'BRO': progress['BRO'],
                     'Daily Target': progress['Daily Target'].apply(lambda x: f"{x:,.2f}"),
                     'Today Turnover': progress['Total Turnover'].apply(lambda x: f"{x:,.2f}"),
-                    'Achieved Today': progress['Today %'].astype(str) + '%',
+                    'Achieved Today': progress['Today %'].astype(str) ,
                     'Remaining': progress['Remaining'].apply(lambda x: f"{x:,.2f}")
                 })
 
