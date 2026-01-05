@@ -15,8 +15,7 @@ from utils.custom_hotkey import activate_client_code_hotkey
 # ---------- Reusable helpers ----------
 
 SUMMARY_COLS = [
-    "Buy Amount", "Sell Amount", "Net Amount",
-    "Ledger Balance", "Adjusted Balance"
+    "Buy Amount", "Sell Amount", "Net Amount"
 ]
 
 def right_align_headers(styler: Styler) -> Styler:
@@ -54,6 +53,25 @@ def coerce_numeric_columns(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
             )
     return df
 
+
+
+def get_city_code(full_name: str) -> str:
+    """Return the code for a given full city name."""
+    city_map = {
+        "MAHENDRANAGAR": "MHN",
+        "KATHMANDU": "KTM",
+        "LALITPUR": "LTP",
+        "POKHARA": "PKH",
+        "HETAUDA": "HTD",
+        "BUTWAL": "BTL",
+        "BANEPA": "BNP"
+    }
+    
+    # Convert input to uppercase to make it case-insensitive
+    return city_map.get(full_name.upper(), "Unknown")
+
+
+
 # ---------- App ----------
 
 class Uarf:
@@ -80,6 +98,8 @@ class Uarf:
         activate_client_code_hotkey()
         self.bro_due = 0
         self.has_bro_filter = False
+        self.has_branch_filter = False
+        self.branch_due = 0
 
     def get_kyc_data(_self):
         rows = db.get_kyc()
@@ -145,6 +165,22 @@ class Uarf:
         return df
 
 
+    def load_due_list_data_according_to_branch(self, branch_name):
+        query = """
+        SELECT * FROM due_list 
+        WHERE branch = %s 
+        AND uploaded_at LIKE %s;
+        """
+        
+        # Example: '2026-01-05% AM'
+        today_am_like = pd.Timestamp("today").strftime("%Y-%m-%d") + "% AM"
+        
+        params = (branch_name, today_am_like)
+        
+        df = pd.read_sql(query, self.engine, params=params)
+        return df
+
+
 
     def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
         col1, col2 = st.columns(2)
@@ -175,6 +211,10 @@ class Uarf:
                 branch = st.selectbox("Select Branch", [""] + sorted(df["Branch"].dropna().unique().tolist()))
                 if branch:
                     df = df[df["Branch"] == branch]
+                    df_due_list = self.load_due_list_data_according_to_branch(branch_name=get_city_code(full_name=branch))
+                    total_due_branch = df_due_list['adjustedBalance'].sum()
+                    self.has_branch_filter = True
+                    self.branch_due = total_due_branch
         return df
 
 
@@ -184,7 +224,7 @@ class Uarf:
         total_turnover = (df['Buy Amount'].sum() * -1) + df['Sell Amount'].sum()
         # Summary table
         summary = df[SUMMARY_COLS].sum().to_frame(name="Total").T
-        summary.insert(0, "Total Turnover", total_turnover)
+        summary.insert(3, "Total Turnover", total_turnover)
         if self.role == 'BRO':
             due_list = self.load_due_list_data_bro(bro_name=self.username)
             bro_due_sum = due_list['adjustedBalance'].sum()
@@ -200,7 +240,7 @@ class Uarf:
                         border-radius: 6px;
                         margin-top:1.6rem;
                     ">
-                        Total Adjusted Balance: {bro_due_sum:,.2f}
+                        Total Adjusted Due Balance: {bro_due_sum:,.2f}
                     </span>
                 </div>
                 """,
@@ -208,10 +248,19 @@ class Uarf:
             )
         else:
             if self.has_bro_filter:
+                due_amount = self.bro_due
+                label = "Total Adjusted Due Balance"
+            elif self.has_branch_filter:
+                due_amount = self.branch_due
+                label = "Total Adjusted Due Balance"
+            else:
+                due_amount = None
+
+            if due_amount is not None:
                 st.markdown(
                     f"""
-                    <div style="display: flex; justify-content: space-between; align-items: center;margin-bottom: 1rem;margin-top: 1.6rem;">
-                        <h3 style="margin-bottom: -18px;">📊 Summary</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; margin-top: 1.6rem;">
+                        <h3 style="margin-bottom: -18px;">📊 Summary</h3>
                         <span style="
                             background-color: rgba(255, 108, 108, 0.2); 
                             color: rgb(255, 108, 108); 
@@ -220,7 +269,7 @@ class Uarf:
                             border-radius: 6px;
                             margin-top:1.6rem;
                         ">
-                            Total Adjusted Balance: {self.bro_due:,.2f}
+                            {label}: {due_amount:,.2f}
                         </span>
                     </div>
                     """,
@@ -230,10 +279,14 @@ class Uarf:
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.subheader("📊 Summary")
 
+            
+
+
+        summary.rename(columns={"Net Amount": "Net Settlement Amount"}, inplace=True)
         styled_summary = (
             summary.style
                 .format(accounting_format)
-                .map(highlight_negative, subset=SUMMARY_COLS)
+                .map(highlight_negative, subset=['Buy Amount', 'Net Settlement Amount'])
                 .pipe(right_align_headers)
         )
         st.table(styled_summary)

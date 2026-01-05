@@ -4,6 +4,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from nepali_datetime import date as nepali_date
 
+from db import db
 from utils import helper
 from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey
@@ -137,7 +138,8 @@ def compute_top_traded(df):
 class Dashboard:
 
     def __init__(self):
-        helper.eliminate_top_padding()
+        # helper.eliminate_top_padding()
+        helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = ""
         st.set_page_config("Dashboard", page_icon="🏠", layout="wide")
 
@@ -189,13 +191,13 @@ class Dashboard:
         if self.role in ["ADMIN", "MANAGEMENT"]:
             mode = st.radio(
                 "Mode",
-                ["Top Performers", "Top Traded Stocks", "Commission Gained"],
+                ["Top Performers", "Top Traded Stocks", "Top Brokers" ,"Nepse Commission"],
                 horizontal=True
             )
         else:
             mode = st.radio(
                 "Mode",
-                ["Top Performers", "Top Traded Stocks"],
+                ["Top Performers", "Top Traded Stocks", "Top Brokers"],
                 horizontal=True
             )
 
@@ -236,11 +238,11 @@ class Dashboard:
         # ---------------------------------------------------------
         # 💰 COMMISSION
         # ---------------------------------------------------------
-        elif mode == "Commission Gained":
-            st.subheader("💰 Total Commission Earned")
+        elif mode == "Nepse Commission":
+            # st.subheader("💰 Total Commission")
 
             total_comm = df_comm["Total Commission"].sum()
-            st.badge(f"Total Commission: {total_comm:,.2f}", color="green")
+            st.badge(f"Total Nepse Commission: {total_comm:,.2f}", color="green")
             df_comm.reset_index(inplace=True, drop=True)
             df_comm.index = df_comm.index + 1
             df_comm = df_comm.rename(columns={
@@ -286,7 +288,23 @@ class Dashboard:
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-
+        elif mode == "Top Brokers":
+            # date_str = self.selected_date.strftime('%Y-%m-%d')
+            df = db.fetch_top_brokers(date=self.selected_date)
+            
+            df.drop(columns=['date', 'DT_Row_Index'], inplace=True)
+            df.rename(columns={"name":"Broker Name", "number": "Broker No.", "buyerAmount": "Buyer Amount (Rs.)", 
+                               "sellerAmount": "Seller Amount (Rs.)", "totalAmount":"Total Amount (Rs.)",
+                               "differ": "Difference (Rs.)", "matchingAmout": "Matching Amount (Rs.)"}, inplace=True)
+            df.index = df.index + 1
+            numeric_cols = df.columns.difference(['Broker Name', 'Broker No.'])
+            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+            if not df.empty:
+                idx = df.index[df['Broker Name'] == 'Trishakti Securities Public Limited'].tolist()
+                st.badge(f"Trishakti's Rank: {idx[0]}", color='green')
+                st.dataframe(df.style.format({col: "{:,.0f}" for col in numeric_cols}))
+            else:
+                st.info("No data available for selected date.")
 # ---------------------------------------------------------
 # ▶ RUN APP
 # ---------------------------------------------------------

@@ -19,6 +19,40 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def fetch_top_brokers(date):
+    """
+    Fetch top brokers for a given date as a pandas DataFrame without using pd.read_sql.
+    """
+    # Convert date to string
+    if not isinstance(date, str):
+        date_str = date.strftime('%Y-%m-%d')
+    else:
+        date_str = date
+
+    query = '''
+        SELECT *
+        FROM top_brokers
+        WHERE TO_DATE(date, 'YYYY-MM-DD') = %s
+        ORDER BY "DT_Row_Index"
+    '''
+
+    # Open connection and fetch rows
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (date_str,))
+            rows = cursor.fetchall()
+            # Get column names from cursor
+            columns = [desc[0] for desc in cursor.description]
+
+    # Convert to DataFrame
+    df = pd.DataFrame(rows, columns=columns)
+
+    # Optional: convert numeric columns from string to float
+    numeric_cols = df.select_dtypes(include='object').columns.difference(['name', 'number', 'date'])
+    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+    return df
+
 
 def get_cbr_filename() -> str | None:
     """
@@ -48,6 +82,7 @@ def get_cbr_filename() -> str | None:
     finally:
         if conn:
             conn.close()
+
 def get_cbr_created_date() -> str | None:
     """
     Fetches the filename from cbr_filepath table.

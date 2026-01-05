@@ -154,6 +154,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
@@ -223,6 +224,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
@@ -279,6 +281,7 @@ def render_sidebar():
             st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
@@ -295,6 +298,8 @@ def render_sidebar():
     if role == "HR":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
+        st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
+
         st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
@@ -308,6 +313,7 @@ def render_sidebar():
     if role == "IT":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
+        st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
         st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
@@ -324,6 +330,7 @@ def render_sidebar():
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
         st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
+        st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
         st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
