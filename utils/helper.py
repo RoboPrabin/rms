@@ -118,15 +118,29 @@ def get_work_locations():
             "MAHENDRANAGAR",
         ]
 
-def eliminate_top_padding():
-    st.markdown("""
-    <style>
-        .block-container {
-            padding-top: 0rem;  /* Adjust or set to 0rem */
-        }
-    </style>
-    """, unsafe_allow_html=True)
+def eliminate_top_padding(padding_top: str = "0rem"):
+    st.markdown(
+        f"""
+        <style>
+            .block-container {{
+                padding-top: {padding_top};
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
+def eliminate_top_margin(margin_top: str = "0rem"):
+    st.markdown(
+        f"""
+        <style>
+            .block-container {{
+                margin-top: {margin_top};
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 def get_platform_options():
     return {

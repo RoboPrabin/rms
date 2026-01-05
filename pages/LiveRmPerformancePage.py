@@ -16,7 +16,7 @@ from utils.custom_hotkey import activate_client_code_hotkey
 
 SUMMARY_COLS = [
     "Buy Amount", "Sell Amount", "Net Amount",
-    "Ledger Balance", "Adjusted Balance", "Collateral"
+    "Ledger Balance", "Adjusted Balance"
 ]
 
 def right_align_headers(styler: Styler) -> Styler:
@@ -58,7 +58,8 @@ def coerce_numeric_columns(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 class Uarf:
     def __init__(self):
-        helper.eliminate_top_padding()
+        # helper.eliminate_top_padding(padding_top="-90rem")
+        helper.eliminate_top_margin("-8rem")
         st.session_state.active_menu = "rm"
         st.set_page_config("Live RM Performance", page_icon="🟢", layout="wide")
 
@@ -77,6 +78,8 @@ class Uarf:
         self.engine = create_engine(helper.get_holding_engine())
         
         activate_client_code_hotkey()
+        self.bro_due = 0
+        self.has_bro_filter = False
 
     def get_kyc_data(_self):
         rows = db.get_kyc()
@@ -124,6 +127,23 @@ class Uarf:
         df = coerce_numeric_columns(df, SUMMARY_COLS)
         return df
     
+    def load_due_list_data_bro(_self, bro_name):
+        query = """
+        SELECT d.*,
+                COALESCE(m."rmName", 'N/A') AS "rmName"
+        FROM due_list d
+        LEFT JOIN client_rm_map m 
+                ON d."clientCode" = m."clientCode"
+        WHERE COALESCE(m."rmName", 'N/A') = %s
+            AND d.uploaded_at LIKE %s
+            AND d.uploaded_at LIKE %s;
+        """
+        today_like = pd.Timestamp("today").strftime("%Y-%m-%d") + "%"
+        am_like = "% AM"
+        params = (bro_name, today_like, am_like)
+        df = pd.read_sql(query, _self.engine, params=params)
+        return df
+
 
 
     def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -138,6 +158,11 @@ class Uarf:
                 rm_name = st.selectbox("Select Bro", [""] + sorted(df["Bro"].dropna().unique().tolist()))
                 if rm_name:
                     df = df[df["Bro"] == rm_name]
+                    due_list = self.load_due_list_data_bro(bro_name=rm_name)
+                    bro_due_sum = due_list['adjustedBalance'].sum()
+                    self.bro_due = bro_due_sum
+                    self.has_bro_filter = True
+                    
             elif filter_option == "Client Code" and "Client Code" in df.columns:
                 client_code = st.text_input("Enter Client Code")
                 if client_code:
@@ -156,9 +181,55 @@ class Uarf:
     def show_trade_book(self):
         df = self._load_trade_book()
         df = self._apply_filters(df)
+        total_turnover = (df['Buy Amount'].sum() * -1) + df['Sell Amount'].sum()
         # Summary table
         summary = df[SUMMARY_COLS].sum().to_frame(name="Total").T
-        st.subheader("📊 Summary", anchor=False)
+        summary.insert(0, "Total Turnover", total_turnover)
+        if self.role == 'BRO':
+            due_list = self.load_due_list_data_bro(bro_name=self.username)
+            bro_due_sum = due_list['adjustedBalance'].sum()
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center;margin-bottom: 1rem;margin-top: 1.6rem;">
+                    <h3 style="margin-bottom: -18px;">📊 Summary</h4>
+                    <span style="
+                        background-color: rgba(255, 108, 108, 0.2); 
+                        color: rgb(255, 108, 108); 
+                        font-size: 0.9rem; 
+                        padding: 3px 8px; 
+                        border-radius: 6px;
+                        margin-top:1.6rem;
+                    ">
+                        Total Adjusted Balance: {bro_due_sum:,.2f}
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            if self.has_bro_filter:
+                st.markdown(
+                    f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center;margin-bottom: 1rem;margin-top: 1.6rem;">
+                        <h3 style="margin-bottom: -18px;">📊 Summary</h4>
+                        <span style="
+                            background-color: rgba(255, 108, 108, 0.2); 
+                            color: rgb(255, 108, 108); 
+                            font-size: 0.9rem; 
+                            padding: 3px 8px; 
+                            border-radius: 6px;
+                            margin-top:1.6rem;
+                        ">
+                            Total Adjusted Balance: {self.bro_due:,.2f}
+                        </span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.subheader("📊 Summary")
+
         styled_summary = (
             summary.style
                 .format(accounting_format)
