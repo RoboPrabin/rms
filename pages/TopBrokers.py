@@ -40,12 +40,12 @@ class TopBrokers:
             df.index = df.index + 1
             numeric_cols = df.columns.difference(['Broker Name', 'Broker No.'])
             df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-            idx = df.index[df['Broker Name'] == 'Trishakti Securities Public Limited'].tolist()
-            st.badge(f"Trishakti's Rank: {idx[0]}", color='green')
             if not df.empty:
+                idx = df.index[df['Broker Name'] == 'Trishakti Securities Public Limited'].tolist()
+                st.badge(f"Trishakti's Rank: {idx[0]}", color='green')
                 st.dataframe(df.style.format({col: "{:,.0f}" for col in numeric_cols}))
             else:
-                st.info("No data available for selected date.")
+                st.info("No data available for selected date.", icon="📢")
 
 
 

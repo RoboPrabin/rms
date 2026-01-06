@@ -67,7 +67,7 @@ class PayableAndReceivable:
         floorsheet_df, book_closure_df, df_bc_t0 = self.load_data(self.selected_date)
 
         if floorsheet_df.empty:
-            st.info(f"Floorsheet not found as of date {self.selected_date}")
+            st.info(f"Floorsheet not found as of date {self.selected_date}", icon="📢")
             st.stop()
 
         floorsheet_df['broker_comm'] = floorsheet_df['amount'].apply(self.calculate_commission)
@@ -173,15 +173,18 @@ class PayableAndReceivable:
 
 
     def uat_page_friday(self):
-        st.success(f"Today is Friday")
+        st.success(f"Today is Friday", width=300)
         _, _, df_bc_t0 = self.load_data(self.selected_date)
 
         st.markdown("---")
-        st.header(f"Book closure data with T0 date")
+        st.header(f"Book closure data with T0 date", anchor=False)
+        df_bc_t0.drop(columns=['id'], inplace=True)
+        df_bc_t0.index = df_bc_t0.index + 1
+        st.badge(f"Total data: {len(df_bc_t0)}")
         st.dataframe(df_bc_t0)
 
         st.markdown("---")
-        st.header(f"Book closure data with range of start_date and end_date")
+        st.header(f"Book closure data with range of start_date and end_date", anchor=False)
         df_list = []
         for _, row in df_bc_t0.iterrows():
             df_range = self.get_floorsheet_by_script_and_date_range(str(row["script"]), str(row["start_date"]), str(row["end_date"]))
@@ -194,6 +197,8 @@ class PayableAndReceivable:
         df_holder['broker_comm'] = df_holder['amount'].apply(self.calculate_commission)
         df_holder['sebon_comm'] = df_holder['broker_comm'] * 0.006
         df_holder['tds'] = df_holder['broker_comm'] * 0.12
+        df_holder.drop(columns=['id'], inplace=True)
+        df_holder.index = df_holder.index + 1
         st.dataframe(df_holder, width='stretch')
 
         buy_mask = df_holder["transaction_type"].str.upper() == "BUY"
@@ -204,11 +209,25 @@ class PayableAndReceivable:
         total_sell_floorsheet = (df_holder.loc[sell_mask, "amount"].fillna(0).sum() -
                                  df_holder.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
 
-        st.header(f"Total buy: {total_buy_floorsheet:,.2f}")
-        st.header(f"Total sell: {total_sell_floorsheet:,.2f}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Buy:", f"{total_buy_floorsheet:,.2f}")
+        
+        with col2:
+            st.metric("Total sell:", f"{total_sell_floorsheet:,.2f}")
+            
+        # st.header(f"Total buy: {total_buy_floorsheet:,.2f}")
+        # st.header(f"Total sell: {total_sell_floorsheet:,.2f}")
+
 
         final_value = (total_buy_floorsheet - total_sell_floorsheet) + df_holder['tds'].sum()
-        st.header(f"Final Rec/Pay: {final_value:,.2f}")
+        # st.metric("Final Rec/Pay:", f"{final_value:,.2f}")
+        if final_value<0:
+            st.metric("Final Amount (Receivable)", f"{final_value:,.2f}", border=True)
+        else:
+            st.metric("Final Amount (Payable)", f"{final_value:,.2f}", border=True)
+
+        # st.header(f"Final Rec/Pay: {final_value:,.2f}")
 
     def render_ui(self):
         if self.weekday_name.upper() == 'FRIDAY':

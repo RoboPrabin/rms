@@ -261,7 +261,7 @@ class Dashboard:
         # 📊 TOP TRADED
         # ---------------------------------------------------------
         elif mode == "Top Traded Stocks":
-            st.subheader("📊 Top Traded Stocks")
+            st.subheader("📊 Top Traded Stocks", anchor=False)
 
             df_buy_traded = df_traded[df_traded.transaction_type == "Buy"]
             df_sell_traded = df_traded[df_traded.transaction_type == "Sell"]
@@ -304,7 +304,7 @@ class Dashboard:
                 st.badge(f"Trishakti's Rank: {idx[0]}", color='green')
                 st.dataframe(df.style.format({col: "{:,.0f}" for col in numeric_cols}))
             else:
-                st.info("No data available for selected date.")
+                st.info("No data available for selected date.", icon="📢")
 # ---------------------------------------------------------
 # ▶ RUN APP
 # ---------------------------------------------------------

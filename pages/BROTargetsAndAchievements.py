@@ -169,7 +169,6 @@ class RMPerformance:
         rm_summary_numeric = rm_summary_numeric.sort_values('Total Turnover', ascending=False).reset_index(drop=True)
         rm_summary_numeric.index += 1
         rm_summary_display = rm_summary_display.iloc[rm_summary_numeric.index - 1]  # align order
-
         return rm_summary_display, rm_summary_numeric
 
 
@@ -189,6 +188,7 @@ class RMPerformance:
         # Load performance data (may be empty on "Today" morning)
         with st.spinner(f"Loading {view_mode} data..."):
             rm_display, rm_numeric = self.extract_rm_sales_summary(view_mode)
+            # rm_display = rm_display[rm_display["Total Target"].fillna(0) >= 0.00]
 
         # Always load yearly targets (even if no floorsheet)
         target_df = self.bro_yearly_target[['bro_code', 'target_amt']].copy()
@@ -210,6 +210,8 @@ class RMPerformance:
         if not rm_numeric.empty:
             title = ("All BROs Performance" if self.role in ['MANAGER', 'ADMIN', 'MANAGEMENT'] else f"{self.username.upper()}'s Performance")
             st.subheader(f"• {view_mode}", anchor=False)
+            # rm_display = rm_display[rm_display["Total Target"] >= 0]
+            rm_display = rm_display[rm_display["Total Target"].fillna(0) > 0]
             rm_display.sort_values(by='Total Turnover', inplace=True, ascending=False)
             rm_display.reset_index(inplace=True, drop=True)
             rm_display.index = rm_display.index + 1
@@ -217,6 +219,7 @@ class RMPerformance:
             styled_df = rm_display.style.format(
                 {col: "{:,.2f}" for col in numeric_cols}
             )
+
             st.dataframe(styled_df, width='stretch')
         else:
             if view_mode != "Today":
