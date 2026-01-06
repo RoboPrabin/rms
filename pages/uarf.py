@@ -487,7 +487,7 @@ class Uarf:
         """, self.holding_engine, params=(uarf_id,))
 
     def it_ui(self):
-        st.subheader("💻 IT Section", anchor=False)
+        # st.subheader("💻 IT Section", anchor=False)
         view = st.radio("Select View", ["View Pending Requests", "View UARFs"], horizontal=True,index=0)
         if view == "View Pending Requests":
             # 1️⃣ Load requests approved by HR

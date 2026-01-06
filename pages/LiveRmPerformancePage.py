@@ -61,7 +61,7 @@ def get_city_code(full_name: str) -> str:
         "MAHENDRANAGAR": "MHN",
         "KATHMANDU": "KTM",
         "LALITPUR": "LTP",
-        "POKHARA": "PKH",
+        "POKHARA": "PKR",
         "HETAUDA": "HTD",
         "BUTWAL": "BTL",
         "BANEPA": "BNP"

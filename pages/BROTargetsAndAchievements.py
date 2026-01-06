@@ -161,7 +161,8 @@ class RMPerformance:
         rm_summary_numeric = rm_summary.copy()
 
         # Format for display only
-        rm_summary_display = helper.format_dataframe(rm_summary_numeric.copy())
+        # rm_summary_display = helper.format_dataframe(rm_summary_numeric.copy())
+        rm_summary_display = rm_summary_numeric
         rm_summary_display['Achievement %'] = rm_summary_numeric['Achievement %'].astype(float)
 
         # Sort & index
@@ -209,8 +210,14 @@ class RMPerformance:
         if not rm_numeric.empty:
             title = ("All BROs Performance" if self.role in ['MANAGER', 'ADMIN', 'MANAGEMENT'] else f"{self.username.upper()}'s Performance")
             st.subheader(f"• {view_mode}", anchor=False)
+            rm_display.sort_values(by='Total Turnover', inplace=True, ascending=False)
+            rm_display.reset_index(inplace=True, drop=True)
             rm_display.index = rm_display.index + 1
-            st.dataframe(rm_display, use_container_width=True)
+            numeric_cols = ['Total Turnover', 'Total Buy Amount', 'Total Sell Amount', 'Total Commission Gain', 'Total Traders', 'Total Target', 'Achievement %']
+            styled_df = rm_display.style.format(
+                {col: "{:,.2f}" for col in numeric_cols}
+            )
+            st.dataframe(styled_df, width='stretch')
         else:
             if view_mode != "Today":
                 st.info(f"No trading activity found for **{view_mode}**.")
@@ -240,18 +247,18 @@ class RMPerformance:
 
                 st.success("Floorsheet uploaded — Here's today's performance:")
                 full_df.index = full_df.index + 1
-                st.dataframe(full_df, use_container_width=True)
+                st.dataframe(full_df, width='stretch')
 
             else:
                 if self.role in ["MANAGER", "ADMIN"]:
                     target_only = pd.DataFrame({
                         "BRO": target_df['BRO'],
-                        "BRO's Target": target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
+                        "BRO's Target": target_df['Daily Target']
                     })
                 else:
                     target_only = pd.DataFrame({
                         "BRO": target_df['BRO'],
-                        "Your Today's Target": target_df['Daily Target'].apply(lambda x: f"{x:,.2f}")
+                        "Your Today's Target": target_df['Daily Target']
                     })
 
                 # Show motivational message ONLY during trading hours (11 AM - 3 PM)
@@ -263,10 +270,15 @@ class RMPerformance:
                         st.info("👇 Here is BRO's daily target for today:")
                     else:
                         st.info("👇 Here is your daily target for today:")
-                target_only.sort_values(by="BRO", inplace=True)
+                target_only.sort_values(by="BRO's Target", inplace=True, ascending=False)
                 target_only = target_only.reset_index(drop=True)
                 target_only.index = target_only.index + 1
-                st.dataframe(target_only, use_container_width=True)
+                numeric_cols = target_only.select_dtypes(include="number").columns
+
+                styled_df = target_only.style.format(
+                    {col: "{:,.2f}" for col in numeric_cols}
+                )
+                st.dataframe(styled_df, width=520)
                 st.caption(f"*✍️ Performance will update automatically once the floorsheet upload completes ({config.FLOORSHEET_UPLOAD_TIIME}).*")
 
                 

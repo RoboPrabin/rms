@@ -1,3 +1,4 @@
+from time import sleep
 import pandas as pd
 import streamlit as st
 from streamlit_bridge.navigation import render_sidebar
@@ -6,7 +7,7 @@ from db import db
 from sqlalchemy import create_engine, text
 from utils import helper
 
-class Feedback:
+class ActiveSession:
     def __init__(self):
         # helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
@@ -19,6 +20,7 @@ class Feedback:
 
         render_sidebar()
         self.holding_engine = create_engine(helper.get_holding_engine())
+        self.session_ids = None
 
     def get_all_active_sessions(self):
         query = text("""
@@ -40,6 +42,18 @@ class Feedback:
         with self.holding_engine.begin() as conn:
             conn.execute(text("TRUNCATE TABLE user_session"))
 
+    def delete_sessions_by_ids(self, ids: list):
+        if not ids:
+            return  # defensive programming
+
+        with self.holding_engine.begin() as conn:
+            conn.execute(
+                text("""
+                    DELETE FROM user_session
+                    WHERE id = ANY(:ids)
+                """),
+                {"ids": ids}
+            )
 
     def render_page(self):
         df = self.get_all_active_sessions()
@@ -48,16 +62,24 @@ class Feedback:
             total_active = df[df["session_status"] == "ACTIVE"].shape[0]
             df.columns = df.columns.str.upper()
             df.index = df.index + 1
-            if st.button("Truncate session", icon="🚮"):
-                self.truncate_query()
-                st.success("All session removed.")
-                st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Truncate session", icon="🚮"):
+                    # self.truncate_query()
+                    self.delete_sessions_by_ids(st.session_state.session_ids)
+                    with col2:
+                        st.success("User session terminated.")
+                    sleep(0.5)
+                    st.rerun()
             st.badge(f"Total Active: {total_active}" )
-            st.dataframe(df)
+            selected_state = st.dataframe(df,selection_mode='multi-row', key='truncate_table', on_select='rerun')
+            if selected_state.selection.rows:
+                selected_df = df.iloc[selected_state.selection.rows]
+                st.session_state.session_ids = selected_df["ID"].tolist()
             st.stop()
         st.info(f"No Active Sessions.", icon="📢")
 
 
 
 if __name__ == "__main__":
-    Feedback().render_page()
+    ActiveSession().render_page()
