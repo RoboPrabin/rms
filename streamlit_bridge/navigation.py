@@ -17,26 +17,6 @@ def render_sidebar():
     app_state.sync_query_params_from_session()
     app_state.check_authenticaiton_state()
     username, role = app_state.get_current_user_info()
-#     st.markdown(
-#     """
-#     <style>
-#     /* Increase sidebar page link height */
-#     [data-testid="stPageLink"] {
-#         min-height: 52px;              /* controls height */
-#         padding: 10px 16px;            /* vertical + horizontal spacing */
-#         display: flex;
-#         align-items: center;           /* vertically center text/icon */
-#         font-size: 15px;               /* optional: better readability */
-#     }
-
-#     /* Optional: increase icon spacing */
-#     [data-testid="stPageLink"] svg {
-#         margin-right: 10px;
-#     }
-#     </style>
-#     """,
-#     unsafe_allow_html=True
-# )
     st.markdown("""
         <style>
             [data-testid="stSidebarCollapseButton"] {
@@ -154,6 +134,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
@@ -224,6 +205,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
@@ -313,6 +295,7 @@ def render_sidebar():
     if role == "IT":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
+        st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
         st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
         st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")

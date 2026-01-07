@@ -599,7 +599,7 @@ class Uarf:
     
     # MAIN RENDER FUNCTION ________________________________________
     def render_page(self):
-        if self.role in  ["MANAGER", "MANAGEMENT", "BRO"]:
+        if self.role in  ["MANAGER", "MANAGEMENT", "BRO", "USER"]:
             self.manager_ui()
         elif self.role == "HR":
             self.hr_ui()

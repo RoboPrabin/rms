@@ -19,7 +19,7 @@ from config import config
 from db import db
 
 
-class Uarf:
+class Automation:
     def __init__(self):
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
@@ -143,4 +143,4 @@ class Uarf:
 
 
 if __name__ == "__main__":
-    Uarf().render_page()    
+    Automation().render_page()    

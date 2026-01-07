@@ -7,7 +7,6 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 import termcolor
-from datetime import datetime
 import streamlit as st
 from config import config
 from cryptography.fernet import Fernet
@@ -15,32 +14,87 @@ import re
 import socket
 import requests
 from streamlit_javascript import st_javascript
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from config.config import due_list_flag_path
 import secrets
 import string
 from typing import Final
 import nepali_datetime
+from typing import Tuple
 
-# def get_user_agent() -> str:
-#     js = """
-#     <script>
-#     const userAgent = navigator.userAgent;
-#     document.querySelector('body').setAttribute('data-user-agent', userAgent);
-#     </script>
+
+# def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:
 #     """
-#     st.markdown(js, unsafe_allow_html=True)
-    
-#     # Try to read back via query params (requires page reload if complex)
+#     Returns start and end dates (AD) for Nepal fiscal year
+#     based on business-defined fiscal boundaries.
+
+#     Examples:
+#         81/82 -> 2024-07-16 to 2025-07-16
+#         82/83 -> 2025-07-17 to 2026-07-16
+#     """
+
 #     try:
-#         user_agent = st.session_state.get("user_agent", None)
-#         if user_agent:
-#             return user_agent
-#     except Exception:
-#         pass
+#         start_bs, end_bs = map(int, fiscal_year.split("/"))
+
+#         if end_bs != start_bs + 1:
+#             raise ValueError("Fiscal year must be consecutive (e.g., 81/82)")
+
+#         # Base fiscal year reference
+#         BASE_BS_YEAR = 81
+#         BASE_START_DATE = date(2024, 7, 15)
+#         BASE_END_DATE = date(2025, 7, 16)
+
+#         offset = start_bs - BASE_BS_YEAR
+
+#         start_date = date(
+#             BASE_START_DATE.year + offset,
+#             BASE_START_DATE.month,
+#             BASE_START_DATE.day + offset
+#         )
+
+#         end_date = date(
+#             BASE_END_DATE.year + offset,
+#             BASE_END_DATE.month,
+#             BASE_END_DATE.day
+#         )
+
+#         return start_date, end_date
+
+#     except Exception as e:
+#         raise ValueError(f"Invalid fiscal year '{fiscal_year}': {e}")
     
-#     # fallback
-#     return "Unknown"
+
+
+def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:
+    try:
+        start_bs, end_bs = map(int, fiscal_year.split("/"))
+        if end_bs != start_bs + 1:
+            raise ValueError("Fiscal year must be consecutive")
+
+        BASE_BS_YEAR = 81
+        BASE_START_DATE = date(2024, 7, 16)  # 81/82 start
+        BASE_END_DATE = date(2025, 7, 16)    # 81/82 end
+
+        offset = start_bs - BASE_BS_YEAR
+
+        start_date = date(
+            BASE_START_DATE.year + offset,
+            BASE_START_DATE.month,
+            BASE_START_DATE.day + offset
+        )
+
+        end_date = date(
+            BASE_END_DATE.year + offset,
+            BASE_END_DATE.month,
+            BASE_END_DATE.day
+        )
+
+        return start_date, end_date
+
+    except Exception as e:
+        raise ValueError(f"Invalid fiscal year '{fiscal_year}': {e}")
+
+
 def rename_all_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
     Rename all DataFrame columns by converting snake_case to Title Case with spaces.

@@ -19,6 +19,33 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
+def fetch_top_brokers_by_date(start_date, end_date) -> pd.DataFrame:
+    """
+    Fetches all columns from top_brokers table between given dates
+    and returns the result as a Pandas DataFrame.
+    """
+
+    query = """
+        SELECT *
+        FROM top_brokers
+        WHERE date::date BETWEEN %s AND %s
+        ORDER BY date::date
+    """
+
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(query, (start_date, end_date))
+            rows = cur.fetchall()
+
+            # Extract column names from cursor description
+            columns = [desc.name for desc in cur.description]
+
+    # Convert to DataFrame
+    df = pd.DataFrame(rows, columns=columns)
+
+    return df
+
 def fetch_top_brokers(date):
     """
     Fetch top brokers for a given date as a pandas DataFrame without using pd.read_sql.
