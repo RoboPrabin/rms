@@ -505,8 +505,8 @@ class BusinessTurnover:
             second_fy_df = fetch_and_process_data(second_start, second_end)
 
 
-            # turnover1 = first_fy_df['totalAmount'].sum()
-            # turnover2 = second_fy_df['totalAmount'].sum()
+            nepse_turnover_1 = first_fy_df['totalAmount'].sum()
+            nepse_turnover_2 = second_fy_df['totalAmount'].sum()
             # st.success(f"{turnover1}  | {turnover2}")
             # Filter rows where 'name' column matches case-insensitively
             turnover1 = first_fy_df[first_fy_df['name'].str.lower() == "trishakti securities public limited"]['totalAmount'].sum()
@@ -514,22 +514,29 @@ class BusinessTurnover:
 
             diff = turnover2 - turnover1
             pct = (diff / turnover1 * 100) if turnover1 != 0 else 0
-
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("🟡Nepse Turnover FY 81/82", f"{nepse_turnover_1:,.2f}", border=True)
+            with col2:
+                st.metric("🟡 Nepse Turnover FY 82/83", f"{nepse_turnover_2:,.2f}", border=True)
             col1, col2 = st.columns(2)
             with col1:
                 # st.badge(f"Rows: {len(first_fy_df)}")
-                st.metric(f"Trishakti Turnover in FY {first_fiscal_year_date}:", f"Rs. {turnover1:,.2f}", border=True)
+                label = "🔴 Trishakti Turnover in FY" if diff < 0 else "🟢 Trishakti Turnover in FY"
+                st.metric(f"{label} {first_fiscal_year_date}:", f"Rs. {turnover1:,.2f}", border=True)
             with col2:
                 # st.badge(f"Rows: {len(second_fy_df)}")
-                st.metric(f"Trishakti Turnover in FY {second_fiscal_year_date}:", f"Rs.{turnover2:,.2f}", border=True)
+                label = "🔴 Trishakti Turnover in FY" if diff < 0 else "🟢 Trishakti Turnover in FY"
+                st.metric(f"{label} {second_fiscal_year_date}:", f"Rs.{turnover2:,.2f}", border=True)
 
             col1, col2 = st.columns(2)
             with col1:
-                label = "Shortage by" if diff < 0 else "Exceed by"
-                st.metric(label, f"Rs. {abs(diff):,.2f}", border=True)
+                label = "🔴 Shortage by" if diff < 0 else "🟢 Exceed by"
+                st.metric(label, f"Rs. -{abs(diff):,.2f}", border=True)
             with col2:
                 delta_color = "off" if diff == 0 else ("normal" if diff > 0 else "inverse")
-                st.metric("Percentage", f"{pct:+.2f}%", delta_color=delta_color, border=True)
+                label = "🔴 Percentage" if diff < 0 else "🟢 Percentage"
+                st.metric(label, f"{pct:+.2f}%", delta_color=delta_color, border=True)
 
         else:
             st.info("View not selected", icon="📢")
