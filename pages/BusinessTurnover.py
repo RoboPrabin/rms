@@ -504,11 +504,13 @@ class BusinessTurnover:
             first_fy_df = fetch_and_process_data(first_start, first_end)
             second_fy_df = fetch_and_process_data(second_start, second_end)
 
-            turnover1 = first_fy_df['totalAmount'].sum()
-            turnover2 = second_fy_df['totalAmount'].sum()
 
-            turnover1 = first_fy_df['totalAmount'].sum()
-            turnover2 = second_fy_df['totalAmount'].sum()
+            # turnover1 = first_fy_df['totalAmount'].sum()
+            # turnover2 = second_fy_df['totalAmount'].sum()
+            # st.success(f"{turnover1}  | {turnover2}")
+            # Filter rows where 'name' column matches case-insensitively
+            turnover1 = first_fy_df[first_fy_df['name'].str.lower() == "trishakti securities public limited"]['totalAmount'].sum()
+            turnover2 = second_fy_df[second_fy_df['name'].str.lower() == "trishakti securities public limited"]['totalAmount'].sum()
 
             diff = turnover2 - turnover1
             pct = (diff / turnover1 * 100) if turnover1 != 0 else 0
@@ -516,10 +518,10 @@ class BusinessTurnover:
             col1, col2 = st.columns(2)
             with col1:
                 # st.badge(f"Rows: {len(first_fy_df)}")
-                st.metric(f"Trishakti Turnover {compare_period}:", f"Rs. {turnover1:,.2f}", border=True)
+                st.metric(f"Trishakti Turnover in FY {first_fiscal_year_date}:", f"Rs. {turnover1:,.2f}", border=True)
             with col2:
                 # st.badge(f"Rows: {len(second_fy_df)}")
-                st.metric(f"Trishakti Turnover {compare_period}:", f"Rs.{turnover2:,.2f}", border=True)
+                st.metric(f"Trishakti Turnover in FY {second_fiscal_year_date}:", f"Rs.{turnover2:,.2f}", border=True)
 
             col1, col2 = st.columns(2)
             with col1:
