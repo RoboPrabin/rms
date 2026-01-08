@@ -53,16 +53,16 @@ class LoginPage:
 
         # create_session(username=user["username"])
         status, data = create_session(user['username'], sid=encrypted)
-        if status == "EXISTS":
-            st.warning("You are already logged in from another device.", icon="⚠️")
-            st.json({
-                # "session_id": data[0],
-                "login_time": str(data[1]),
-                "ip": data[3],
-                "user_agent": data[4]
-            })
-            st.stop()
-            return
+        # if status == "EXISTS":
+        #     st.warning("You are already logged in from another device.", icon="⚠️")
+        #     st.json({
+        #         # "session_id": data[0],
+        #         "login_time": str(data[1]),
+        #         "ip": data[3],
+        #         "user_agent": data[4]
+        #     })
+        #     st.stop()
+        #     return
         
         st.session_state.authenticated = True
         st.session_state.username = payload["user"]

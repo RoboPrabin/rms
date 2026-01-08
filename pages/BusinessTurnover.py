@@ -343,7 +343,7 @@ class BusinessTurnover:
             self.end_date = end_date
 
         if start_date > end_date:
-            st.error("Start date cannot be greater than end date")
+            st.error("Start date cannot be greater than end date", icon="📢")
             st.stop()
         self.calculate_and_show_data(start_date=start_date, end_date=end_date)
 
@@ -429,10 +429,10 @@ class BusinessTurnover:
         # Display KPIs
         # -------------------------------
         kpi_col1, kpi_col2 = st.columns(2)
-        with kpi_col1:
-            st.metric("Trishakti Total Turnover", f"NPR {trishakti_turnover:,.2f}", border=True)
-        with kpi_col2:
-            st.metric("NEPSE Total Turnover", f"NPR {total_market_turnover:,.2f}", border=True)
+        st.metric("NEPSE Total Turnover", f"NPR {total_market_turnover:,.2f}", border=True)
+        # with kpi_col1:
+        st.metric("Trishakti Total Turnover", f"NPR {trishakti_turnover:,.2f}", border=True)
+        # with kpi_col2:
         
         col1, col2 = st.columns(2)
         if filter_value != 'None':
@@ -532,7 +532,11 @@ class BusinessTurnover:
             col1, col2 = st.columns(2)
             with col1:
                 label = "🔴 Shortage by" if diff < 0 else "🟢 Exceed by"
-                st.metric(label, f"Rs. -{abs(diff):,.2f}", border=True)
+                if diff < 0:
+                    st.metric(label, f"Rs. -{abs(diff):,.2f}", border=True)
+                else:
+                    st.metric(label, f"Rs. {abs(diff):,.2f}", border=True)
+
             with col2:
                 delta_color = "off" if diff == 0 else ("normal" if diff > 0 else "inverse")
                 label = "🔴 Percentage" if diff < 0 else "🟢 Percentage"

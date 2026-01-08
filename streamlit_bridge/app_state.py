@@ -70,4 +70,4 @@ def check_authentication_state_login_page():
     if st.session_state.get("authenticated", False):
         st.success("Already logged in, redirecting...")
         time.sleep(0.3)
-        st.switch_page("pages/_Dashboard.py")
+        st.switch_page(page_url.dashbord_url)

@@ -10,6 +10,82 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils import helper
 from utils.custom_hotkey import activate_client_code_hotkey
+
+
+intranet_engine = helper.get_holding_engine()
+
+@st.cache_data(ttl=120)
+def get_floorsheet_by_date(selected_date: date):
+    query = """
+        SELECT f.*,
+            COALESCE(m."rmName", 'N/A') AS "rmName"
+        FROM floorsheet f
+        LEFT JOIN client_rm_map m ON f.clientcode = m."clientCode"
+        WHERE DATE(f.uploaded_at) = %s
+        ORDER BY f.uploaded_at DESC;
+    """
+    return pd.read_sql(query, intranet_engine, params=(selected_date,))
+
+# ✔ Cache client summary per date
+@st.cache_data(ttl=120)
+def compute_client_summary(df: pd.DataFrame):
+    def client_summary_func(x):
+        buy = x["transaction_type"] == "Buy"
+        sell = x["transaction_type"] == "Sell"
+        return pd.Series({
+            "total_buy_quantity": x.loc[buy, "quantity"].sum(),
+            "total_sell_quantity": x.loc[sell, "quantity"].sum(),
+            "total_buy_amount": x.loc[buy, "amount"].sum(),
+            "total_sell_amount": x.loc[sell, "amount"].sum(),
+            "total_commission": x["stockcomm"].sum(),
+            "total_traded_quantity": x["quantity"].sum(),
+            "total_traded_volume": x["amount"].sum(),
+        })
+    return (
+            df.groupby(["clientcode", "clientname", "rmName"], group_keys=False, observed=True)
+            .apply(client_summary_func, include_groups=False)
+            .reset_index()
+        )
+
+
+# ✔ Cache branch summary per date
+@st.cache_data(ttl=120)
+def compute_branch_summary(df: pd.DataFrame):
+    if "branch" not in df.columns:
+        return pd.DataFrame()
+
+    def branch_summary_func(g):
+        buy = g["transaction_type"] == "Buy"
+        sell = g["transaction_type"] == "Sell"
+        return pd.Series({
+            "buyer_count": g.loc[buy, "clientcode"].nunique(),
+            "seller_count": g.loc[sell, "clientcode"].nunique(),
+            "both_traders": g.groupby("clientcode")["transaction_type"].nunique().eq(2).sum(),
+            "purchase_turnover": g.loc[buy, "amount"].sum(),
+            "sales_turnover": g.loc[sell, "amount"].sum(),
+            "total": g["amount"].sum(),
+        })
+
+    # df2 = df.groupby("branch", group_keys=False).apply(branch_summary_func).reset_index()
+    df2 = (
+            df.groupby("branch", group_keys=False, observed=True)
+            .apply(lambda g: branch_summary_func(g), include_groups=False)
+            .reset_index()
+        )
+
+
+    total_turnover = df2["total"].sum()
+    df2["%"] = (df2["total"] / total_turnover * 100).round(2)
+    return df2
+
+# ✔ Cache piechart summary per date
+@st.cache_data(ttl=120)
+def compute_pie_summary(df: pd.DataFrame):
+    if "branch" not in df.columns:
+        return pd.DataFrame()
+    return df.groupby("branch")["amount"].sum().reset_index().rename(columns={"amount": "total"})
+
+
 class Floorsheet:
     def __init__(self):
         helper.eliminate_top_padding()
@@ -26,7 +102,6 @@ class Floorsheet:
         # Get the day name (e.g. Monday, Tuesday)
         self.day_name = today.strftime("%A")
 
-        self.intranet_engine = helper.get_holding_engine()
 
     # ✔ FIX: Proper decorator placement
     # @st.cache_data(ttl=6000)
@@ -39,77 +114,7 @@ class Floorsheet:
     #     """
     #     return pd.read_sql(query, _self.intranet_engine, params=(selected_date,))
 
-    @st.cache_data(ttl=6000)
-    def get_floorsheet_by_date(_self, selected_date: date):
-        query = """
-            SELECT f.*,
-                COALESCE(m."rmName", 'N/A') AS "rmName"
-            FROM floorsheet f
-            LEFT JOIN client_rm_map m ON f.clientcode = m."clientCode"
-            WHERE DATE(f.uploaded_at) = %s
-            ORDER BY f.uploaded_at DESC;
-        """
-        return pd.read_sql(query, _self.intranet_engine, params=(selected_date,))
 
-    # ✔ Cache client summary per date
-    @st.cache_data(ttl=6000)
-    def compute_client_summary(_self, df: pd.DataFrame):
-        print(df.columns)
-        def client_summary_func(x):
-            buy = x["transaction_type"] == "Buy"
-            sell = x["transaction_type"] == "Sell"
-            return pd.Series({
-                "total_buy_quantity": x.loc[buy, "quantity"].sum(),
-                "total_sell_quantity": x.loc[sell, "quantity"].sum(),
-                "total_buy_amount": x.loc[buy, "amount"].sum(),
-                "total_sell_amount": x.loc[sell, "amount"].sum(),
-                "total_commission": x["stockcomm"].sum(),
-                "total_traded_quantity": x["quantity"].sum(),
-                "total_traded_volume": x["amount"].sum(),
-            })
-        return (
-                df.groupby(["clientcode", "clientname", "rmName"], group_keys=False, observed=True)
-                .apply(client_summary_func, include_groups=False)
-                .reset_index()
-            )
-
-
-    # ✔ Cache branch summary per date
-    @st.cache_data(ttl=6000)
-    def compute_branch_summary(_self, df: pd.DataFrame):
-        if "branch" not in df.columns:
-            return pd.DataFrame()
-
-        def branch_summary_func(g):
-            buy = g["transaction_type"] == "Buy"
-            sell = g["transaction_type"] == "Sell"
-            return pd.Series({
-                "buyer_count": g.loc[buy, "clientcode"].nunique(),
-                "seller_count": g.loc[sell, "clientcode"].nunique(),
-                "both_traders": g.groupby("clientcode")["transaction_type"].nunique().eq(2).sum(),
-                "purchase_turnover": g.loc[buy, "amount"].sum(),
-                "sales_turnover": g.loc[sell, "amount"].sum(),
-                "total": g["amount"].sum(),
-            })
-
-        # df2 = df.groupby("branch", group_keys=False).apply(branch_summary_func).reset_index()
-        df2 = (
-                df.groupby("branch", group_keys=False, observed=True)
-                .apply(lambda g: branch_summary_func(g), include_groups=False)
-                .reset_index()
-            )
-
-
-        total_turnover = df2["total"].sum()
-        df2["%"] = (df2["total"] / total_turnover * 100).round(2)
-        return df2
-
-    # ✔ Cache piechart summary per date
-    @st.cache_data(ttl=6000)
-    def compute_pie_summary(_self, df: pd.DataFrame):
-        if "branch" not in df.columns:
-            return pd.DataFrame()
-        return df.groupby("branch")["amount"].sum().reset_index().rename(columns={"amount": "total"})
 
     def render_ui(self):
         st.title("📄 Floorsheet Records", anchor=False)
@@ -120,7 +125,7 @@ class Floorsheet:
             selected_date = st.date_input("Select Date", value=date.today())
 
         # ✔ Query is executed only ONCE because cached
-        df = self.get_floorsheet_by_date(selected_date)
+        df = get_floorsheet_by_date(selected_date)
         # print(df.columns)
         # --- Filtering UI (unchanged) ---
         with col2:
@@ -178,13 +183,13 @@ class Floorsheet:
                 display_df = df
 
             elif view_mode == "Client Summary":
-                display_df = self.compute_client_summary(df)
+                display_df = compute_client_summary(df)
 
             elif view_mode == "Branch Summary":
-                display_df = self.compute_branch_summary(df)
+                display_df = compute_branch_summary(df)
 
             elif view_mode == "Branch Piechart":
-                display_df = self.compute_pie_summary(df)
+                display_df = compute_pie_summary(df)
 
             else:
                 display_df = df
@@ -284,51 +289,108 @@ class Floorsheet:
                         "purchase_turnover","sales_turnover","total"
                     ]].sum()
 
+                    # df2.rename(columns={
+                    #     "total":"Total","sales_turnover":"Sales Turnover",
+                    #     "purchase_turnover":"Purchase Turnover","both_traders":"Both Traders",
+                    #     "seller_count":"Total Sellers","buyer_count":"Total Buyers",
+                    #     "branch":"Branch","%":"Branch Contribution %"
+                    # }, inplace=True)
+
+                    # df2 = df2.sort_values(by="Total", ascending=False)
+                    # df2 = df2.round(2)
+
+                    # numeric = df2.select_dtypes(include=["int64","float64"]).columns
+                    # df2[numeric] = df2[numeric].map(lambda x: f"{x:,}")
+                    # df2.reset_index(drop=True, inplace=True)
+                    # df2.index = df2.index + 1
+
+                    # cols_to_clean = ["Total Buyers", "Total Sellers", "Both Traders"]
+
+                    # for col in cols_to_clean:
+                    #     df2[col] = df2[col].apply(
+                    #         lambda x: str(int(float(x))) if pd.notnull(x) else ""
+                    #     )
+
+                    # st.dataframe(df2, width='stretch')
+
+
+                    # Rename columns
                     df2.rename(columns={
-                        "total":"Total","sales_turnover":"Sales Turnover",
-                        "purchase_turnover":"Purchase Turnover","both_traders":"Both Traders",
-                        "seller_count":"Total Sellers","buyer_count":"Total Buyers",
-                        "branch":"Branch","%":"Branch Contribution %"
+                        "total": "Total",
+                        "sales_turnover": "Sales Turnover",
+                        "purchase_turnover": "Purchase Turnover",
+                        "both_traders": "Both Traders",
+                        "seller_count": "Total Sellers",
+                        "buyer_count": "Total Buyers",
+                        "branch": "Branch",
+                        "%": "Branch Contribution %"
                     }, inplace=True)
 
+                    # Sort
                     df2 = df2.sort_values(by="Total", ascending=False)
+
+                    # -----------------------------
+                    # ADD TOTAL ROW (BEFORE FORMAT)
+                    # -----------------------------
+                    numeric_cols = df2.select_dtypes(include=["int64", "float64"]).columns
+
+                    total_row = df2[numeric_cols].sum()
+                    total_row["Branch"] = "TOTAL"
+
+                    df2 = pd.concat([df2, pd.DataFrame([total_row])], ignore_index=True)
+
+                    # -----------------------------
+                    # FORMATTING
+                    # -----------------------------
                     df2 = df2.round(2)
 
-                    numeric = df2.select_dtypes(include=["int64","float64"]).columns
-                    df2[numeric] = df2[numeric].map(lambda x: f"{x:,}")
-                    df2.reset_index(drop=True, inplace=True)
-                    df2.index = df2.index + 1
+                    df2[numeric_cols] = df2[numeric_cols].map(lambda x: f"{x:,}")
 
                     cols_to_clean = ["Total Buyers", "Total Sellers", "Both Traders"]
-
                     for col in cols_to_clean:
                         df2[col] = df2[col].apply(
-                            lambda x: str(int(float(x))) if pd.notnull(x) else ""
+                            lambda x: str(int(float(x.replace(",", "")))) if pd.notnull(x) else ""
                         )
 
-                    st.dataframe(df2, use_container_width=True)
+                    # Index starts from 1
+                    df2.index = df2.index + 1   
+                    df2.loc[df2["Branch"] == "TOTAL", "Branch Contribution %"] = 100
+                    df2.index = df2.index.astype(str)
+                    df2.iloc[-1, df2.columns.get_loc("Branch")] = "TOTAL"
+                    df2.index = list(df2.index[:-1]) + [""]
 
-                    # totals row
-                    total_df = pd.DataFrame([totals])
-                    total_df.insert(0, "", "TOTAL")
+                    def highlight_total_row(row):
+                        return ["font-weight: bold"] * len(row) if row.name == df2.index[-1] else [""] * len(row)
 
-                    formatted_df = total_df.copy()
-                    formatted_df["buyer_count"] = formatted_df["buyer_count"].map("{:,.0f}".format)
-                    formatted_df["seller_count"] = formatted_df["seller_count"].map("{:,.0f}".format)
-                    formatted_df["both_traders"] = formatted_df["both_traders"].map("{:,.0f}".format)
-                    formatted_df["purchase_turnover"] = formatted_df["purchase_turnover"].map("Rs. {:,.0f}".format)
-                    formatted_df["sales_turnover"] = formatted_df["sales_turnover"].map("Rs. {:,.0f}".format)
-                    formatted_df["total"] = formatted_df["total"].map("Rs. {:,.0f}".format)
+                    styled_df = df2.style.apply(highlight_total_row, axis=1)
 
-                    formatted_df.rename(columns={
-                        "buyer_count":"Total Buyers","seller_count":"Total Sellers",
-                        "both_traders":"Both Traders","purchase_turnover":"Purchase Turnover",
-                        "sales_turnover":"Sales Turnover","total":"Total"
-                    }, inplace=True)
+                    # Display
+                    # st.dataframe(df2, width="stretch")
+                    st.dataframe(styled_df, width="stretch")
 
-                    st.markdown("---")
-                    st.subheader("➤ Summary Totals", anchor=False)
-                    st.dataframe(formatted_df, width='stretch', hide_index=True)
+
+
+                    # # totals row
+                    # total_df = pd.DataFrame([totals])
+                    # total_df.insert(0, "", "TOTAL")
+
+                    # formatted_df = total_df.copy()
+                    # formatted_df["buyer_count"] = formatted_df["buyer_count"].map("{:,.0f}".format)
+                    # formatted_df["seller_count"] = formatted_df["seller_count"].map("{:,.0f}".format)
+                    # formatted_df["both_traders"] = formatted_df["both_traders"].map("{:,.0f}".format)
+                    # formatted_df["purchase_turnover"] = formatted_df["purchase_turnover"].map("Rs. {:,.0f}".format)
+                    # formatted_df["sales_turnover"] = formatted_df["sales_turnover"].map("Rs. {:,.0f}".format)
+                    # formatted_df["total"] = formatted_df["total"].map("Rs. {:,.0f}".format)
+
+                    # formatted_df.rename(columns={
+                    #     "buyer_count":"Total Buyers","seller_count":"Total Sellers",
+                    #     "both_traders":"Both Traders","purchase_turnover":"Purchase Turnover",
+                    #     "sales_turnover":"Sales Turnover","total":"Total"
+                    # }, inplace=True)
+
+                    # st.markdown("---")
+                    # st.subheader("➤ Summary Totals", anchor=False)
+                    # st.dataframe(formatted_df, width='stretch', hide_index=True)
 
             # --- Piechart ---
             elif view_mode == "Branch Piechart":
