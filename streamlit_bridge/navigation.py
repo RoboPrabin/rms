@@ -118,6 +118,8 @@ def render_sidebar():
     # Authenticated menus
     if role == "USER":
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
+        st.sidebar.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
+
         st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
         st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
@@ -126,6 +128,7 @@ def render_sidebar():
 
     if role == "ADMIN":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
+        st.sidebar.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
 
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
