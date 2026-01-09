@@ -23,36 +23,37 @@ class EDISCall:
         self.holding_engine = create_engine(helper.get_holding_engine())
         self.session_ids = None
 
-    def call_now(self):
 
+    def call_now(self):
         upload = st.file_uploader("Upload .csv file", type='.csv')
 
         if upload:
             if st.button("Upload now"):
                 first_api = "http://192.168.1.150:8000/csv_upload.php"
                 second_api = "http://192.168.1.150:8000/process_jobs.php"
-                
-                # Explicitly set MIME type as text/csv
                 files = {'file': (upload.name, upload, 'text/csv')}
-                
                 try:
-                    # Hit first API
+                    # First API call
                     response1 = requests.post(first_api, files=files)
-                    # st.write("First API response:", response1.text)
-                    st.success(f"First stage: " +response1.json().get('message'), icon="📢")
-                    # Hit second API (optional)
-                    response2 = requests.post(second_api, files=files)
+                    st.success(f"First stage: {response1.json().get('message')}", icon="📢")
+                    
+                    # Show spinner while second API is processing
+                    with st.spinner('Processing second stage, please wait... ⏳', show_time=True):
+                        response2 = requests.post(second_api, files=files)
+                    
+                    # Once done, process the response
                     lines = response2.text.replace(".call", ".call\n").splitlines()
                     call_count = 0
                     for line in lines:
                         if line.strip():   # avoid empty lines
                             call_count += 1
-                            st.write(str(call_count) + ". " +line)
+                            st.write(f"{call_count}. {line}")
 
                     st.success(f"📞 Total call files created: {call_count}")
-                    
+
                 except Exception as e:
                     st.error(f"Error uploading file: {e}")
+
 
 if __name__ == "__main__":
     EDISCall().call_now()
