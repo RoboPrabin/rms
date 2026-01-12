@@ -428,23 +428,21 @@ class BusinessTurnover:
         # -------------------------------
         # Display KPIs
         # -------------------------------
+        st.metric("🟡 NEPSE Total Turnover", f"NPR {total_market_turnover:,.2f}", border=True)
         kpi_col1, kpi_col2 = st.columns(2)
-        st.metric("NEPSE Total Turnover", f"NPR {total_market_turnover:,.2f}", border=True)
-        # with kpi_col1:
-        st.metric("Trishakti Total Turnover", f"NPR {trishakti_turnover:,.2f}", border=True)
-        # with kpi_col2:
+        with kpi_col1:
+            st.metric("🔵 Trishakti Total Turnover", f"NPR {trishakti_turnover:,.2f}", border=True)
+        with kpi_col2:
+            total_contribution = (trishakti_turnover / total_market_turnover) * 100
+            st.metric(f"🔵 Trishakti Market Contribution", f"{total_contribution:.4f} %", border=True)
         
         col1, col2 = st.columns(2)
         if filter_value != 'None':
             with col1:
-                st.metric(f"{selected_name} Total Turnover", f"NPR {other_turnover_total:,.2f}", border=True)
+                st.metric(f"⚪ {selected_name} Total Turnover", f"NPR {other_turnover_total:,.2f}", border=True)
             with col2:
                 total_contribution = (other_turnover_total / total_market_turnover) * 100
-                st.metric(f"{selected_name} Market Contribution", f"{total_contribution:.4f} %", border=True)
-        else:
-            with col1:
-                total_contribution = (trishakti_turnover / total_market_turnover) * 100
-                st.metric(f"Trishakti Market Contribution", f"{total_contribution:.4f} %", border=True)
+                st.metric(f"⚪ {selected_name} Market Contribution", f"{total_contribution:.4f} %", border=True)
 
         # -------------------------------
         # Show Reference Data
