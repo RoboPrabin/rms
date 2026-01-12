@@ -769,6 +769,75 @@ def process_bulk_tag(df: pd.DataFrame, assign_by: str):
 
     return inserted
 
+
+
+
+def process_tranfer_from_file(df, assign_by: str) -> int:
+    """
+    Bulk transfer RM for clients from uploaded Excel.
+    Entire operation is transactional.
+    """
+
+    conn = None
+    cur = None
+    updated_count = 0
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        update_sql = """
+            UPDATE client_rm_map
+            SET
+                "rmName" = %s,
+                "rmFullName" = (
+                    SELECT "rmFullName"
+                    FROM client_rm_map
+                    WHERE "rmName" = %s
+                    LIMIT 1
+                ),
+                "assignBy" = %s,
+                "assignAt" = %s
+            WHERE
+                "clientCode" = %s
+                AND "rmName" = %s
+        """
+
+        now = datetime.now()
+
+        for _, row in df.iterrows():
+            dest_rm = row["DEST_RM"]
+
+            cur.execute(
+                update_sql,
+                (
+                    dest_rm,                   # new rmName
+                    dest_rm,                   # lookup rmFullName using DEST_RM
+                    assign_by,                 # assigned by
+                    now,                       # assigned at
+                    str(row["CLIENT_CODE"]),   # client code
+                    row["SOURCE_RM"]            # validate current RM
+                )
+            )
+
+            updated_count += cur.rowcount
+
+        conn.commit()
+        return updated_count
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise RuntimeError(f"RM transfer failed: {str(e)}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+
 def transfer_bulk_clients(from_rm: str, to_rm: str, to_rm_full_name: str):
     query = """
         UPDATE client_rm_map

@@ -198,6 +198,7 @@ def eliminate_top_margin(margin_top: str = "0rem"):
 
 def get_platform_options():
     return {
+        "OfficeEmail":"outlook",
         "Webcdas":"https://webcdas.cdsc.com.np/",
         "DG":"https://dgtrade.trishakti.com.np:8080/bom/index.html#/login",
         "RMS":"https://holdings.trishakti.com.np:9999/",

@@ -128,7 +128,6 @@ def render_sidebar():
 
     if role == "ADMIN":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
 
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
@@ -148,6 +147,7 @@ def render_sidebar():
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
             st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
+            st.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
 
                                  
         with st.sidebar.expander("‎‎ ‎ User Management", icon="🤹🏻", expanded=(active_menu == "user")):

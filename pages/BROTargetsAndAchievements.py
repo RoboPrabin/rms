@@ -273,7 +273,10 @@ class RMPerformance:
                         st.info("👇 Here is BRO's daily target for today:")
                     else:
                         st.info("👇 Here is your daily target for today:")
-                target_only.sort_values(by="BRO's Target", inplace=True, ascending=False)
+                try:
+                    target_only.sort_values(by="BRO's Target", inplace=True, ascending=False)
+                except Exception as e:
+                    pass
                 target_only = target_only.reset_index(drop=True)
                 target_only.index = target_only.index + 1
                 numeric_cols = target_only.select_dtypes(include="number").columns

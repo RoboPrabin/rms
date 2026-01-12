@@ -13,7 +13,12 @@ from sqlalchemy import text
 from utils import helper
 from sqlalchemy import create_engine
 from utils.custom_hotkey import activate_client_code_hotkey
-        
+
+
+@st.cache_data(ttl=120)
+def get_all_kyc_info():
+    rows = db.get_kyc()
+    return rows
 
 class RMTag:
     def __init__(self):
@@ -34,7 +39,7 @@ class RMTag:
     # ---------------------------
     # Utility functions
     # ---------------------------
-    @st.cache_data(ttl=3600)
+    @st.cache_data(ttl=120)
     def get_rm_list(_self, username: str ,only_self=False):
         engine = _self.holding_engine  
         if only_self and _self.role == "BRO":
@@ -46,14 +51,14 @@ class RMTag:
             query = 'SELECT id, alias, "full_name" FROM app_user'
             return pd.read_sql(query, engine)
 
-    @st.cache_data(ttl=3600)
+    @st.cache_data(ttl=120)
     def get_client_list(_self):
         engine = _self.holding_engine
         query = 'SELECT id, clientfullname, clientmembercode FROM kyc'
         return pd.read_sql(query, engine)
     
 
-    @st.cache_data(ttl=3600)
+    @st.cache_data(ttl=120)
     def get_rm_client_map(_self, rm_code,  username: str):
         engine = create_engine(_self.holding_engine)
 
@@ -183,6 +188,71 @@ class RMTag:
         else:
             st.warning(f"No RM assigned for client code starting with {client_code}.", icon="⚠️")
 
+    def reset_transfer_state(self):
+        st.session_state.transfer_done = False
+
+
+    def transfer_from_file(self):
+
+        if "transfer_done" not in st.session_state:
+            st.session_state.transfer_done = False
+
+        # -----------------------------------------
+        # If transfer already done → show only success
+        # -----------------------------------------
+        if st.session_state.transfer_done:
+            st.success("Client Transferred Successfully.", icon="✅")
+            return
+
+        st.markdown("Upload an Excel file using the exact sample format.")
+
+        sample_df = pd.DataFrame({
+            "SOURCE_RM": ["AASHISH", "UMESH"],
+            "CLIENT_CODE": ["2025128767", "2024328709"],
+            "DEST_RM": ["SAJAN", "YUBARAJ"]
+        })
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            sample_df.to_excel(writer, index=False, sheet_name="Sample")
+
+        st.download_button(
+            label="📥 Download Sample Excel",
+            data=buffer.getvalue(),
+            file_name="client_transfer_template.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        uploaded_file = st.file_uploader(
+            "Upload your filled Excel file",
+            type=["xlsx"]
+        )
+
+        if uploaded_file is None:
+            return
+
+        df = pd.read_excel(uploaded_file)
+
+        valid, msg = self.validate_transfer_rm_from_file(df)
+        if not valid:
+            st.error(msg)
+            return
+
+        st.success("✅ File validated successfully")
+        st.badge(f"Total clients to get tagged: {len(df)}")
+
+        df.reset_index(inplace=True, drop=True)
+        df.index = df.index + 1
+        st.dataframe(df)
+
+        if st.button("Process Transfer"):
+            with st.spinner("Processing..."):
+                db.process_tranfer_from_file(df, assign_by=self.username)
+
+            # ✅ mark transfer as done
+            st.session_state.transfer_done = True
+            st.rerun()
+
     # ---------------------------
     # Main UI
     # ---------------------------
@@ -202,19 +272,20 @@ class RMTag:
             elif mode == "Bulk Tag":
                 self.show_bulk_tag_ui()
             elif mode == "Single Transfer":
-                self.show_single_transfer_ui()
+                view = st.radio("Transfer Mode", ["Manual Transfer", "Upload From File"], horizontal=True, index=0, on_change=self.reset_transfer_state)
+                if view == "Upload From File":
+                    self.transfer_from_file()
+                else:
+                    self.show_single_transfer_ui()
             else:
                 self.show_bulk_transfer_ui()
 
-    @st.cache_data(ttl=3600)
-    def get_all_kyc_info(_self):
-        rows = db.get_kyc()
-        return rows
+
     
 
     def show_single_transfer_ui(self):
         if 'client_options' not in st.session_state:
-            rows = self.get_all_kyc_info()
+            rows = get_all_kyc_info()
             df = pd.DataFrame(rows, columns=['clientCode', 'clientName', "branch", "boid"])
             df.sort_values(by='clientName', inplace=True)
             
@@ -428,6 +499,18 @@ class RMTag:
 
     def validate_bulk_tag_file(self, df: pd.DataFrame):
         expected_cols = ["clientCode", "clientName", "rmName"]
+
+        # Check exact match
+        if list(df.columns) != expected_cols:
+            return False, f"Invalid columns. Expected: {expected_cols}, Got: {list(df.columns)}"
+
+        # Check empty values
+        if df.isnull().any().any():
+            return False, "File contains empty values. Please fix and upload again."
+
+        return True, "OK"
+    def validate_transfer_rm_from_file(self, df: pd.DataFrame):
+        expected_cols = ["SOURCE_RM", "CLIENT_CODE", "DEST_RM"]
 
         # Check exact match
         if list(df.columns) != expected_cols:

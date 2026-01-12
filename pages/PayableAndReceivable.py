@@ -146,7 +146,9 @@ class PayableAndReceivable:
 
         df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
         st.badge(f"Total data: {len(df_holder)}")
+        
         df_holder.drop(columns=["id"], inplace=True)
+
         df_holder.index = df_holder.index + 1
         st.dataframe(df_holder, width='stretch')
 
