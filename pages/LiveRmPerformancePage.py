@@ -37,6 +37,7 @@ def accounting_format(x):
     return f"({abs(x):,.2f})" if x < 0 else f"{x:,.2f}"
 
 def highlight_negative(val):
+    val = float(str(val).replace(",", ''))
     if pd.isna(val):
         return ""
     return "color: red;" if val < 0 else ""
@@ -217,10 +218,25 @@ class Uarf:
                     self.branch_due = total_due_branch
         return df
 
-
+    def _clean_numeric_columns(self, df, cols):
+        for col in cols:
+            if col in df.columns:
+                # Remove commas and convert to float
+                df[col] = (
+                    df[col]
+                    .astype(str)                # ensure string for replace
+                    .str.replace(",", "", regex=False)
+                    .replace("", "0")           # handle empty strings
+                )
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        return df
+    
     def show_trade_book(self):
         df = self._load_trade_book()
         df = self._apply_filters(df)
+        target_cols = SUMMARY_COLS + ["Ledger Balance", "Adjusted Balance"]
+        df = self._clean_numeric_columns(df, target_cols)
+
         total_turnover = (df['Buy Amount'].sum() * -1) + df['Sell Amount'].sum()
         # Summary table
         summary = df[SUMMARY_COLS].sum().to_frame(name="Total").T
@@ -299,15 +315,16 @@ class Uarf:
         df.index = df.index + 1
         st.subheader("📚 Detailed RM Performance", anchor=False)
         st.badge(f"Total rows: {len(df)}", color="green")
+        target_cols = SUMMARY_COLS + ["Ledger Balance", "Adjusted Balance"]
+        valid_cols = [c for c in target_cols if c in df.columns]
+
         st.dataframe(
             df.style
-            .format({col: accounting_format for col in SUMMARY_COLS if col in df.columns})
-            .map(highlight_negative, subset=[c for c in SUMMARY_COLS if c in df.columns]),
-            width='stretch'
+            .format({col: accounting_format for col in valid_cols})
+            .map(highlight_negative, subset=valid_cols),
+            width="stretch",
         )
-        
 
-    
     def show_order_book(self):
         st.set_page_config(layout='wide')
         df:pd.DataFrame = self.load_order_book_data()
@@ -325,7 +342,8 @@ class Uarf:
         # df.drop(columns=['Client_Code'], inplace=True)
         # statuses = ["All"] + df["activeStatus"].dropna().unique().tolist()
         # Get unique statuses except "COMPLETED"
-        statuses = [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
+        # statuses = [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
+        statuses =  [s for s in df["activeStatus"].dropna().unique().tolist()]
         # statuses = ["All"] + [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
         selected_status = st.radio("Filter by Active Status:", options=statuses, horizontal=True)
 
@@ -403,7 +421,7 @@ class Uarf:
         styled_df = (
             filtered_df.style
                 .format({"Amount": accounting_format})   # now safe, column is numeric
-                .map(highlight_negative, subset=["Amount"])
+                .map(highlight_negative, subset=["Amount",])
         )
 
         # Show styled dataframe
@@ -412,7 +430,6 @@ class Uarf:
 
 
         # st.dataframe(filtered_df, use_container_width=True)
-
 
     def show_live_performance_header(self):
 
