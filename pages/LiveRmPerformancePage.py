@@ -236,6 +236,9 @@ class Uarf:
         df = self._apply_filters(df)
         target_cols = SUMMARY_COLS + ["Ledger Balance", "Adjusted Balance"]
         df = self._clean_numeric_columns(df, target_cols)
+       
+
+
 
         total_turnover = (df['Buy Amount'].sum() * -1) + df['Sell Amount'].sum()
         # Summary table
@@ -318,12 +321,35 @@ class Uarf:
         target_cols = SUMMARY_COLS + ["Ledger Balance", "Adjusted Balance"]
         valid_cols = [c for c in target_cols if c in df.columns]
 
-        st.dataframe(
+        selected_row = st.dataframe(
             df.style
             .format({col: accounting_format for col in valid_cols})
             .map(highlight_negative, subset=valid_cols),
             width="stretch",
+            selection_mode='single-row', 
+            key='detailed_rm_performance',
+            on_select='rerun'
         )
+
+        if selected_row:
+            selected_indices = selected_row.selection.rows
+            if selected_indices:
+                # Get the first selected index (since it's single-row mode)
+                idx = selected_indices[0]
+                row_data = df.iloc[idx]
+                client_code = row_data["Client Code"]
+                client_name = row_data["Client Name"]
+                client_branch = row_data["Branch"]
+                df_order_book: pd.DataFrame = self.load_order_book_data()
+                df_completed_order = df_order_book[
+                    (df_order_book["activeStatus"] == "COMPLETED") &
+                    (df_order_book["clientCode"] == client_code)
+                ]
+                try:
+                    self.show_stocks_of_selected_client(df_completed_order, client_name, client_code, client_branch)
+                except Exception as e:
+                    pass
+
 
     def show_order_book(self):
         st.set_page_config(layout='wide')
@@ -509,6 +535,44 @@ class Uarf:
 
         # Update tracker
         st.session_state.last_refresh_counter = refresh_counter
+
+    @st.dialog(title="Trade Completed", width='large')
+    def show_stocks_of_selected_client(self, df:pd.DataFrame, client_name, client_code, client_branch):
+        st.caption(f"{client_name} | {client_code} | {client_branch}")
+        unique_symbols = df["symbol"].unique()
+        # print(len(unique_symbols))
+        df.sort_values(by="amount", inplace=True, ascending=False)
+        df.reset_index(drop=True, inplace=True)
+        # Multiply Amount by -1 only when buyOrSell == "BUY"
+        df.loc[df["buyOrSell"] == "BUY", "amount"] = df.loc[df["buyOrSell"] == "BUY", "amount"] * -1
+        df.index = df.index + 1
+        selected_cols = [
+        "symbol",
+        "buyOrSell",
+        "orderQuantity",
+        "orderPrice",
+        "amount",
+        "orderTime",
+        "activeStatus",          # corrected spelling
+        ]
+        df = df[selected_cols]
+        df = df.rename(columns=helper.camel_to_title)
+       
+        styler = (
+        df.style
+            .format({
+                "Order Quantity": "{:,.0f}",   # integers with commas
+                "Order Price": accounting_format,
+                "Amount": accounting_format
+            })
+            .map(highlight_negative, subset=["Order Quantity", "Order Price", "Amount"])
+        )
+        st.badge(f"Total Trade: {len(unique_symbols)}", color='green')
+        st.dataframe(styler)
+
+
+
+
 
 
 if __name__ == "__main__":

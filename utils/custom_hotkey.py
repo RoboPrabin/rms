@@ -170,9 +170,15 @@ def activate_client_code_hotkey():
                 df.columns = df.columns.str.upper()
                 df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
                 df = coerce_numeric_columns(df, number_cols)
-
+                has_searched = False
                 df.rename(columns={"Transactiondate": "Transaction Date", "Clearancedate": "Clearance Date", "Referenceno": "Reference No", "Balancetype": "Balance Type"}, inplace=True)
-                
+                search_query = st.text_input("Search by Particulars", width=400).strip()
+                if search_query:
+                    has_searched = True
+                    df = df[df["Particulars"].str.contains(search_query, case=False, na=False)]
+                if has_searched:
+                    total_cr = df['Cr'].sum()
+                    st.badge(f"Total Cr Amount: {total_cr:,.2f}")
                 styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
                 st.dataframe(styled_df, width='content', hide_index=True)
             else:

@@ -29,8 +29,8 @@ class EDISCall:
 
         if upload:
             if st.button("Upload now"):
-                first_api = "http://192.168.1.150:8000/csv_upload.php"
-                second_api = "http://192.168.1.150:8000/process_jobs.php"
+                first_api = "http://10.98.100.48:8000/csv_upload.php"
+                second_api = "http://10.98.100.48:8000/process_jobs.php"
                 files = {'file': (upload.name, upload, 'text/csv')}
                 try:
                     # First API call

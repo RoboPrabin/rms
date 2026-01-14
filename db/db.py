@@ -19,6 +19,190 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+# def save_transactions_to_db(transactions, created_by):
+#     """
+#     Save all transaction rows to PostgreSQL 'unverified_trans' table.
+    
+#     :param transactions: list of dicts, each dict = one transaction
+#     :param created_by: string, username of uploader
+#     """
+#     if not transactions:
+#         return  # nothing to save
+
+#     conn = get_connection()
+#     try:
+#         with conn.cursor() as cur:
+#             for row in transactions:
+#                 # Generate UUID for id
+#                 row_id = str(uuid.uuid4())
+
+#                 # Uploaded at current datetime in 'YYYY-MM-DD HH:MI:SS AM/PM' format
+#                 uploaded_at = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+
+#                 # Prepare SQL insert
+#                 cur.execute(
+#                     """
+#                     INSERT INTO unverified_trans (
+#                         id, transaction_date, description, remarks,
+#                         withdraw, deposit, balance, uploaded_at, created_by
+#                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+#                     """,
+#                     (
+#                         row_id,
+#                         row.get("Transaction Date", ""),
+#                         row.get("Description", ""),
+#                         row.get("Remarks", ""),
+#                         row.get("Withdraw", ""),
+#                         row.get("Deposit", ""),
+#                         row.get("Balance (NPR)", ""),
+#                         uploaded_at,
+#                         created_by
+#                     )
+#                 )
+#         conn.commit()
+#         print(f"{len(transactions)} transactions saved to DB successfully.")
+#     except Exception as e:
+#         conn.rollback()
+#         print("Error saving transactions:", e)
+#         raise
+#     finally:
+#         conn.close()
+
+
+def save_transactions_to_db(transactions, created_by):
+    """
+    Save all transaction rows to PostgreSQL 'unverified_trans' table,
+    skipping rows where the 'description' already exists.
+    
+    Returns a list of skipped transactions.
+    """
+    skipped = []
+
+    if not transactions:
+        return skipped  # nothing to save
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Optional optimization: fetch all existing descriptions at once
+            cur.execute("SELECT description FROM unverified_trans")
+            existing_desc = set(r[0] for r in cur.fetchall())
+
+            for row in transactions:
+                description = row.get("Description", "").strip()
+
+                # Skip if description already exists
+                if description in existing_desc:
+                    skipped.append(row)
+                    continue  # skip this row
+
+                # Generate UUID for id
+                row_id = str(uuid.uuid4())
+
+                # Uploaded at current datetime in 'YYYY-MM-DD HH:MI:SS AM/PM' format
+                uploaded_at = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+
+                # Insert into DB
+                cur.execute(
+                    """
+                    INSERT INTO unverified_trans (
+                        id, transaction_date, description, remarks,
+                        withdraw, deposit, balance, created_at, created_by
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        row_id,
+                        row.get("Transaction Date", ""),
+                        description,
+                        row.get("Remarks", ""),
+                        row.get("Withdraw", ""),
+                        row.get("Deposit", ""),
+                        row.get("Balance (NPR)", ""),
+                        uploaded_at,
+                        created_by
+                    )
+                )
+
+                # Add description to existing_desc to prevent duplicates in same batch
+                existing_desc.add(description)
+
+        conn.commit()
+        print(f"{len(transactions) - len(skipped)} transactions saved to DB successfully.")
+        if skipped:
+            print(f"{len(skipped)} transactions skipped due to duplicate descriptions.")
+        return skipped
+
+    except Exception as e:
+        conn.rollback()
+        print("Error saving transactions:", e)
+        raise
+    finally:
+        conn.close()
+
+def update_unverified_transaction(description, client_code, receipt_no, bank_name):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE unverified_trans
+                SET client_code = %s,
+                    receipt_no = %s,
+                    bank_name = %s
+                WHERE description = %s
+                """,
+                (client_code.upper(), receipt_no.upper(), bank_name.upper(), description)
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def delete_unverified_transaction(description):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM unverified_trans
+                WHERE description = %s
+                """,
+                (description,)
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_unverified_transactions():
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(
+                """
+                SELECT *
+                FROM unverified_trans
+                ORDER BY created_at DESC;
+                """
+            )
+            rows = cur.fetchall()
+
+            # This will include all columns from the DB exactly as they are
+            df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
+
+            return df
+    except Exception as e:
+        print("Error fetching transactions:", e)
+        raise
+    finally:
+        conn.close()
+
+
 
 def fetch_top_brokers_by_date(start_date, end_date) -> pd.DataFrame:
     """

@@ -447,10 +447,14 @@ class DueList:
                 st.session_state["due_list_data"] = load_due_list_data_bro(alias)
             else:
                 st.session_state["due_list_data"] = load_due_list_data_all()
+    
+
+
 
     def render_page(self):
         self.load_data()
         df: pd.DataFrame = st.session_state["due_list_data"]
+        print(str(len(df)))
         st.title("📋 Due List", anchor=False)
 
         # --- Layout for filters ---
@@ -472,26 +476,73 @@ class DueList:
             else:  # Client Code
                 filter_value = st.text_input("Enter Client Code", placeholder="Type client code...")
 
-        # --- Filter by date ---
-        selected_date_str = selected_date.strftime("%Y-%m-%d")
-        df_filtered = df[df["uploaded_at"].str.contains(selected_date_str, na=False)]
+        # # --- Filter by date ---
+        # selected_date_str = selected_date.strftime("%Y-%m-%d")
+        # df_filtered = df[df["uploaded_at"].str.contains(selected_date_str, na=False)]
 
-        # --- Filter by AM/PM ---
-        if by_status == "Morning":
-            df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("AM")]
-        else:
-            df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("PM")]
+        # # --- Filter by AM/PM ---
+        # if by_status == "Morning":
+        #     df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("AM")]
+        # else:
+        #     df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("PM")]
 
-        # --- Apply selected filter ---
-        if filter_by == "Bro" and filter_value != "All":
-            df_filtered = df_filtered[df_filtered["rmName"] == filter_value]
+        # # --- Apply selected filter ---
+        # if filter_by == "Bro" and filter_value != "All":
+        #     df_filtered = df_filtered[df_filtered["rmName"] == filter_value]
+        #     if df_filtered.empty:
+        #         st.info(f"No dues for {filter_value}.", icon="ℹ️")
+        #         st.stop()
+        # elif filter_by == "Branch" and filter_value != "All":
+        #     df_filtered = df_filtered[df_filtered["branch"] == filter_value]
+        # elif filter_by == "Client Code" and filter_value.strip():
+        #     df_filtered = df_filtered[df_filtered["clientCode"].astype(str).str.contains(filter_value, case=False, na=False)]
+
+        search_by_clients = False
+        # --- Apply Client Code filter FIRST and ALONE ---
+        if filter_by == "Client Code" and filter_value.strip():
+            search_by_clients = True
+            cutoff_date = pd.Timestamp.now() - pd.Timedelta(days=30)
+            df["uploaded_at_dt"] = pd.to_datetime(
+                df["uploaded_at"],
+                errors="coerce",
+                infer_datetime_format=True
+            )
+
+            df_filtered = df[
+                (df["clientCode"].astype(str).str.contains(filter_value, case=False, na=False)) &
+                (df["uploaded_at_dt"].notna()) &
+                (df["uploaded_at_dt"] >= cutoff_date)
+            ]
+
             if df_filtered.empty:
-                st.info(f"No dues for {filter_value}.", icon="ℹ️")
+                st.info(
+                    f"No data found for Client Code: {filter_value} in the last 30 days.",
+                    icon="ℹ️"
+                )
                 st.stop()
-        elif filter_by == "Branch" and filter_value != "All":
-            df_filtered = df_filtered[df_filtered["branch"] == filter_value]
-        elif filter_by == "Client Code" and filter_value.strip():
-            df_filtered = df_filtered[df_filtered["clientCode"].astype(str).str.contains(filter_value, case=False, na=False)]
+
+        else:
+            # --- Filter by date ---
+            selected_date_str = selected_date.strftime("%Y-%m-%d")
+            df_filtered = df[df["uploaded_at"].str.contains(selected_date_str, na=False)]
+
+            # --- Filter by AM/PM ---
+            if by_status == "Morning":
+                df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("AM")]
+            else:
+                df_filtered = df_filtered[df_filtered["uploaded_at"].str.endswith("PM")]
+
+            # --- Apply Bro / Branch filters ---
+            if filter_by == "Bro" and filter_value != "All":
+                df_filtered = df_filtered[df_filtered["rmName"] == filter_value]
+                if df_filtered.empty:
+                    st.info(f"No dues for {filter_value}.", icon="ℹ️")
+                    st.stop()
+
+            elif filter_by == "Branch" and filter_value != "All":
+                df_filtered = df_filtered[df_filtered["branch"] == filter_value]
+
+            
 
         # --- Empty check ---
         if df_filtered.empty:
@@ -520,21 +571,35 @@ class DueList:
         # Drop unnecessary columns including uploaded_at
         df_filtered.drop(columns=[
             'category', 'dueDate', 'dueSinceLastStlDateInDays',
-            'lastSettlementDate', 'lastCrDate', 'billAgeInDays', 'uploaded_at'
+            'lastSettlementDate', 'lastCrDate', 'billAgeInDays'
         ], inplace=True, errors='ignore')
+        df["Session"] = df["uploaded_at"].astype(str).str.endswith("AM").map(
+            {True: "Morning", False: "Evening"}
+        )
 
         # Move Bro column to first position
         if "Bro" in df_filtered.columns:
             cols = ["Bro"] + [c for c in df_filtered.columns if c != "Bro"]
             df_filtered = df_filtered[cols]
 
-        # Sort and reset index
-        df_filtered.sort_values(by=["Bro", "dueBalance"], ascending=[True, False], inplace=True)
+        if search_by_clients:
+            df_filtered.sort_values(by="uploaded_at", ascending=False, inplace=True)
+        else:
+            df_filtered.sort_values(by="adjustedBalance", ascending=False, inplace=True)
+
         df_filtered.reset_index(drop=True, inplace=True)
 
         # Rename and format columns
         df_filtered.rename(columns={"dueSinceInDays": "Due Days"}, inplace=True)
         df_filtered['boid'] = df_filtered['boid'].apply(lambda x: "IN" if str(x).startswith("13011400") else "OUT")
+        df_filtered.drop(columns=['uploaded_at_dt'], inplace=True)
+        cols = list(df_filtered.columns)
+        # Remove 'Session' from current position
+        cols.remove("Session")
+        # Insert 'Session' at 2nd last position
+        cols.insert(len(cols)-1, "Session")
+        # Reorder dataframe
+        df_filtered = df_filtered[cols]
         df_filtered = df_filtered.rename(columns=helper.camel_to_title)
 
 
@@ -694,15 +759,18 @@ class DueList:
                     "Balancetype": "Balance Type"
                 }, inplace=True)
 
+                has_search= False
                 # --- Search filter ---
                 search_query = st.text_input("Search by Particulars", width=400).strip()
                 if search_query:
                     df = df[df["Particulars"].str.contains(search_query, case=False, na=False)]
-
+                    has_search = True
                 # --- Styling ---
                 number_cols = ["Dr", "Cr", "Balance"]
                 styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
-
+                if has_search:
+                    total_cr = df['Cr'].sum()
+                    st.badge(f"Total Cr Amount: {total_cr:,.2f}")
                 # --- Display ---
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
 

@@ -8,6 +8,7 @@ active_session_url = base_path + "ActiveSession.py"
 pay_rec_url = base_path + "PayableAndReceivable.py" 
 cbr_url = base_path + "CostBenefit.py" 
 edis_call_url = base_path + "EDISCall.py" 
+unverified_trans_url = base_path + "UnverifiedTransactions.py" 
 
 
 cache_url = base_path + "Cache.py" 

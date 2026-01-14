@@ -143,6 +143,7 @@ def render_sidebar():
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
 
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
@@ -168,35 +169,6 @@ def render_sidebar():
             st.page_link(page_url.view_feedback_url, label="‎‎ ‎ View Feedback", icon="💬")
 
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎‎‎ ‎‎‎ ‎Logout", icon="🏃")
-        
-
-
-        # st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        # st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-        # st.sidebar.page_link(page_url.automation_url, label="‎‎ ‎ Automations", icon="⚡")
-        # st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
-        # st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-        # st.sidebar.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
-
-                                 
-        # st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
-        # st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-        # st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-        # st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-        # st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        # st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-        # st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-        # st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        # st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
-        # st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
-        # st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
-        # st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-        # st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-        # st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        # st.sidebar.page_link(page_url.active_session_url, label="‎‎ ‎ Active Sessions", icon="🕓")
-        # st.sidebar.page_link(page_url.cache_url, label="‎‎ ‎ Cache", icon="🗑️")
-        # st.sidebar.page_link(page_url.view_feedback_url, label="‎‎ ‎ View Feedback", icon="💬")
-        # st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
     
     if role in ["MANAGEMENT", "MANAGER"]:
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
@@ -215,6 +187,7 @@ def render_sidebar():
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
             st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare Accounts", icon="📝")
@@ -233,27 +206,6 @@ def render_sidebar():
 
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Logout", icon="🏃")
     
-        # st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        # st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-
-        # st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
-        # st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-        # st.sidebar.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
-        # st.sidebar.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
-        # st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-        # st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-        # st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        # st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-        # st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-        # st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        # st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-        # st.sidebar.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
-        # st.sidebar.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
-        # st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-        # st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-        # st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        # st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-        # st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     if role == "BRO":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
@@ -313,6 +265,7 @@ def render_sidebar():
 
     if role == "VIEWER":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
+        st.sidebar.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
         st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
         st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
