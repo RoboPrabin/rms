@@ -541,6 +541,7 @@ class Uarf:
         st.caption(f"{client_name} | {client_code} | {client_branch}")
         unique_symbols = df["symbol"].unique()
         # print(len(unique_symbols))
+        df = df.copy()
         df.sort_values(by="amount", inplace=True, ascending=False)
         df.reset_index(drop=True, inplace=True)
         # Multiply Amount by -1 only when buyOrSell == "BUY"
