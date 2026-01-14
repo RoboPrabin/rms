@@ -36,11 +36,27 @@ def accounting_format(x):
         return ""
     return f"({abs(x):,.2f})" if x < 0 else f"{x:,.2f}"
 
+# def highlight_negative(val):
+#     val = float(str(val).replace(",", ''))
+#     if pd.isna(val):
+#         return ""
+#     return "color: red;" if val < 0 else ""
+
+
 def highlight_negative(val):
-    val = float(str(val).replace(",", ''))
     if pd.isna(val):
         return ""
-    return "color: red;" if val < 0 else ""
+    try:
+        # Convert accounting-style strings to float
+        val_str = str(val).replace(",", "").strip()
+        if val_str.startswith("(") and val_str.endswith(")"):
+            val_float = -float(val_str[1:-1])
+        else:
+            val_float = float(val_str)
+        return "color: red;" if val_float < 0 else ""
+    except Exception:
+        return ""
+
 
 def coerce_numeric_columns(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     for col in cols:
@@ -536,40 +552,103 @@ class Uarf:
         # Update tracker
         st.session_state.last_refresh_counter = refresh_counter
 
+    # @st.dialog(title="Trade Completed", width='large')
+    # def show_stocks_of_selected_client(self, df:pd.DataFrame, client_name, client_code, client_branch):
+    #     st.caption(f"{client_name} | {client_code} | {client_branch}")
+    #     unique_symbols = df["symbol"].unique()
+    #     # print(len(unique_symbols))
+    #     df = df.copy()
+    #     df.sort_values(by="amount", inplace=True, ascending=False)
+    #     df.reset_index(drop=True, inplace=True)
+    #     # Multiply Amount by -1 only when buyOrSell == "BUY"
+    #     df.loc[df["buyOrSell"] == "BUY", "amount"] = df.loc[df["buyOrSell"] == "BUY", "amount"] * -1
+    #     df.index = df.index + 1
+    #     selected_cols = [
+    #     "symbol",
+    #     "buyOrSell",
+    #     "orderQuantity",
+    #     "orderPrice",
+    #     "amount",
+    #     "orderTime",
+    #     "activeStatus",          
+    #     ]
+    #     df = df[selected_cols]
+    #     df = df.rename(columns=helper.camel_to_title)
+       
+    #     styler = (
+    #     df.style
+    #         .format({
+    #             "Order Quantity": "{:,.0f}",   # integers with commas
+    #             "Order Price": accounting_format,
+    #             "Amount": accounting_format
+    #         })
+    #         .map(highlight_negative, subset=["Order Quantity", "Order Price", "Amount"])
+    #     )
+    #     st.badge(f"Total Trade: {len(unique_symbols)}", color='green')
+    #     st.dataframe(styler)
+
+
     @st.dialog(title="Trade Completed", width='large')
-    def show_stocks_of_selected_client(self, df:pd.DataFrame, client_name, client_code, client_branch):
+    def show_stocks_of_selected_client(self, df: pd.DataFrame, client_name, client_code, client_branch):
         st.caption(f"{client_name} | {client_code} | {client_branch}")
-        unique_symbols = df["symbol"].unique()
-        # print(len(unique_symbols))
+        
         df = df.copy()
         df.sort_values(by="amount", inplace=True, ascending=False)
         df.reset_index(drop=True, inplace=True)
-        # Multiply Amount by -1 only when buyOrSell == "BUY"
         df.loc[df["buyOrSell"] == "BUY", "amount"] = df.loc[df["buyOrSell"] == "BUY", "amount"] * -1
         df.index = df.index + 1
+
         selected_cols = [
-        "symbol",
-        "buyOrSell",
-        "orderQuantity",
-        "orderPrice",
-        "amount",
-        "orderTime",
-        "activeStatus",          # corrected spelling
+            "symbol",
+            "buyOrSell",
+            "orderQuantity",
+            "orderPrice",
+            "amount",
+            "orderTime",
+            "activeStatus",          
         ]
         df = df[selected_cols]
         df = df.rename(columns=helper.camel_to_title)
-       
-        styler = (
-        df.style
-            .format({
-                "Order Quantity": "{:,.0f}",   # integers with commas
-                "Order Price": accounting_format,
-                "Amount": accounting_format
-            })
-            .map(highlight_negative, subset=["Order Quantity", "Order Price", "Amount"])
+
+        # --- Trade Summary ---
+        # Group by symbol and buy/sell, sum order quantity and amount
+        trade_summary = df.groupby(["Symbol", "Buy Or Sell"], as_index=False).agg({
+            "Order Quantity": "sum",
+            "Amount": "sum"
+        })
+
+        # Optional: formatting numbers nicely
+        trade_summary["Order Quantity"] = trade_summary["Order Quantity"].map("{:,.0f}".format)
+        trade_summary["Amount"] = trade_summary["Amount"].map(accounting_format)
+        trade_summary.index = trade_summary.index + 1
+
+         # --- Style negative Amounts ---
+        styler_summary = trade_summary.style.map(
+            highlight_negative, subset=["Amount"]
         )
-        st.badge(f"Total Trade: {len(unique_symbols)}", color='green')
+
+        st.subheader("📊 Trade Summary")
+        unique_symbols = df["Symbol"].nunique()
+        st.badge(f"Total Trade: {unique_symbols}", color='green')
+        st.dataframe(styler_summary, use_container_width=True)
+        st.divider()
+        # --- Total unique stocks badge ---
+        st.subheader("📃 Trade Details")
+
+        # --- Detailed trades ---
+        styler = (
+            df.style
+                .format({
+                    "Order Quantity": "{:,.0f}",
+                    "Order Price": accounting_format,
+                    "Amount": accounting_format
+                })
+                .map(highlight_negative, subset=["Order Quantity", "Order Price", "Amount"])
+        )
+
+        st.badge(f"Total Transaction: {len(df)}", color='green')
         st.dataframe(styler)
+
 
 
 
