@@ -610,44 +610,81 @@ class Uarf:
         df = df[selected_cols]
         df = df.rename(columns=helper.camel_to_title)
 
+        # # --- Trade Summary ---
+        # # Group by symbol and buy/sell, sum order quantity and amount
+        # trade_summary = df.groupby(["Symbol", "Buy Or Sell"], as_index=False).agg({
+        #     "Order Quantity": "sum",
+        #     "Amount": "sum"
+        # })
+
+        # # Optional: formatting numbers nicely
+        # trade_summary["Order Quantity"] = trade_summary["Order Quantity"].map("{:,.0f}".format)
+        # trade_summary["Amount"] = trade_summary["Amount"].map(accounting_format)
+        # trade_summary.index = trade_summary.index + 1
+
+        #  # --- Style negative Amounts ---
+        # styler_summary = trade_summary.style.map(
+        #     highlight_negative, subset=["Amount"]
+        # )
+
+
+
+        # st.subheader("📊 Trade Summary")
+        # unique_symbols = df["Symbol"].nunique()
+        # st.badge(f"Total Trade: {unique_symbols}", color='green')
+        # st.dataframe(styler_summary, use_container_width=True)
+
+
+
         # --- Trade Summary ---
-        # Group by symbol and buy/sell, sum order quantity and amount
-        trade_summary = df.groupby(["Symbol", "Buy Or Sell"], as_index=False).agg({
-            "Order Quantity": "sum",
-            "Amount": "sum"
-        })
+        trade_summary = df.groupby(["Symbol", "Buy Or Sell"], as_index=False).agg(
+            Order_Quantity=("Order Quantity", "sum"),
+            Amount=("Amount", "sum"),
+            Transaction_Count=("Symbol", "count")  # count of rows per Symbol x Buy Or Sell
+        )
 
-        # Optional: formatting numbers nicely
-        trade_summary["Order Quantity"] = trade_summary["Order Quantity"].map("{:,.0f}".format)
+        # Reorder columns exactly as requested
+        trade_summary = trade_summary[["Symbol", "Buy Or Sell", "Order_Quantity", "Amount", "Transaction_Count"]]
+
+        # Format numbers
+        trade_summary["Order_Quantity"] = trade_summary["Order_Quantity"].map("{:,.0f}".format)
         trade_summary["Amount"] = trade_summary["Amount"].map(accounting_format)
-        trade_summary.index = trade_summary.index + 1
+        trade_summary["Transaction_Count"] = trade_summary["Transaction_Count"].map("{:,.0f}".format)
 
-         # --- Style negative Amounts ---
+        # Reset index
+        trade_summary.index = trade_summary.index + 1
+        trade_summary.columns = [col.replace("_", " ") for col in trade_summary.columns]
+
+        # --- Style negative Amounts ---
         styler_summary = trade_summary.style.map(
             highlight_negative, subset=["Amount"]
         )
 
+        # Display
         st.subheader("📊 Trade Summary")
-        unique_symbols = df["Symbol"].nunique()
-        st.badge(f"Total Trade: {unique_symbols}", color='green')
         st.dataframe(styler_summary, use_container_width=True)
-        st.divider()
-        # --- Total unique stocks badge ---
-        st.subheader("📃 Trade Details")
 
-        # --- Detailed trades ---
+
+
+        st.divider()
+        st.subheader("📃 Trade Details")
+        search_query = st.text_input("Search by Symbol")
+        df_filtered = df.copy()
+        if search_query:
+            df_filtered = df_filtered[df_filtered["Symbol"].str.contains(search_query, case=False, na=False)]
+        df_filtered = df_filtered.reset_index(drop=True)
+        df_filtered.index = df_filtered.index + 1
+        st.badge(f"Total Transactions: {len(df_filtered)}", color='green')
         styler = (
-            df.style
+            df_filtered.style
                 .format({
                     "Order Quantity": "{:,.0f}",
                     "Order Price": accounting_format,
                     "Amount": accounting_format
                 })
-                .map(highlight_negative, subset=["Order Quantity", "Order Price", "Amount"])
-        )
+                .map(highlight_negative, subset=["Amount"]))
+        st.dataframe(styler, width='stretch')
 
-        st.badge(f"Total Transaction: {len(df)}", color='green')
-        st.dataframe(styler)
 
 
 
