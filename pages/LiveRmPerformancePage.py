@@ -650,10 +650,10 @@ class Uarf:
         trade_summary["Order_Quantity"] = trade_summary["Order_Quantity"].map("{:,.0f}".format)
         trade_summary["Amount"] = trade_summary["Amount"].map(accounting_format)
         trade_summary["Transaction_Count"] = trade_summary["Transaction_Count"].map("{:,.0f}".format)
+        trade_summary.columns = [col.replace("_", " ") for col in trade_summary.columns]
 
         # Reset index
         trade_summary.index = trade_summary.index + 1
-        trade_summary.columns = [col.replace("_", " ") for col in trade_summary.columns]
 
         # --- Style negative Amounts ---
         styler_summary = trade_summary.style.map(

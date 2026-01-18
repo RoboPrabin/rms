@@ -8,9 +8,59 @@ from utils import helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils.formatting import *
-from datetime import date
+from datetime import date, timedelta
 from utils.custom_hotkey import activate_client_code_hotkey
 
+intranet_engine = helper.get_holding_engine()
+
+# @st.cache_data(ttl=1600)
+# def get_floorsheet_by_date( selected_date: date):
+#     query = """
+#         SELECT *
+#         FROM floorsheet
+#         WHERE DATE(uploaded_at) = %s
+#         ORDER BY uploaded_at DESC;
+#     """
+#     return pd.read_sql(query, intranet_engine, params=(selected_date,))
+
+@st.cache_data(ttl=1600)
+def get_floorsheet_by_date(selected_start_date: date, selected_end_date: date):
+    query = """
+        SELECT *
+        FROM floorsheet
+        WHERE DATE(uploaded_at) BETWEEN %s AND %s
+        ORDER BY uploaded_at DESC;
+    """
+    return pd.read_sql(
+        query,
+        intranet_engine,
+        params=(selected_start_date, selected_end_date)
+    )
+
+
+
+
+# ✔ Cache branch summary per date
+@st.cache_data(ttl=1600)
+def compute_branch_summary( df: pd.DataFrame):
+    if "branch" not in df.columns:
+        return pd.DataFrame()
+
+    def branch_summary_func(g):
+        buy = g["transaction_type"] == "Buy"
+        sell = g["transaction_type"] == "Sell"
+        return pd.Series({
+            "purchase_turnover": g.loc[buy, "amount"].sum(),
+            "sales_turnover": g.loc[sell, "amount"].sum(),
+            "total": g["amount"].sum(),
+        })
+
+    df2 = (
+            df.groupby("branch", group_keys=False, observed=True)
+            .apply(lambda g: branch_summary_func(g), include_groups=False)
+            .reset_index()
+        )
+    return df2
 
 class BusinessRatio:
     def __init__(self):
@@ -29,82 +79,85 @@ class BusinessRatio:
         self.intranet_engine = helper.get_holding_engine()
 
 
-    @st.cache_data(ttl=3600)
-    def get_floorsheet_by_date(_self, selected_date: date):
-        query = """
-            SELECT *
-            FROM floorsheet
-            WHERE DATE(uploaded_at) = %s
-            ORDER BY uploaded_at DESC;
-        """
-        return pd.read_sql(query, _self.intranet_engine, params=(selected_date,))
-    
-    
-    # ✔ Cache branch summary per date
-    @st.cache_data(ttl=3600)
-    def compute_branch_summary(_self, df: pd.DataFrame):
-        if "branch" not in df.columns:
-            return pd.DataFrame()
-
-        def branch_summary_func(g):
-            buy = g["transaction_type"] == "Buy"
-            sell = g["transaction_type"] == "Sell"
-            return pd.Series({
-                "purchase_turnover": g.loc[buy, "amount"].sum(),
-                "sales_turnover": g.loc[sell, "amount"].sum(),
-                "total": g["amount"].sum(),
-            })
-
-        df2 = (
-                df.groupby("branch", group_keys=False, observed=True)
-                .apply(lambda g: branch_summary_func(g), include_groups=False)
-                .reset_index()
-            )
-        return df2
 
     def render_page(self):
-        col1, col2, col3,  col5 = st.columns([1, 1, 1, 1])
+        mode = st.radio("Mode",["Manual Selection", "Select by Range"], horizontal=True)
+        calc_button = st.empty()
+        times = 100
+        trade_day = 220
+        if mode == 'Manual Selection':
+            col1, col2, col3, col4,  col5 = st.columns([1.6, 1.6, 1, 1, 1])
 
-        with col1:
-            selected_date = st.date_input(
-                "Select Date",
-                value=date.today()
-            )
-
-        with col2:
-            times = st.number_input(
-                "Times",
-                value=100
-            )
-
-        with col3:
-            trade_day = st.number_input(
-                "Trade Days",
-                value=220
-            )
-
-        # with col4:
-        #     rate = st.number_input(
-        #         "Rate",
-        #         value=40
-        #     )
-
-        with col5:
-            st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
-            calc_button = st.button(
-                "Calculate Now",
-                icon="⏳",
-                use_container_width=True
-            )
-
+            with col1:
+                selected_start_date = st.date_input(
+                    "Select StartDate",
+                    value=date.today()
+                )
+            with col2:
+                selected_end_date = st.date_input(
+                    "Select End Date",
+                    value=selected_start_date + timedelta(days=1)
+                )
             
-        df = self.get_floorsheet_by_date(selected_date)
+            manual_toggle = st.toggle("Change times/trade days")
+
+
+            with col3:
+                times = st.number_input(
+                    "Times",
+                    value=100,
+                    disabled= not manual_toggle
+                )
+
+            with col4:
+                trade_day = st.number_input(
+                    "Trade Days",
+                    value=220,
+                    disabled=not manual_toggle
+                )
+
+
+            with col5:
+                st.markdown("<br>", unsafe_allow_html=True)  # 👈 alignment spacer
+                calc_button = st.button(
+                    "Calculate Now",
+                    icon="⏳",
+                    width='content',
+                    disabled=not manual_toggle
+                )
+        else:
+            mode_range = st.radio("View", ['7 Days', '15 Days', '1 Month', '3 Months', '6 Months', 'YTD'], horizontal=True)
+            today = date.today()
+            if mode_range == '7 Days':
+                selected_start_date = today - timedelta(days=7)
+                selected_end_date = today
+            elif mode_range == '15 Days':
+                selected_start_date = today - timedelta(days=15)
+                selected_end_date = today
+            elif mode_range == '1 Month':
+                selected_start_date = today - timedelta(days=30)
+                selected_end_date = today
+            elif mode_range == '3 Months':
+                selected_start_date = today - timedelta(days=90)
+                selected_end_date = today
+            elif mode_range == '6 Months':
+                selected_start_date = today - timedelta(days=180)
+                selected_end_date = today
+            elif mode_range == 'YTD':
+                selected_start_date = date(2025, 7, 17)
+                selected_end_date = today
+
+
+
+        if mode == 'Select by Range':
+            st.caption(f"Start Date: {selected_start_date} | End Date: {selected_end_date}")
+        df = get_floorsheet_by_date(selected_start_date,selected_end_date)
         if df.empty:
-            st.warning(f"No Floorsheet data found for {selected_date}. Please upload the floorsheet first or change the date", icon="⚠️")
+            st.warning(f"No Floorsheet data found for {selected_start_date}. Please upload the floorsheet first or change the date", icon="⚠️")
             st.stop()
             
-        display_df = self.compute_branch_summary(df)
-        evening_duelist = db.get_due_list(selected_date=selected_date)
+        display_df = compute_branch_summary(df)
+        evening_duelist = db.get_due_list(selected_start_date=selected_start_date, selected_end_date=selected_end_date)
         if len(evening_duelist) == 0:
             st.error(f"Evening Due list not found. Please contact your admin.", icon="🚨")
             st.stop()
@@ -143,14 +196,6 @@ class BusinessRatio:
             final_df['Sortage/Exceed By'] = final_df["total"] - final_df['expectedVolume']
 
   
-  
-        # final_df['volumeCheck'] = (final_df['todayAdjustBalanceDueAmount'] * 100) / 220
-        # print(evening_duelist.columns.tolist())
-        # total_adjusted_balance = evening_duelist['adjustedBalance'].sum()
-        # total_adjusted_balance_bnp = evening_duelist.query("branch == 'BNP'")['adjustedBalance'].sum()
-       
-        # st.badge(f"total bnp adjust balance : {total_adjusted_balance_bnp}")
-        # st.badge(f"Total Adjusted Balance: {total_adjusted_balance_bnp}")
         column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "expectationmet"  ,"volumeRequired", "tradeVolume", "opportunityCost", "Sortage/Exceed By"]
         final_df = final_df[column_order]
         numeric_cols = ["purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "Sortage/Exceed By"]  # add more if needed

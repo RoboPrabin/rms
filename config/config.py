@@ -11,7 +11,11 @@ GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
 dg_api_userName = "tri-api"
 dg_api_password = "Bq!92Xw#Tz6@"
-
+# ---------------- CONFIG ----------------
+BASE_API = "https://dgtrade.trishakti.com.np:8080/bom/"
+LOGIN_API = BASE_API + "tp-data/authenticate"
+AC_CODE_API = BASE_API + "tp-data/account/by-nepse"
+LEDGER_API = BASE_API + "tp-data/account/ledger"
 
 
 

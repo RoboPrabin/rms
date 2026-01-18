@@ -202,6 +202,28 @@ def get_unverified_transactions():
     finally:
         conn.close()
 
+def get_unique_client_code_from_floorsheet():
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT clientcode
+                FROM floorsheet ORDER BY clientcode ASC;
+                """
+            )
+            rows = cur.fetchall()
+
+            # This will include all columns from the DB exactly as they are
+            df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
+
+            return df
+    except Exception as e:
+        print("Error fetching transactions:", e)
+        raise
+    finally:
+        conn.close()
+
 
 
 def fetch_top_brokers_by_date(start_date, end_date) -> pd.DataFrame:
@@ -1047,18 +1069,44 @@ def transfer_bulk_clients(from_rm: str, to_rm: str, to_rm_full_name: str):
         return 0
 
 
-def get_due_list(selected_date):
+# def get_due_list(selected_date):
+#     query = """
+#         SELECT *
+#         FROM due_list
+#         WHERE to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::date = %s
+#           AND to_char(to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM'), 'AM') = 'PM';
+#     """
+
+#     try:
+#         conn = get_connection()
+#         cur = conn.cursor()
+#         cur.execute(query, (selected_date,))   # ✅ pass date here
+#         rows = cur.fetchall()
+#         cols = [desc[0] for desc in cur.description]
+#         cur.close()
+#         conn.close()
+
+#         return pd.DataFrame(rows, columns=cols)
+
+#     except Exception as e:
+#         print("DB Error:", e)
+#         return pd.DataFrame()
+
+
+
+def get_due_list(selected_start_date: date, selected_end_date: date):
     query = """
         SELECT *
         FROM due_list
-        WHERE to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::date = %s
+        WHERE to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::date BETWEEN %s AND %s
           AND to_char(to_timestamp(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM'), 'AM') = 'PM';
     """
 
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(query, (selected_date,))   # ✅ pass date here
+        # ✅ pass both start and end dates
+        cur.execute(query, (selected_start_date, selected_end_date))
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         cur.close()
@@ -1069,6 +1117,9 @@ def get_due_list(selected_date):
     except Exception as e:
         print("DB Error:", e)
         return pd.DataFrame()
+
+
+
     
 
 

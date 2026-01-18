@@ -74,104 +74,127 @@ class PayableAndReceivable:
         floorsheet_df['sebon_comm'] = floorsheet_df['broker_comm'] * 0.006
         floorsheet_df['tds'] = floorsheet_df['broker_comm'] * 0.12
 
+        st.dataframe(floorsheet_df)
         total_tds = floorsheet_df['tds'].sum()
+        # total_tds = floorsheet_df['tds'].sum()
+        total_nepse_comm_buy = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "BUY", "stockcomm"].sum()
+        total_sebon_comm_buy = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "BUY", "sebon_comm"].sum()
+        total_sebon_comm_sell = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "SELL", "sebon_comm"].sum()
+        total_nepse_comm_sell= floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "SELL", "stockcomm"].sum()
         # st.header(f"TDS Buy/sell total: {total_tds}")
         # st.dataframe(floorsheet_df)
 
         buy_mask = floorsheet_df["transaction_type"].str.upper() == "BUY"
         sell_mask = floorsheet_df["transaction_type"].str.upper() == "SELL"
 
-        total_buy_floorsheet = floorsheet_df.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]].fillna(0).sum().sum()
+        # total_buy_floorsheet = floorsheet_df.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]].fillna(0).sum().sum()
 
-        total_sell_floorsheet = (floorsheet_df.loc[sell_mask, "amount"].fillna(0).sum() -
-                                 floorsheet_df.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
+        # total_sell_floorsheet = (floorsheet_df.loc[sell_mask, "amount"].fillna(0).sum() -
+        #                          floorsheet_df.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
+        total_buy_floorsheet = floorsheet_df['amount'].sum()
+        total_sell_floorsheet = floorsheet_df['amount'].sum()
         
-
+        total_buy_floorsheet = total_buy_floorsheet + total_nepse_comm_buy + total_sebon_comm_buy
+        total_sell_floorsheet = total_sell_floorsheet - total_nepse_comm_sell - total_sebon_comm_sell
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        if self.selected_date == today_date:
+            st.info(f"Today date is selected.")
         col1,col2 = st.columns(2)
         with col1:
             st.error(f"Total Buy: {float(total_buy_floorsheet):,.2f}")
         with col2:
             st.success(f"Total sell: {float(total_sell_floorsheet):,.2f}")
-        st.markdown("---")
-        st.header("Reference", anchor=False)
-        st.subheader("Book closure data that is in range of start_date and end_date")
-        st.badge(f"Total BC: {len(book_closure_df)}")
-        book_closure_df.index = book_closure_df.index + 1
-        st.dataframe(book_closure_df, width='stretch')
 
-        scripts = book_closure_df["script"].dropna().unique().tolist()
+        total_buy_bc = 0
+        total_sell_bc = 0
+        
 
-        filtered_df = floorsheet_df[floorsheet_df["symbol"].isin(scripts)]
+        if not book_closure_df.empty:
+            st.markdown("---")
+            st.header("Reference", anchor=False)
+            st.subheader("Book closure data that is in range of start_date and end_date")
+            st.badge(f"Total BC: {len(book_closure_df)}")
+            book_closure_df.index = book_closure_df.index + 1
+            st.dataframe(book_closure_df, width='stretch')
 
-        total_buy_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "amount"].sum()
-        total_sell_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "amount"].sum()
+            scripts = book_closure_df["script"].dropna().unique().tolist()
 
+            filtered_df = floorsheet_df[floorsheet_df["symbol"].isin(scripts)]
 
-        # st.header(f"bc_trans_script_buy_amount: {total_buy_bc:,.2f}")
-        # st.header(f"bc_trans_script_sell_amount: {total_sell_bc:,.2f}")
+            total_buy_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "amount"].sum()
+            total_sell_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "amount"].sum()
+        else:
+            st.info(f"Book closure data not found.", icon="ℹ️")
 
         floorsheet_buy_after = total_buy_floorsheet - total_buy_bc
         floorsheet_sell_after = total_sell_floorsheet - total_sell_bc
         col1, col2= st.columns(2)
         col3, col4 = st.columns(2)
 
-        with col1:
-            st.metric("BC Buy Amount", f"{total_buy_bc:,.2f}")
+       
+        if not book_closure_df.empty:
+            with col1:
+                st.metric("BC Buy Amount", f"{total_buy_bc:,.2f}")
 
-        with col2:
-            st.metric("BC Sell Amount", f"{total_sell_bc:,.2f}")
+            with col2:
+                st.metric("BC Sell Amount", f"{total_sell_bc:,.2f}")
+            with col3:
+                st.metric("Buy After BC Deduct", f"{floorsheet_buy_after:,.2f}")
 
-        with col3:
-            st.metric("Buy After BC Deduct", f"{floorsheet_buy_after:,.2f}")
+            with col4:
+                st.metric("Sell After BC Deduct", f"{floorsheet_sell_after:,.2f}")
 
-        with col4:
-            st.metric("Sell After BC Deduct", f"{floorsheet_sell_after:,.2f}")
-        # st.header(f"floorsheet_buy_amount_after_deducting_bc_trans_script: {floorsheet_buy_after:,.2f}")
-        # st.header(f"floorsheet_sell_amount_after_deducting_bc_trans_script: {floorsheet_sell_after:,.2f}")
 
-        st.markdown("---")
-        st.header(f"Book closure data with T0 date",anchor=False)
-        df_bc_t0.drop(columns=['id', 'created_at', 'updated_by', 'updated_at'], inplace=True)
+
+        if not df_bc_t0.empty:
+            st.markdown("---")
+            st.header(f"Book closure data with T0 date",anchor=False)
+            df_bc_t0.drop(columns=['id', 'created_at', 'updated_by', 'updated_at'], inplace=True)
+            
+            df_bc_t0.index = df_bc_t0.index + 1
+            st.dataframe(df_bc_t0)
+
+            st.markdown("---")
+            st.header(f"Book closure data with range of start_date and end_date", anchor=False)
+            df_list = []
+            for _, row in df_bc_t0.iterrows():
+                df_range = self.get_floorsheet_by_script_and_date_range(str(row["script"]), str(row["start_date"]), str(row["end_date"]))
+                if not df_range.empty:
+                    df_list.append(df_range)
+
+            df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
+            st.badge(f"Total data: {len(df_holder)}")
+            
+            df_holder.drop(columns=["id"], inplace=True)
+
+            df_holder.index = df_holder.index + 1
+            st.dataframe(df_holder, width='stretch')
+
+            total_buy_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "BUY", "amount"].sum()
+            total_sell_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "SELL", "amount"].sum()
+
+            final_buy = total_buy_bc_t0 + floorsheet_buy_after
+            final_sell = total_sell_bc_t0 + floorsheet_sell_after
+
+            st.markdown("---")
+
+            net_amount = (final_buy - final_sell) + total_tds
+            st.badge(f"Total TDS: {total_tds:,.2f}", color="green")
         
-        df_bc_t0.index = df_bc_t0.index + 1
-        st.dataframe(df_bc_t0)
-
-        st.markdown("---")
-        st.header(f"Book closure data with range of start_date and end_date", anchor=False)
-        df_list = []
-        for _, row in df_bc_t0.iterrows():
-            df_range = self.get_floorsheet_by_script_and_date_range(str(row["script"]), str(row["start_date"]), str(row["end_date"]))
-            if not df_range.empty:
-                df_list.append(df_range)
-
-        df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
-        st.badge(f"Total data: {len(df_holder)}")
-        
-        df_holder.drop(columns=["id"], inplace=True)
-
-        df_holder.index = df_holder.index + 1
-        st.dataframe(df_holder, width='stretch')
-
-        total_buy_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "BUY", "amount"].sum()
-        total_sell_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "SELL", "amount"].sum()
-
-        final_buy = total_buy_bc_t0 + floorsheet_buy_after
-        final_sell = total_sell_bc_t0 + floorsheet_sell_after
-
-        st.markdown("---")
-
-        net_amount = (final_buy - final_sell) + total_tds
-        st.badge(f"Total TDS: {total_tds:,.2f}", color="green")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Floorsheet Buy (with T0)", f"{final_buy:,.2f}")
-        with col2:   
-            st.metric("Floorsheet Sell (with T0)", f"{final_sell:,.2f}")
-
-        if net_amount<0:
-            st.metric("Final Amount (Receivable)", f"{net_amount:,.2f}", border=True)
         else:
-            st.metric("Final Amount (Payable)", f"{net_amount:,.2f}", border=True)
+            col1, col2 = st.columns(2)
+            # st.warning(f"tetst")
+            with col1:
+                st.metric("Floorsheet Buy", f"{floorsheet_buy_after:,.2f}")
+            with col2:   
+                st.metric("Floorsheet Sell", f"{floorsheet_sell_after:,.2f}")
+
+            net_amount = (floorsheet_sell_after - floorsheet_buy_after)
+
+            if net_amount<0:
+                st.metric("Final Amount (Payable)", f"{net_amount - total_tds:,.2f}", border=True)
+            else:
+                st.metric("Final Amount (Receivable)", f"{net_amount + total_tds:,.2f}", border=True)
 
 
     def uat_page_friday(self):

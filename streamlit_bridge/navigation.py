@@ -135,6 +135,9 @@ def render_sidebar():
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
+        with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
+            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
+
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")

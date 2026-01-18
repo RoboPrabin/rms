@@ -153,7 +153,7 @@ class DueList:
             df["uploaded_at_dt"] = pd.to_datetime(
                 df["uploaded_at"],
                 errors="coerce",
-                infer_datetime_format=True
+                format="%Y-%m-%d %I:%M:%S %p",  
             )
 
             df_filtered = df[
