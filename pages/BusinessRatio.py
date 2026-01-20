@@ -344,8 +344,8 @@ class BusinessRatio:
         final_df['expectedTimes'] = (total_expected_times/total_days) * period
         final_df['Performance in Times'] = (final_df['total']/final_df['todayAdjustBalanceDueAmount']) * period
 
-        final_df['expectationmet'] = (final_df['expectedTimes'] >= final_df['Performance in Times']).map({True: "YES", False: "NO"})
-        final_df['Sortage/Exceed By Times'] = final_df["expectedTimes"] - final_df['Performance in Times'] 
+        final_df['expectationmet'] = (final_df['expectedTimes'] >= final_df['Performance in Times']).map({True: "NO", False: "YES"})
+        final_df['Sortage/Exceed By Times'] = final_df['Performance in Times'] - final_df["expectedTimes"]
 
         column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedTimes", "Performance in Times" ,"expectationmet", "Sortage/Exceed By Times"]
         final_df = final_df[column_order]
