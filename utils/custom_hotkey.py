@@ -1,4 +1,5 @@
 # custom_hotkey.py
+from config import config
 from db import db
 from utils import helper
 from utils.formatting import *
@@ -33,8 +34,10 @@ def get_account_code(token, nepse_code):
         params={"nepseCode": nepse_code},
         timeout=30
     )
-    resp.raise_for_status()
-    return resp.json()
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        return resp.status_code
 
 
 def get_ledger(token, ac_code, date_from, date_to):
@@ -108,8 +111,14 @@ def activate_client_code_hotkey():
                         from_date_str = from_date.strftime("%Y-%m-%d")
                         to_date_str = to_date.strftime("%Y-%m-%d")
 
-                        token = db.get_jwt_token()
-                        ac_code = get_account_code(token, client_code)
+                        while True:
+                            token = db.get_jwt_token()
+                            ac_code = get_account_code(token, client_code)
+                            if ac_code == 401:
+                                new_token = get_token(username=config.dg_api_userName, password=config.dg_api_password)
+                                db.store_jwt_token(jwt_value=new_token)
+                            elif ac_code != 401:
+                                break
                         ledger = get_ledger(token, ac_code, from_date_str, to_date_str)
                         st.session_state["ledger_dialog_data"] = ledger
                         rm_name, client_name = get_rm_and_client_name(client_code)

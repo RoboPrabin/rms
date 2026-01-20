@@ -1,3 +1,4 @@
+import test_copy
 from utils.formatting import *
 from datetime import date
 from time import sleep
@@ -9,6 +10,7 @@ from db import db
 from sqlalchemy import create_engine, text
 from utils import helper
 import requests
+from config import config
 # ---------------- CONFIG ----------------
 BASE_API = "https://dgtrade.trishakti.com.np:8080/bom/"
 LOGIN_API = BASE_API + "tp-data/authenticate"
@@ -38,9 +40,10 @@ def get_account_code(token, nepse_code):
         params={"nepseCode": nepse_code},
         timeout=30
     )
-    # if resp.status_code == 200:
-    # resp.raise_for_status()
-    return resp.json()
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        return resp.status_code
 
 def get_ledger(token, ac_code, date_from, date_to):
     resp = requests.get(
@@ -100,22 +103,28 @@ class InterestCalculation:
                     return
 
                 with st.spinner("Fetching ledger…"):
-                    # try:
+                    try:
                         from_date_str = from_date.strftime("%Y-%m-%d")
                         to_date_str = to_date.strftime("%Y-%m-%d")
 
-                        token = db.get_jwt_token()
-                        ac_code = get_account_code(token, client_code)
-                        print(ac_code)
+                        while True:
+                            token = db.get_jwt_token()
+                            ac_code = get_account_code(token, client_code)
+                            if ac_code == 401:
+                                new_token = get_token(username=config.dg_api_userName, password=config.dg_api_password)
+                                db.store_jwt_token(jwt_value=new_token)
+                            elif ac_code != 401:
+                                break
+                          
                         ledger = get_ledger(token, ac_code, from_date_str, to_date_str)
                         st.session_state["ledger_dialog_data"] = ledger
                         rm_name, client_name = get_rm_and_client_name(client_code)
                         st.session_state['rm_name'] = rm_name
                         st.session_state['client_name'] = client_name
                         st.session_state['client_code'] = client_code
-                    # except Exception as e:
-                    #     st.error(f"Client Code: '{client_code.upper()}' not found")
-                    #     return
+                    except Exception as e:
+                        st.error(f"Client Code: '{client_code.upper()}' not found")
+                        return
 
         if "ledger_dialog_data" in st.session_state:
             ledger = st.session_state["ledger_dialog_data"]
@@ -154,7 +163,6 @@ class InterestCalculation:
             unsafe_allow_html=True
         )
 
-            # st.subheader("📖 Ledger Transactions", anchor=False)
             data_rows = ledger.get("data", [])
             if data_rows:
                 df = pd.DataFrame(data_rows)
@@ -164,6 +172,7 @@ class InterestCalculation:
                 ]
                 number_cols = ["Dr", "Cr", "Balance"]
                 df = df[[c for c in ordered_cols if c in df.columns]]
+                df_for_ageing = df
                 df.columns = df.columns.str.upper()
                 df.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
                 df = coerce_numeric_columns(df, number_cols)
@@ -177,7 +186,51 @@ class InterestCalculation:
                     total_cr = df['Cr'].sum()
                     st.badge(f"Total Cr Amount: {total_cr:,.2f}")
                 styled_df = df.style.format(accounting_format, subset=number_cols).map(highlight_negative, subset=number_cols)
-                st.dataframe(styled_df, width='content', hide_index=True)
+                st.subheader("📒 Main Ledger", anchor=False)
+                st.dataframe(styled_df, width='stretch', hide_index=True)
+                
+                
+                st.divider()
+                st.subheader("📄 Bill Ageing", anchor=False)
+                with st.spinner(text="Calculating bill ageing",show_time=True):
+                    df_new = test_copy.main(df=df_for_ageing)
+                    df_new["Ageing"] = pd.to_timedelta(df_new["Ageing"], errors="coerce")
+                    df_new["Ageing"] = df_new["Ageing"].dt.days.where(df_new["Ageing"].notna(), df_new["Ageing"])
+
+                    # Extract only the number of days
+                    
+                    df_new.index = df_new.index + 1
+                    # print(df_new.columns)
+                    number_cols = ["Dr", "Cr"]
+
+                    # Force conversion to numeric, invalid parsing becomes NaN
+                    df_new[number_cols] = df_new[number_cols].apply(pd.to_numeric, errors="coerce")
+                    df_new['Interest Rate'] = None
+                    df_new['Interest Amount'] = None
+                    df_new["Action"] = None
+                    df_new['Particulars'] = df_new['Particulars'].fillna("None")
+
+                    # Apply slabs
+                    # df_new.loc[df_new["Ageing"].between(0, 7, inclusive="both"), "Interest Rate"] = 10
+                    # df_new.loc[df_new["Ageing"].between(8, 15, inclusive="both"), "Interest Rate"] = 12
+                    # df_new.loc[df_new["Ageing"].between(16, 30, inclusive="both"), "Interest Rate"] = 18
+                    # 0–7 days
+                    df_new.loc[df_new["Ageing"].between(0, 7, inclusive="both"),["Interest Rate", "Action"]] = [10, "Interest Zone"]
+                    # 8–15 days
+                    df_new.loc[df_new["Ageing"].between(8, 15, inclusive="both"),["Interest Rate", "Action"]] = [12, "Interest Zone"]
+                    # 16–30 days
+                    df_new.loc[df_new["Ageing"].between(16, 30, inclusive="both"),["Interest Rate", "Action"]] = [18, "Interest Zone"]
+
+                    df_new.loc[df_new["Ageing"] > 30, "Action"] = "Need Cash / Sell Stocks"
+                    df_new["Interest Amount"] = (df_new["Dr"].fillna(0) * df_new["Interest Rate"] / 100)
+
+                    styled_df = df_new.style.format({
+                        "Ageing": lambda x: "-" if pd.isna(x) else f"{int(x)}",
+                        "Interest Amount": lambda x: "-" if pd.isna(x) else f"{float(x):,.2f}",
+                        "Dr": accounting_format,
+                        "Cr": accounting_format
+                    })
+                    st.dataframe(styled_df)
             else:
                 st.warning("No ledger transactions found.")
     
