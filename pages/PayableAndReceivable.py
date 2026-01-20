@@ -73,29 +73,40 @@ class PayableAndReceivable:
         floorsheet_df['broker_comm'] = floorsheet_df['amount'].apply(self.calculate_commission)
         floorsheet_df['sebon_comm'] = floorsheet_df['broker_comm'] * 0.006
         floorsheet_df['tds'] = floorsheet_df['broker_comm'] * 0.12
-
+        floorsheet_df.drop(columns=['id'], inplace=True)
+        floorsheet_df.index = floorsheet_df.index  + 1
         st.dataframe(floorsheet_df)
-        total_tds = floorsheet_df['tds'].sum()
+        tds_buy = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "BUY", "tds"].sum()
+        tds_sell = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "SELL", "tds"].sum()
+
+
+        total_tds = tds_buy + tds_sell
         # total_tds = floorsheet_df['tds'].sum()
         total_nepse_comm_buy = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "BUY", "stockcomm"].sum()
+        total_nepse_comm_sell= floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "SELL", "stockcomm"].sum()
+
         total_sebon_comm_buy = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "BUY", "sebon_comm"].sum()
         total_sebon_comm_sell = floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "SELL", "sebon_comm"].sum()
-        total_nepse_comm_sell= floorsheet_df.loc[floorsheet_df["transaction_type"].str.upper() == "SELL", "stockcomm"].sum()
-        # st.header(f"TDS Buy/sell total: {total_tds}")
-        # st.dataframe(floorsheet_df)
+
 
         buy_mask = floorsheet_df["transaction_type"].str.upper() == "BUY"
         sell_mask = floorsheet_df["transaction_type"].str.upper() == "SELL"
 
-        # total_buy_floorsheet = floorsheet_df.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]].fillna(0).sum().sum()
+        total_buy_floorsheet = floorsheet_df.loc[buy_mask, ["amount", "stockcomm", "sebon_comm"]].fillna(0).sum().sum()
 
-        # total_sell_floorsheet = (floorsheet_df.loc[sell_mask, "amount"].fillna(0).sum() -
-        #                          floorsheet_df.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
-        total_buy_floorsheet = floorsheet_df['amount'].sum()
-        total_sell_floorsheet = floorsheet_df['amount'].sum()
+        total_sell_floorsheet = (floorsheet_df.loc[sell_mask, "amount"].fillna(0).sum() -
+                                 floorsheet_df.loc[sell_mask, ["stockcomm", "sebon_comm"]].fillna(0).sum().sum())
         
+        # st.write(f"Nepse Buy commission: {total_nepse_comm_buy}")
+        # st.write(f"Nepse Sell commission: {total_nepse_comm_sell}")
+        # st.write(f"Sebon buy commission: {total_sebon_comm_buy}")
+        # st.write(f"Sebon Sell commission: {total_sebon_comm_sell}")
+        # st.write(f"TDS buy: {tds_buy}")
+        # st.write(f"TDS sell: {tds_sell}")
+
         total_buy_floorsheet = total_buy_floorsheet + total_nepse_comm_buy + total_sebon_comm_buy
         total_sell_floorsheet = total_sell_floorsheet - total_nepse_comm_sell - total_sebon_comm_sell
+
         today_date = datetime.now().strftime("%Y-%m-%d")
         if self.selected_date == today_date:
             st.info(f"Today date is selected.")
@@ -121,15 +132,36 @@ class PayableAndReceivable:
 
             filtered_df = floorsheet_df[floorsheet_df["symbol"].isin(scripts)]
 
-            total_buy_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "amount"].sum()
-            total_sell_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "amount"].sum()
+            bc_nepse_comm_buy = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "stockcomm"].sum()
+            bc_sebon_comm_buy = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "sebon_comm"].sum()
+            bc_tds_buy = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "tds"].sum()
+            
+            bc_nepse_comm_sell = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "stockcomm"].sum()
+            bc_sebon_comm_sell = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "sebon_comm"].sum()
+            bc_tds_sell = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "tds"].sum()
+
+            total_buy_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "BUY", "amount"].sum() + bc_nepse_comm_buy + bc_sebon_comm_buy + bc_tds_buy
+            total_sell_bc = filtered_df.loc[filtered_df["transaction_type"].str.upper() == "SELL", "amount"].sum() - bc_nepse_comm_sell + bc_sebon_comm_sell + bc_tds_sell
+
+
+            # st.write(f"BC BUY nepse commission: {bc_nepse_comm_buy}")
+            # st.write(f"BC BUY SEBON commission: {bc_sebon_comm_buy}")
+            # st.write(f"BC TDS BUY : {bc_tds_buy}")
+            # st.write(f"BC SELL nepse commission: {bc_nepse_comm_sell}")
+            # st.write(f"BC SELL SEBON commission: {bc_sebon_comm_sell}")
+            st.write(f"BC TDS SELL : {bc_tds_sell}")
         else:
             st.info(f"Book closure data not found.", icon="ℹ️")
-
-        floorsheet_buy_after = total_buy_floorsheet - total_buy_bc
-        floorsheet_sell_after = total_sell_floorsheet - total_sell_bc
-        col1, col2= st.columns(2)
-        col3, col4 = st.columns(2)
+        try:
+            floorsheet_buy_after = (total_buy_floorsheet - total_buy_bc)- bc_nepse_comm_buy - bc_sebon_comm_buy - bc_tds_buy
+            floorsheet_sell_after = (total_sell_floorsheet - total_sell_bc) - bc_nepse_comm_sell - bc_sebon_comm_sell - bc_tds_sell
+            col1, col2= st.columns(2)
+            col3, col4 = st.columns(2)
+        except Exception as e:
+            floorsheet_buy_after = total_buy_floorsheet - total_buy_bc 
+            floorsheet_sell_after = total_sell_floorsheet - total_sell_bc
+            col1, col2= st.columns(2)
+            col3, col4 = st.columns(2)
 
        
         if not book_closure_df.empty:
@@ -145,6 +177,11 @@ class PayableAndReceivable:
                 st.metric("Sell After BC Deduct", f"{floorsheet_sell_after:,.2f}")
 
 
+        # st.divider()
+        # st.write(f"Total Nepse comm - total bc nepse comm BUY: {total_nepse_comm_buy - bc_nepse_comm_buy}")
+        # st.write(f"Total Nepse comm - total bc nepse comm SELL: {total_nepse_comm_sell - bc_nepse_comm_sell}")
+        # st.write(f"Total TDS - total bc TDS BUY: {tds_buy - bc_tds_buy}")
+        # st.write(f"Total TDS - total bc TDS SELL: {tds_sell - bc_tds_sell}")
 
         if not df_bc_t0.empty:
             st.markdown("---")

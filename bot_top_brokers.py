@@ -102,10 +102,11 @@ def get_today_data():
     }
 
     response = requests.get('https://www.sharesansar.com/top-brokers', params=params, headers=headers)
+    print(response.text)
     if response.status_code == 200:
         data = response.json()['data']
         df = pd.DataFrame(data)
-        df.to_sql("top-brokers", engine, if_exists='append',index=False)
+        df.to_sql("top_brokers", engine, if_exists='append',index=False)
     else:
         print("Failed to fetch data.")
 
@@ -194,7 +195,7 @@ def get_all_data():
         return  pd.DataFrame(data)
 
     all_dfs = []
-    start_date = datetime(2025, 7, 17)
+    start_date = datetime(2026, 1, 7)
     # end_date = datetime(2025, 7, 28)
     end_date = datetime.today()  # or a fixed date, e.g., datetime(2026, 1, 5)
     current_date = start_date
@@ -211,7 +212,8 @@ def get_all_data():
     # ---------------------------
     if all_dfs:
         final_df = pd.concat(all_dfs, ignore_index=True)
-        final_df.to_sql('top_brokers', engine, if_exists='replace', index=False)
+        final_df.to_sql('top_brokers', engine, if_exists='append', index=False)
+        # final_df.to_sql('top_brokers', engine, if_exists='replace', index=False)
         print(f"Done! Appended {len(final_df)} rows to 'top_brokers'.")
     else:
         print("No data fetched for any date.")
@@ -219,3 +221,4 @@ def get_all_data():
 
 if __name__ == "__main__":
     get_today_data()
+    # get_all_data()

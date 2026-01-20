@@ -13,6 +13,7 @@ unverified_trans_url = base_path + "UnverifiedTransactions.py"
 
 
 cache_url = base_path + "Cache.py" 
+interest_calc_url = base_path + "InterestCalculation.py" 
 bro_targets_and_achievements_url = base_path + "BROTargetsAndAchievements.py" 
 live_holdings_url = base_path + "LiveHoldings.py" 
 live_rm_performance_url = base_path + "LiveRmPerformancePage.py" 

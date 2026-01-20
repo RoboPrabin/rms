@@ -40,27 +40,80 @@ def get_floorsheet_by_date(selected_start_date: date, selected_end_date: date):
 
 
 
-# ✔ Cache branch summary per date
+# # ✔ Cache branch summary per date
+# @st.cache_data(ttl=1600)
+# def compute_branch_summary( df: pd.DataFrame):
+#     if "branch" not in df.columns:
+#         return pd.DataFrame()
+
+#     def branch_summary_func(g):
+#         buy = g["transaction_type"] == "Buy"
+#         sell = g["transaction_type"] == "Sell"
+#         return pd.Series({
+#             "purchase_turnover": g.loc[buy, "amount"].sum(),
+#             "sales_turnover": g.loc[sell, "amount"].sum(),
+#             "total": g["amount"].sum(),
+#         })
+
+#     df2 = (
+#             df.groupby("branch", group_keys=False, observed=True)
+#             .apply(lambda g: branch_summary_func(g), include_groups=False)
+#             .reset_index()
+#         )
+#     return df2
+
+
+
+# @st.cache_data(ttl=1600)
+# def compute_branch_summary(df: pd.DataFrame):
+#     if "branch" not in df.columns:
+#         return pd.DataFrame()
+
+#     def branch_summary_func(g):
+#         buy = g["transaction_type"] == "Buy"
+#         sell = g["transaction_type"] == "Sell"
+#         return pd.Series({
+#             "purchase_turnover": g.loc[buy, "amount"].mean(),
+#             "sales_turnover": g.loc[sell, "amount"].mean(),
+#             "total": g["amount"].mean(),
+#         })
+
+#     df2 = (
+#         df.groupby("branch", group_keys=False, observed=True)
+#         .apply(lambda g: branch_summary_func(g), include_groups=False)
+#         .reset_index()
+#     )
+#     return df2
+
 @st.cache_data(ttl=1600)
-def compute_branch_summary( df: pd.DataFrame):
-    if "branch" not in df.columns:
+def compute_branch_summary(df: pd.DataFrame) -> pd.DataFrame:
+    required_cols = {"branch", "transaction_type", "amount", "quantity"}
+    if not required_cols.issubset(df.columns):
         return pd.DataFrame()
 
-    def branch_summary_func(g):
-        buy = g["transaction_type"] == "Buy"
-        sell = g["transaction_type"] == "Sell"
-        return pd.Series({
-            "purchase_turnover": g.loc[buy, "amount"].sum(),
-            "sales_turnover": g.loc[sell, "amount"].sum(),
-            "total": g["amount"].sum(),
-        })
+    df = df.copy()
 
-    df2 = (
-            df.groupby("branch", group_keys=False, observed=True)
-            .apply(lambda g: branch_summary_func(g), include_groups=False)
-            .reset_index()
-        )
-    return df2
+    df["buy_amount"] = df["amount"].where(df["transaction_type"] == "Buy")
+    df["sell_amount"] = df["amount"].where(df["transaction_type"] == "Sell")
+    df["weighted_amount"] = df["amount"] * df["quantity"]
+
+    summary = (
+        df.groupby("branch", observed=True)
+          .agg(
+              purchase_turnover=("buy_amount", "mean"),
+              sales_turnover=("sell_amount", "mean"),
+              total_weighted=("weighted_amount", "sum"),
+              total_qty=("quantity", "sum"),
+          )
+          .reset_index()
+    )
+
+    summary["total"] = summary["total_weighted"] / summary["total_qty"]
+    summary["total"] = summary["total"].fillna(0)
+
+    return summary.drop(columns=["total_weighted", "total_qty"])
+
+
 
 class BusinessRatio:
     def __init__(self):
@@ -221,6 +274,7 @@ class BusinessRatio:
     def show_range_ui(self):
         mode_range = st.radio("View", ['7 Days', '15 Days', '1 Month', '3 Months', '6 Months', 'YTD'], horizontal=True)
         today = date.today()
+        
         if mode_range == '7 Days':
             selected_start_date = today - timedelta(days=7)
             selected_end_date = today
@@ -239,8 +293,9 @@ class BusinessRatio:
         elif mode_range == 'YTD':
             selected_start_date = date(2025, 7, 17)
             selected_end_date = today
+        period = (selected_end_date - selected_start_date).days
 
-        st.caption(f"Start Date: {selected_start_date} | End Date: {selected_end_date}")
+        st.caption(f"Start Date: {selected_start_date} | End Date: {selected_end_date} | Period: {period} days")
         
         df = get_floorsheet_by_date(selected_start_date,selected_end_date)
         if df.empty:
@@ -253,11 +308,17 @@ class BusinessRatio:
             st.error(f"Evening Due list not found. Please contact your admin.", icon="🚨")
             st.stop()
 
+        # branch_due_df = (
+        #         evening_duelist
+        #             .groupby("branch", as_index=False)
+        #             .agg(todayAdjustBalanceDueAmount=("adjustedBalance", "sum"))
+        #     )
+
         branch_due_df = (
-                evening_duelist
-                    .groupby("branch", as_index=False)
-                    .agg(todayAdjustBalanceDueAmount=("adjustedBalance", "sum"))
-            )
+            evening_duelist
+                .groupby("branch", as_index=False)
+                .agg(todayAdjustBalanceDueAmount=("adjustedBalance", "mean"))
+        )
 
         final_df = (
                 display_df
@@ -272,32 +333,39 @@ class BusinessRatio:
                 .fillna(0)
         )
 
-        final_df["volumeRequired"] = final_df["todayAdjustBalanceDueAmount"] * 100
-        final_df["tradeVolume"] = final_df["total"] * 220
-        final_df["opportunityCost"] = final_df["total"] * 40
-        final_df['expectedVolume'] = final_df["volumeRequired"] / 220
-        final_df['expectationmet'] = (final_df['total'] > final_df['expectedVolume']).map({True: "YES", False: "NO"})
-        final_df['Sortage/Exceed By'] = final_df["total"] - final_df['expectedVolume']
+        # final_df["volumeRequired"] = final_df["todayAdjustBalanceDueAmount"] * 100
+        # final_df["tradeVolume"] = final_df["total"] * total_days
+        # final_df["opportunityCost"] = final_df["total"] * 40
+        # final_df['expectedVolume'] = final_df["volumeRequired"] / 220
+        # final_df['expectationmet'] = (final_df['total'] > final_df['expectedTimes']).map({True: "YES", False: "NO"})
 
-        column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "expectationmet"  ,"volumeRequired", "tradeVolume", "opportunityCost", "Sortage/Exceed By"]
+        total_days = 365
+        total_expected_times = 120
+        final_df['expectedTimes'] = (total_expected_times/total_days) * period
+        final_df['Performance in Times'] = (final_df['total']/final_df['todayAdjustBalanceDueAmount']) * period
+
+        final_df['expectationmet'] = (final_df['expectedTimes'] >= final_df['Performance in Times']).map({True: "YES", False: "NO"})
+        final_df['Sortage/Exceed By Times'] = final_df["expectedTimes"] - final_df['Performance in Times'] 
+
+        column_order = ["branch","purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedTimes", "Performance in Times" ,"expectationmet", "Sortage/Exceed By Times"]
         final_df = final_df[column_order]
-        numeric_cols = ["purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedVolume", "Sortage/Exceed By"]  
-        final_df.drop(columns=["volumeRequired", "tradeVolume", "opportunityCost"], inplace= True)
+        numeric_cols = ["purchase_turnover", "sales_turnover", "total", "todayAdjustBalanceDueAmount", "expectedTimes", "Performance in Times","Sortage/Exceed By Times"]  
         final_df = coerce_numeric_columns(final_df, numeric_cols)
         final_df.sort_values(by="total", inplace=True, ascending=False)
         final_df.reset_index(inplace=True, drop=True)
         
         rename_map = {
             "branch": "Branch",
-            "purchase_turnover": "Purchase Turnover",
-            "sales_turnover": "Sales Turnover",
-            "total": "Total",
-            "volumeRequired": "Volume Required (Yearly)",
+            "purchase_turnover": "Average Buy",
+            "sales_turnover": "Average Sell",
+            "total": "Average Turnover",
+            # "volumeRequired": "Volume Required (Yearly)",
             "tradeVolume": "Trade Volume",
             "opportunityCost": "Opportunity Cost",
-            "todayAdjustBalanceDueAmount": "Adjusted Balance Due Amount",
-            "expectedVolume": "Expected Volume",
-            "expectationmet": "Expectation Met"
+            "todayAdjustBalanceDueAmount": "Average Adjusted Due",
+            "expectedTimes": "Expected Times",
+            "expectationmet": "Expectation Met",
+            # "Performance in Times":"Performance in Times"
         }
 
         final_df.rename(columns=rename_map, inplace=True)

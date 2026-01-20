@@ -1,20 +1,25 @@
-# custom_hotkey.py
-from db import db
-from utils import helper
 from utils.formatting import *
 from datetime import date
-import streamlit as st
-import streamlit_hotkeys as hotkeys
-import requests
+from time import sleep
 import pandas as pd
-
+import streamlit as st
+from streamlit_bridge.navigation import render_sidebar
+import streamlit_bridge.app_state as app_state
+from db import db
+from sqlalchemy import create_engine, text
+from utils import helper
+import requests
 # ---------------- CONFIG ----------------
 BASE_API = "https://dgtrade.trishakti.com.np:8080/bom/"
 LOGIN_API = BASE_API + "tp-data/authenticate"
 AC_CODE_API = BASE_API + "tp-data/account/by-nepse"
 LEDGER_API = BASE_API + "tp-data/account/ledger"
 
-# st.set_page_config(page_title="Custom Hotkeys", layout="wide")
+@st.cache_data(ttl=3200)
+def get_rm_and_client_name(client_code):
+    rm_name, client_name = db.get_table_rm_child_map_with_client_code(client_code=client_code)
+    return rm_name, client_name
+
 # ---------------- API HELPERS ----------------
 def get_token(username, password):
     resp = requests.post(
@@ -36,7 +41,6 @@ def get_account_code(token, nepse_code):
     resp.raise_for_status()
     return resp.json()
 
-
 def get_ledger(token, ac_code, date_from, date_to):
     resp = requests.get(
         LEDGER_API,
@@ -52,36 +56,27 @@ def get_ledger(token, ac_code, date_from, date_to):
     return resp.json()
 
 
-@st.cache_data(ttl=3200)
-def get_rm_and_client_name(client_code):
-    rm_name, client_name = db.get_table_rm_child_map_with_client_code(client_code=client_code)
-    return rm_name, client_name
+class InterestCalculation:
+    def __init__(self):
+        # helper.eliminate_top_padding()
+        st.session_state.active_menu = "user"
+        st.set_page_config(page_title="Interest Calculation", page_icon="🧩", layout="wide")
+        app_state.restore_state_from_query_params()
+        app_state.sync_query_params_from_session()
+        app_state.check_authenticaiton_state()
+        self.username, self.role = app_state.get_current_user_info()
+        st.header("🧩 Interest Calculation", anchor=False)
 
-# ---------------- HOTKEY + DIALOG ----------------
-def activate_client_code_hotkey():
-    # Completely invisible hidden button with shortcut
-    st.markdown("""
-    <style>
-        div[data-testid="stButton"] > button[kind="tertiary"] {
-            visibility: hidden;
-            height: 0px;
-            padding: 0;
-            margin: 0;
-            min-height: 0;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+        render_sidebar()
+        self.holding_engine = create_engine(helper.get_holding_engine())
+        self.dg_api_token = db.get_jwt_token()
 
-    if st.button("", shortcut="Ctrl+L", key="hidden_open_ledger", type='tertiary'):
-        st.session_state.show_ledger_dialog = True
-
-    # Decorated dialog function
-    @st.dialog("Client Ledger", width='large')
-    def client_ledger_dialog():
+    def render_page(self):
         with st.form("ledger_form"):
             col1, col2, col3 = st.columns(3)
             with col1:
                 client_code = st.text_input("Client Code (NEPSE)", value=st.session_state.get('client_code', '')).upper()
+                
 
             with col2:
                 from_date = st.date_input(
@@ -183,31 +178,27 @@ def activate_client_code_hotkey():
                 st.dataframe(styled_df, width='content', hide_index=True)
             else:
                 st.warning("No ledger transactions found.")
+    
+    
+    
+    # def render_page(self):
+    #     col1, col2, col3 = st.columns(3)
+    #     with col1:
+    #         client_code = st.text_input("Client Code")
+    #     with col2:
+    #         date_from = st.date_input("From Date", value='2025-07-17')
+    #     with col3:
+    #         date_to = st.date_input("To Date", value='today')
+    #     submit_btn = st.button("Submit")
+    #     if submit_btn:
+    #         acc_code = get_account_code(token=self.dg_api_token, nepse_code=client_code.upper())
+    #         response = get_ledger(token=self.dg_api_token, ac_code=acc_code, date_from=date_from, date_to=date_to)
+    #         df = pd.DataFrame(response['data'])
+    #         st.dataframe(df)
+    #         st.json(response)
+   
 
-            if ubilled:
-                st.divider()
-                st.subheader("📌 Unbilled Transactions", anchor=False)
-                df_ub = pd.DataFrame(ubilled)
-                ub_cols = ["transactionDate", "particulars", "debit", "credit", "balance", "tr"]
-                num_cols = ["Debit", "Credit", "Balance"]
-                df_ub = df_ub[[c for c in ub_cols if c in df_ub.columns]]
-                df_ub.columns = df_ub.columns.str.upper()
-                df_ub.rename(columns=lambda x: helper.camel_to_title(x), inplace=True)
-                df_ub = coerce_numeric_columns(df_ub, num_cols)
-                df_ub.rename(columns={"Transactiondate": "Transaction Date"}, inplace=True)
-                df_ub.sort_values(by="Balance", ascending=False, inplace=True)
-                styled_df = df_ub.style.format(accounting_format, subset=num_cols).map(highlight_negative, subset=num_cols)
-                total_unbilled_transactions = df_ub['Balance'].sum()
-                st.badge(f"Unbilled Amount: {total_unbilled_transactions:,.2f}", color="blue")
-                st.dataframe(styled_df, use_container_width=True,  hide_index=True)
 
-    # Call dialog if triggered
-    if st.session_state.get("show_ledger_dialog"):
-        client_ledger_dialog()
-        # Cleanup automatically when dialog closes (Esc or click outside)
-        del st.session_state.show_ledger_dialog
-        if "ledger_dialog_data" in st.session_state:
-            del st.session_state["ledger_dialog_data"]
-            # del st.session_state['rm_name']
-            # del st.session_state['client_name']
-        # st.rerun()
+
+if __name__ == "__main__":
+    InterestCalculation().render_page()
