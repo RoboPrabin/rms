@@ -136,8 +136,7 @@ def render_sidebar():
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
 
-        with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
-            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
+        
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
@@ -154,7 +153,9 @@ def render_sidebar():
             st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
             st.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
 
-                                 
+        with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
+            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
+                                    
         with st.sidebar.expander("‎‎ ‎ User Management", icon="🤹🏻", expanded=(active_menu == "user")):
             st.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
             st.page_link(page_url.active_session_url, label="‎‎ ‎ Active Sessions", icon="🕓")
@@ -197,7 +198,8 @@ def render_sidebar():
             st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare Accounts", icon="📝")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
-
+        with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
+            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
 
         with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
             st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")

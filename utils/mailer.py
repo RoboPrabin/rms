@@ -7,11 +7,11 @@ from email.message import EmailMessage
 from typing import Optional
 
 
-sender_email: str = "prabin.chand@trishakti.com.np"
-sender_password: str = "papk nqvm bksx roqu"
+sender_email: str = "support@trishakti.com.np"
+sender_password: str = "Support.Trishakti@123"
 display_name: str = "RMS - Trishakti"
 subject: str = "RMS - Credentials 🔐"
-
+mail_server:str = "mail.trishakti.com.np"
 def send_email(
     to_email: str,
     username:str,
@@ -23,7 +23,7 @@ def send_email(
     display_name: str = display_name,
 ) -> None:
     """
-    Send an email using Gmail SMTP.
+    Send an email using mail.trishakti.com.np SMTP.
     """
 
     msg = EmailMessage()
@@ -52,7 +52,7 @@ def send_email(
     """)
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL(mail_server, 465) as server:
             server.login(sender_email, sender_password)
             server.send_message(msg)
 
@@ -73,7 +73,7 @@ def send_bulk_email(
 
     try:
         # ✅ Connect once
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP_SSL(mail_server, 465)
         server.starttls()
         server.login(sender_email, sender_password)
 

@@ -42,6 +42,7 @@ class TransactionMonitoring:
         self.holding_engine = helper.get_holding_engine()
 
         st.header("🕵🏻 AML - Transaction Monitoring", anchor=False)
+        st.header("⚠️ Page under construction", anchor=False)
 
     # st.set_page_config(page_title="Custom Hotkeys", layout="wide")
     # ---------------- API HELPERS ----------------

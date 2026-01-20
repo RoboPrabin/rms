@@ -38,7 +38,8 @@ def get_account_code(token, nepse_code):
         params={"nepseCode": nepse_code},
         timeout=30
     )
-    resp.raise_for_status()
+    # if resp.status_code == 200:
+    # resp.raise_for_status()
     return resp.json()
 
 def get_ledger(token, ac_code, date_from, date_to):
@@ -99,21 +100,22 @@ class InterestCalculation:
                     return
 
                 with st.spinner("Fetching ledger…"):
-                    try:
+                    # try:
                         from_date_str = from_date.strftime("%Y-%m-%d")
                         to_date_str = to_date.strftime("%Y-%m-%d")
 
                         token = db.get_jwt_token()
                         ac_code = get_account_code(token, client_code)
+                        print(ac_code)
                         ledger = get_ledger(token, ac_code, from_date_str, to_date_str)
                         st.session_state["ledger_dialog_data"] = ledger
                         rm_name, client_name = get_rm_and_client_name(client_code)
                         st.session_state['rm_name'] = rm_name
                         st.session_state['client_name'] = client_name
                         st.session_state['client_code'] = client_code
-                    except Exception as e:
-                        st.error(f"Client Code: '{client_code.upper()}' not found")
-                        return
+                    # except Exception as e:
+                    #     st.error(f"Client Code: '{client_code.upper()}' not found")
+                    #     return
 
         if "ledger_dialog_data" in st.session_state:
             ledger = st.session_state["ledger_dialog_data"]
