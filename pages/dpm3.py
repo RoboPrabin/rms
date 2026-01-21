@@ -13,6 +13,8 @@ from nepali_datetime import date as nepali_date
 from utils.custom_hotkey import activate_client_code_hotkey
 from utils import helper
 
+pd.set_option("styler.render.max_elements", 1579383)
+
 class DPM3:
     def __init__(self):
         helper.eliminate_top_padding()
@@ -424,54 +426,39 @@ class DPM3:
 
     
     def view_holdings(self):
-        # ---------------------------
-        # 1. Load data once
-        # ---------------------------
+        # Load data once
         if "dpm_df" not in st.session_state or "kyc_raw" not in st.session_state:
             st.session_state.dpm_df = db.get_dpm3()
-            st.session_state.kyc_raw = db.get_kyc()   # list of tuples
+            st.session_state.kyc_raw = db.get_kyc()
 
-        # ---------------------------
-        # 2. Prepare DataFrames
-        # ---------------------------
-        dpm_df = st.session_state.dpm_df.copy()
+        if "display_df" not in st.session_state:
+            dpm_df = st.session_state.dpm_df
+            kyc_df = pd.DataFrame(
+                st.session_state.kyc_raw,
+                columns=["clientmembercode", "clientfullname", "clientbranch", "boid"]
+            )
 
-        # Convert KYC list → DataFrame (DO NOT change get_kyc)
-        kyc_df = pd.DataFrame(
-            st.session_state.kyc_raw,
-            columns=[
-                "clientmembercode",
-                "clientfullname",
-                "clientbranch",
-                "boid"
-            ]
-        )
+            # Normalize columns
+            dpm_df["CLIENT CODE"] = dpm_df["CLIENT CODE"].astype(str).str.strip()
+            kyc_df["clientmembercode"] = kyc_df["clientmembercode"].astype(str).str.strip()
 
-        # ---------------------------
-        # 3. Normalize Join Columns
-        # ---------------------------
-        dpm_df["CLIENT CODE"] = dpm_df["CLIENT CODE"].astype(str).str.strip()
-        kyc_df["clientmembercode"] = kyc_df["clientmembercode"].astype(str).str.strip()
+            # Merge
+            df = dpm_df.merge(
+                kyc_df[["clientmembercode", "clientfullname"]],
+                left_on="CLIENT CODE",
+                right_on="clientmembercode",
+                how="left"
+            )
 
-        # ---------------------------
-        # 4. Merge KYC → DPM
-        # ---------------------------
-        df = dpm_df.merge(
-            kyc_df[["clientmembercode", "clientfullname"]],
-            left_on="CLIENT CODE",
-            right_on="clientmembercode",
-            how="left"
-        )
+            df["CLIENT NAME"] = df["clientfullname"]
+            df.drop(columns=["clientmembercode", "clientfullname"], errors="ignore", inplace=True)
+            df.drop(columns=["ISIN", "uploaded_at"], errors="ignore", inplace=True)
 
-        # Map client name
-        df["CLIENT NAME"] = df["clientfullname"]
+            st.session_state.display_df = df
 
-        # Cleanup helper columns
-        df.drop(columns=["clientmembercode", "clientfullname"], inplace=True)
+        df = st.session_state.display_df.copy()  # safe working copy
 
-        # ---------------------------
-        # 5. Search Box (SCRIPT)
-        # ---------------------------
+        # Search
         search_box = st.text_input(
             "Search by Script",
             placeholder="e.g. NABIL, NTC, API"
@@ -479,43 +466,28 @@ class DPM3:
 
         if search_box:
             df = df[
-                df["SCRIPT"]
-                .astype(str)
-                .str.upper()
-                .str.contains(search_box, na=False)
-            ]
-            df.sort_values(by="CURRENT BALANCE", inplace=True, ascending=False)
-            df.reset_index(inplace=True, drop=True)
+                df["SCRIPT"].astype(str).str.upper().str.contains(search_box, na=False)
+            ].sort_values("CURRENT BALANCE", ascending=False)
+
+        # 1-based index only if rows exist
+        df = df.reset_index(drop=True)
+        if not df.empty:
             df.index = df.index + 1
 
-        # ---------------------------
-        # 6. Display
-        # ---------------------------
-        columns_to_format_values_with_comma = [
-            'TOTAL VALUATION',
-            'CURRENT BALANCE',
-            'FREE BALANCE',
-            'PLEDGE BALANCE',
-            'FREE SHARE VALUATION',
-            'PLEDGE SHARE VALUATION',
-            'CLOSING PRICE'
-        ]
-
-        # Badge for total count
-        st.badge(f"Total Count: {len(df)}", color="green")
-        if "BRANCH" in df.columns:
-            df["BRANCH"] = df["BRANCH"].astype(str).str.upper()
-
-        df.drop(columns=['ISIN', 'uploaded_at'], inplace=True)
-        # Format numeric columns with commas
-        styled_df = df.style.format({
-            col: "{:,.2f}" for col in columns_to_format_values_with_comma if col in df.columns 
-        })
-
-        
         # Display
-        st.dataframe(styled_df, use_container_width=True)
-
+        st.caption(f"Total records: {len(df):,}")
+        df.sort_values(by="CURRENT BALANCE", inplace=True, ascending=False)
+        st.dataframe(
+            df,
+            column_config={
+                "TOTAL VALUATION": st.column_config.NumberColumn(format="%d"),
+                "CURRENT BALANCE": st.column_config.NumberColumn(format="%d"),
+                "FREE BALANCE":    st.column_config.NumberColumn(format="%d"),
+                "CLOSING PRICE":   st.column_config.NumberColumn(format="%.2f"),
+            },
+            use_container_width=True,
+            hide_index=False
+        )
 
 
 
