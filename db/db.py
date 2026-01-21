@@ -948,6 +948,28 @@ def get_floorsheet_by_scripts(scripts):
     return df
 
 
+def get_floorsheet_data():
+    query = """
+    SELECT *
+    FROM floorsheet
+    ORDER BY uploaded_at DESC;
+"""
+    conn = None
+    df = pd.DataFrame()
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query)  # ✅ wrap list in tuple
+            rows = cur.fetchall()
+            df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
+    except Exception as e:
+        print("Error fetching floorsheet:", e)
+    finally:
+        if conn:
+            conn.close()
+    return df
+
+
 
 
 def get_today_floorsheet_range(from_selected_date, to_selected_date):

@@ -730,7 +730,7 @@ class DPM3:
         if self.role in ["USER", "VIEWER"]:
             selected_radio_bt = st.radio("Select option", [ 'View Holdings'], horizontal=True)
         else:
-            selected_radio_bt = st.radio("Select option", ['Import DPM3', 'Latest Holdings', 'Weekly DPM3 only'], index=1, horizontal=True)
+            selected_radio_bt = st.radio("Select option", ['Import DPM3', 'Latest Holdings', 'Weekly DPM3 only', 'Test'], index=3, horizontal=True)
         
         if selected_radio_bt == "Import DPM3":
             if not db.is_sunday_file_uploaded():
@@ -770,8 +770,74 @@ class DPM3:
                 # Open the dialog
                 self.show_client_dialog(client_scripts[view_cols], f"👨🏻‍💻 {client_label} - {selected_code}")
         
-        else:
+        elif selected_radio_bt == 'Latest Holdings':
             self.view_holdings()
+        else:
+            self.floorsheet_ui()
+
+
+    def calculate_holdings(self, df):
+        # Ensure transaction_type is consistent
+        df['transaction_type'] = df['transaction_type'].str.strip().str.title()
+
+        # Separate Buys and Sells
+        df_buy = df[df['transaction_type'] == 'Buy'].copy()
+        df_sell = df[df['transaction_type'] == 'Sell'].copy()
+
+        # Aggregate buys per client, symbol, branch
+        buy_agg = df_buy.sort_values('tradetime').groupby(
+            ['clientcode', 'clientname', 'branch', 'symbol'], as_index=False
+        ).agg({
+            'quantity': 'sum',
+            'rate': 'last',
+            'amount': 'last'
+        })
+
+        # Aggregate sells per client, symbol, branch
+        sell_agg = df_sell.groupby(
+            ['clientcode', 'clientname', 'branch', 'symbol'], as_index=False
+        ).agg({
+            'quantity': 'sum'
+        })
+        sell_agg.rename(columns={'quantity': 'sell_quantity'}, inplace=True)
+
+        # Merge buys and sells
+        holdings = pd.merge(
+            buy_agg,
+            sell_agg,
+            on=['clientcode', 'clientname', 'branch', 'symbol'],
+            how='left'
+        )
+        holdings['sell_quantity'] = holdings['sell_quantity'].fillna(0)
+
+        # Calculate net quantity
+        holdings['quantity'] = holdings['quantity'] - holdings['sell_quantity']
+
+        # Remove rows where net quantity <= 0
+        holdings = holdings[holdings['quantity'] > 0].copy()
+
+        # Drop temporary column
+        holdings.drop(columns=['sell_quantity'], inplace=True)
+
+        return holdings.sort_values(['clientcode', 'symbol', 'branch'])
+
+
+    def floorsheet_ui(self):
+        st.subheader("Data from floorsheet", anchor=False)
+        if 'floorsheet_data' not in st.session_state:
+            st.session_state.floorsheet_data = db.get_floorsheet_data()
+        new_df = self.calculate_holdings(st.session_state.floorsheet_data)
+        # st.badge(f"Total data: {len(st.session_state.floorsheet_data):,.2f}")
+        # print(st.session_state.floorsheet_data.columns)
+        # st.data_editor(data=st.session_state.floorsheet_data)
+        search_symbol = st.text_input("Search by Symbol", "").strip().upper()
+
+        if search_symbol:
+            filtered_df = new_df[new_df['symbol'].str.upper().str.contains(search_symbol)]
+        else:
+            filtered_df = new_df
+
+        st.data_editor(data=filtered_df)
 
 
 
