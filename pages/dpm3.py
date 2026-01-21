@@ -468,15 +468,16 @@ class DPM3:
             df = df[
                 df["SCRIPT"].astype(str).str.upper().str.contains(search_box, na=False)
             ].sort_values("CURRENT BALANCE", ascending=False)
-
+            df.reset_index(inplace=True, drop=True)
         # 1-based index only if rows exist
-        df = df.reset_index(drop=True)
         if not df.empty:
             df.index = df.index + 1
 
         # Display
         st.caption(f"Total records: {len(df):,}")
-        df.sort_values(by="CURRENT BALANCE", inplace=True, ascending=False)
+        # df.sort_values(by="CURRENT BALANCE", inplace=True, ascending=False)
+        # df = df.reset_index(drop=True, inplace=True)
+
         st.dataframe(
             df,
             column_config={
