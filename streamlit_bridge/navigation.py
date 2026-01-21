@@ -16,7 +16,8 @@ def render_sidebar():
     app_state.restore_state_from_query_params()
     app_state.sync_query_params_from_session()
     app_state.check_authenticaiton_state()
-    username, role = app_state.get_current_user_info()
+
+    username, role, branch = app_state.get_current_user_info()
     st.markdown("""
         <style>
             [data-testid="stSidebarCollapseButton"] {
@@ -25,6 +26,7 @@ def render_sidebar():
             }
         </style>
         """, unsafe_allow_html=True)
+    
     st.markdown("""
         <style>
         /* Remove top gap */
@@ -101,7 +103,7 @@ def render_sidebar():
 
         <div style='text-align:center; margin:15px 0 25px; color:#444;'>
             <div style='font-size:14px;font-weight: bold; color:#a6a6a6; margin-top:0px;'> 
-                <span style=''>{username.upper()}</span> | {role.upper()}
+                <span style=''>{username.upper()}</span> | {role.upper()} <br> {branch}
             </div>
         </div>
 
@@ -130,11 +132,16 @@ def render_sidebar():
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
 
+        with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
+            st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
+
+
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
+            
 
         
 

@@ -43,11 +43,12 @@ class LoginPage:
     def handle_successful_login(self, user):
         # reset failed_attempts on success
         update_login_status(user["username"], success=True)
-
+        print(user)
         payload = {
             "auth": True,
             "user": user["username"].upper(),
-            "role": user["role"].upper()
+            "role": user["role"].upper(),
+            "branch": user['branch'].upper()
         }
         encrypted = security.encrypt_data(payload)
 
@@ -67,6 +68,7 @@ class LoginPage:
         st.session_state.authenticated = True
         st.session_state.username = payload["user"]
         st.session_state.role = payload["role"]
+        st.session_state.branch = payload['branch']
 
         st.query_params["sid"] = encrypted
 

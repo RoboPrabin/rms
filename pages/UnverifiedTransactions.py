@@ -83,7 +83,7 @@ class UnverifiedTransactions:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
-        self.username, self.role = app_state.get_current_user_info()
+        self.username, self.role, self.branch = app_state.get_current_user_info()
         st.header("⚠️ Unverified Transactions", anchor=False)
 
         render_sidebar()
@@ -201,7 +201,7 @@ class UnverifiedTransactions:
             key="view_unverified_trans",
             selection_mode="single-row",
             on_select="rerun",
-            use_container_width=True
+            width='stretch'
         )
 
         selection = st.session_state.get("view_unverified_trans", {}).get("selection", {})

@@ -21,7 +21,7 @@ class CreateAppUser:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
-        self.username, self.role = app_state.get_current_user_info()
+        self.username, self.role, self.branch = app_state.get_current_user_info()
 
         activate_client_code_hotkey()
 
@@ -32,6 +32,7 @@ class CreateAppUser:
         self.df_users : pd.DataFrame= None
         self.app_user = self.get_all_app_users()
         self.user_roles = db.get_user_roles()
+        self.branch = helper.get_work_locations()
 
     def show_creation_form(self):
         with st.form("create_user_form", clear_on_submit=True):
@@ -60,20 +61,25 @@ class CreateAppUser:
             with col7:
                 onboarded_by = st.selectbox("Onboarded By", options)
             
-            if self.role == "ADMIN":
-                roles = self.user_roles 
-                role = st.selectbox("Role", roles)
-            else:
-                roles = self.user_roles
-                roles = [r for r in roles if r not in ("ADMIN", "SYSTEM")]
-                role = st.selectbox("Role", roles)
             with col8:
                 alias = st.selectbox("Alias", options, accept_new_options=True)
+                
+            col9, col10 = st.columns(2)
+            with col9:
+                if self.role == "ADMIN":
+                    roles = self.user_roles 
+                    role = st.selectbox("Role", roles)
+                else:
+                    roles = self.user_roles
+                    roles = [r for r in roles if r not in ("ADMIN", "SYSTEM")]
+                    role = st.selectbox("Role", roles)
+            with col10:
+                branch = st.selectbox("Branch", ['None'] + helper.get_work_locations())
             
             submitted = st.form_submit_button("Create App User", icon="➕")
 
             if submitted:
-                if not username or not password or not phone or not email or not full_name or not onboarded_by:
+                if not username or not password or not phone or not email or not full_name or not onboarded_by or not branch:
                     st.warning("All fields are required.")
                 elif db.get_user_by_username(username=username.strip().lower()):
                     st.warning("Username already exists. Please choose a different username.")
@@ -81,6 +87,8 @@ class CreateAppUser:
                     st.warning("Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.")
                 elif not helper.validate_phone(phone=phone):
                     st.warning("Invalid phone number format.")  
+                elif branch=="None":
+                    st.warning("Invalid Branch")  
                 else:
                     try:
                         encrypted_pw = password
@@ -89,8 +97,8 @@ class CreateAppUser:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts)
-                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts)
+                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts, branch)
+                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts, :branch)
                                 """),
                                 {
                                     "id": user_id,
@@ -107,6 +115,7 @@ class CreateAppUser:
                                     "created_by": self.username.upper(),
                                     "status": "ACTIVE",
                                     "failed_attempts": 0,
+                                    "branch": branch
                                 }
                             )
                         st.success(f"User '{username}' created successfully.")
@@ -197,16 +206,20 @@ class CreateAppUser:
                 self.df_users["Username"] == selected_user, "Status"
             ].values[0]
 
+            db_branch = self.df_users.loc[
+                self.df_users["Username"] == selected_user, "Branch"
+            ].values[0]
+            st.write(db_branch)
             # --- Resolve DB → display for users ---
             alias_display = df_users.loc[df_users["username"] == db_alias, "display"].values[0]
             onboarded_by_display = df_users.loc[df_users["username"] == db_onboarded_by, "display"].values[0]
             role_display = df_users.loc[df_users["role"] == db_role, "role"].values[0]
-
-
+            branch_display = df_users.loc[df_users["branch"] == db_branch, "branch"].values[0]
             # --- Resolve display → index (Streamlit requirement) ---
             alias_index = options.index(alias_display)
             onboarded_by_index = options.index(onboarded_by_display)
             role_index = self.user_roles.index(role_display)
+            branch_index = self.branch.index(branch_display)
             # --- Status options ---
             status_options = ["ACTIVE", "BLOCKED"]
             status_index = status_options.index(db_status) if db_status in status_options else 0
@@ -275,6 +288,7 @@ class CreateAppUser:
                         index=alias_index
                     )
 
+                branch = st.selectbox("Branch", self.branch, index=branch_index)
 
                 if st.form_submit_button("Update User"):
                     try:
@@ -284,7 +298,7 @@ class CreateAppUser:
                                         UPDATE app_user
                                         SET email = :email, role = :role, password = :password, full_name = :full_name,
                                             phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, 
-                                        status = :status, failed_attempts = :failed_attempst, alias = :alias
+                                        status = :status, failed_attempts = :failed_attempst, alias = :alias, branch = :branch
                                         WHERE username = :username
                                     """),
                                     {
@@ -298,7 +312,8 @@ class CreateAppUser:
                                         "onboarded_by": onboarded_by.split("-", 1)[0].strip().upper(),
                                         "alias":alias.split("-", 1)[0].strip().upper(),
                                         "status": status,
-                                        "failed_attempst":failed_attempts
+                                        "failed_attempst":failed_attempts,
+                                        "branch": branch
                                     }
                                 )
                         st.success(f"User '{selected_user}' updated successfully.")
@@ -322,7 +337,7 @@ class CreateAppUser:
 
     def get_all_app_users(self):
         df_users = pd.read_sql(
-            'SELECT username, full_name, role FROM app_user ORDER BY alias;',
+            'SELECT username, full_name, role, branch FROM app_user ORDER BY alias;',
             # 'SELECT alias, full_name FROM app_user ORDER BY alias;',
             con=self.engine
         )

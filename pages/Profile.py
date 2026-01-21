@@ -25,7 +25,7 @@ class Settings:
 
         activate_client_code_hotkey()
 
-        self.username, self.role = app_state.get_current_user_info()
+        self.username, self.role, self.branch = app_state.get_current_user_info()
         self.user =db.get_user_by_username(username=self.username)
         navigation.render_sidebar() 
         self.df: pd.DataFrame = None

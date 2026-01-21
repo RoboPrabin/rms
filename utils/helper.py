@@ -94,6 +94,8 @@ def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:
     except Exception as e:
         raise ValueError(f"Invalid fiscal year '{fiscal_year}': {e}")
 
+def get_demat_gateways():
+    return ['QR', 'CASH', 'A/C DEBIT']
 
 def rename_all_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -164,12 +166,12 @@ def get_employee_types():
 
 def get_work_locations():
     return  [
+            "BANEPA",
+            "HETAUDA",
             "KATHMANDU",
             "LALITPUR",
-            "BANEPA",
-            "POKHARA",
-            "HETAUDA",
             "MAHENDRANAGAR",
+            "POKHARA",
         ]
 
 def eliminate_top_padding(padding_top: str = "0rem"):
@@ -531,9 +533,23 @@ def convert_columns_to_str(df:pd.DataFrame):
     return df
 
 
-def camel_to_title(name):
-    s1 = re.sub('([a-z])([A-Z])', r'\1 \2', name)
-    return s1.title()
+# def camel_to_title(name):
+#     s1 = re.sub('([a-z])([A-Z])', r'\1 \2', name)
+#     return s1.title()
+
+def camel_to_title(col_name: str) -> str:
+    """
+    Convert camelCase or snake_case to Title Case for display
+    e.g. "clientName" -> "Client Name", "payment_amount" -> "Payment Amount"
+    """
+    import re
+    # Handle camelCase -> insert space before capitals
+    s1 = re.sub('([a-z0-9])([A-Z])', r'\1 \2', col_name)
+    # Replace underscores with space
+    s2 = s1.replace("_", " ")
+    # Capitalize each word
+    return s2.title()
+
 
 def format_with_comma(x):
     if pd.api.types.is_numeric_dtype(x):

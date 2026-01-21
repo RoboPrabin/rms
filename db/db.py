@@ -19,54 +19,233 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
-# def save_transactions_to_db(transactions, created_by):
-#     """
-#     Save all transaction rows to PostgreSQL 'unverified_trans' table.
+
+
+def update_demat_record(
+    record_id: str,
+    *,
+    client_name: str,
+    boid: str,
+    tsl_number: str,
+    payment_amount,
+    gateway: str,
+    renew_type: str,
+    rm_name: str,
+    updated_by: str
+):
+    """
+    Update a demat record by ID.
+    """
+    query = """
+        UPDATE demat_records
+        SET 
+            client_name = %(client_name)s,
+            boid = %(boid)s,
+            tsl_number = %(tsl_number)s,
+            payment_amount = %(payment_amount)s,
+            gateway = %(gateway)s,
+            renew_type = %(renew_type)s,
+            rm_name = %(rm_name)s,
+            updated_at = CURRENT_TIMESTAMP,
+            updated_by = %(updated_by)s
+        WHERE id = %(id)s;
+    """
+
+    params = {
+        "client_name": client_name.strip(),
+        "boid": boid.strip(),
+        "tsl_number": tsl_number.strip(),
+        "payment_amount": payment_amount,
+        "gateway": gateway.strip(),
+        "renew_type": renew_type.strip(),
+        "rm_name": rm_name.strip(),
+        "updated_by": updated_by,
+        "id": record_id
+    }
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params)
+            conn.commit()
+            return True
+
+
+
+def insert_demat_record(
+    *,
+    client_name: str,
+    boid: str,
+    tsl_number: str,
+    payment_amount,
+    gateway: str,
+    renew_type: str,
+    rm_name: str,
+    open_by: str,
+    created_at_bs:str,
+    remarks:str
+):
+    """
+    Inserts a demat record if BOID does not already exist.
+    Returns:
+        - UUID if inserted
+        - None if BOID already exists
+    """
+    conn = get_connection()
     
-#     :param transactions: list of dicts, each dict = one transaction
-#     :param created_by: string, username of uploader
-#     """
-#     if not transactions:
-#         return  # nothing to save
+    boid = boid.strip()
 
-#     conn = get_connection()
-#     try:
-#         with conn.cursor() as cur:
-#             for row in transactions:
-#                 # Generate UUID for id
-#                 row_id = str(uuid.uuid4())
+    check_query = """
+        SELECT 1
+        FROM demat_records
+        WHERE boid = %(boid)s
+        LIMIT 1;
+    """
 
-#                 # Uploaded at current datetime in 'YYYY-MM-DD HH:MI:SS AM/PM' format
-#                 uploaded_at = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+    insert_query = """
+        INSERT INTO demat_records (
+            client_name,
+            boid,
+            tsl_number,
+            payment_amount,
+            gateway,
+            renew_type,
+            rm_name,
+            open_by,
+            created_at_bs,
+            updated_by,
+            remarks
+        )
+        VALUES (
+            %(client_name)s,
+            %(boid)s,
+            %(tsl_number)s,
+            %(payment_amount)s,
+            %(gateway)s,
+            %(renew_type)s,
+            %(rm_name)s,
+            %(open_by)s,
+            %(created_at_bs)s,
+            %(updated_by)s,
+            %(remarks)s
+        )
+        RETURNING id;
+    """
 
-#                 # Prepare SQL insert
-#                 cur.execute(
-#                     """
-#                     INSERT INTO unverified_trans (
-#                         id, transaction_date, description, remarks,
-#                         withdraw, deposit, balance, uploaded_at, created_by
-#                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-#                     """,
-#                     (
-#                         row_id,
-#                         row.get("Transaction Date", ""),
-#                         row.get("Description", ""),
-#                         row.get("Remarks", ""),
-#                         row.get("Withdraw", ""),
-#                         row.get("Deposit", ""),
-#                         row.get("Balance (NPR)", ""),
-#                         uploaded_at,
-#                         created_by
-#                     )
-#                 )
-#         conn.commit()
-#         print(f"{len(transactions)} transactions saved to DB successfully.")
-#     except Exception as e:
-#         conn.rollback()
-#         print("Error saving transactions:", e)
-#         raise
-#     finally:
-#         conn.close()
+    params = {
+        "client_name": client_name.strip(),
+        "boid": boid,
+        "tsl_number": tsl_number.strip().upper(),
+        "payment_amount": float(payment_amount),
+        "gateway": gateway.strip(),
+        "renew_type": renew_type.strip(),
+        "rm_name": rm_name.strip(),
+        "open_by": open_by.strip().upper(),
+        "created_at_bs":  created_at_bs,
+        "updated_by":open_by.strip().upper(),
+        "remarks":remarks
+    }
+
+    with conn.cursor() as cursor:
+        cursor.execute(check_query, {"boid": boid})
+        if cursor.fetchone():
+            return None  # BOID already exists
+
+        cursor.execute(insert_query, params)
+        record_id = cursor.fetchone()["id"]
+        conn.commit()
+        return record_id
+
+
+def fetch_all_demat_records():
+    """
+    Fetches all records from demat_records table.
+    Returns:
+        - List of dictionaries (column_name -> value)
+    """
+    query = """
+        SELECT 
+            id,
+            client_name,
+            boid,
+            tsl_number,
+            payment_amount,
+            gateway,
+            renew_type,
+            rm_name,
+            open_by,
+            created_at,
+            created_at_bs
+        FROM demat_records
+        ORDER BY created_at DESC;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            # Convert DictRow to regular dict
+            return [dict(row) for row in rows]
+        
+def fetch_demat_records_df():
+    """
+    Fetch all records from demat_records and return as a Pandas DataFrame
+    """
+    query = "SELECT * FROM demat_records ORDER BY created_at DESC;"
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                return pd.DataFrame()  # empty DataFrame if no records
+
+            # Convert list of DictRow to DataFrame
+            df = pd.DataFrame([dict(row) for row in rows])
+            return df  
+
+
+def fetch_demat_records_with_branch_df():
+    """
+    Fetch all demat_records and add a 'Branch' column by joining with app_user on open_by=username
+    Returns a DataFrame ready for display
+    """
+    # Fetch records
+    df_records = fetch_demat_records_df()
+    if df_records.empty:
+        return df_records  # return empty if nothing in DB
+
+    # Fetch app_user table
+    query = "SELECT username, branch FROM app_user;"
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                df_users = pd.DataFrame(columns=["username", "branch"])
+            else:
+                df_users = pd.DataFrame([dict(r) for r in rows])
+
+    # Merge branch info on open_by -> username
+    df = df_records.merge(
+        df_users,
+        how="left",
+        left_on="open_by",
+        right_on="username"
+    )
+
+    # Add branch column
+    df.rename(columns={"branch": "Branch"}, inplace=True)
+
+    # Drop helper username column (optional)
+    df.drop(columns=["username"], inplace=True, errors="ignore")
+        # Reorder columns: put Branch first
+    cols = df.columns.tolist()
+    if "Branch" in cols:
+        cols.insert(0, cols.pop(cols.index("Branch")))
+        df = df[cols]
+    return df
+
+
 
 
 def save_transactions_to_db(transactions, created_by):
@@ -1624,7 +1803,7 @@ def get_table_rm_child_map_with_client_code(client_code: str):
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT username, role, password, status, citizenship, phone, email FROM app_user WHERE username = %s", (username.upper(),))
+    cur.execute("SELECT username, role, password, status, citizenship, phone, email, branch FROM app_user WHERE username = %s", (username.upper(),))
     row = cur.fetchone()
     cur.close()
     conn.close()
@@ -1633,7 +1812,7 @@ def get_user_by_username(username):
 def get_all_app_user():
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT username, role, phone, password, email FROM app_user")
+    cur.execute("SELECT username, full_name ,role, phone, password, email, branch FROM app_user")
     row = cur.fetchall()
     cur.close()
     conn.close()

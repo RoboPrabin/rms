@@ -17,6 +17,7 @@ def restore_state_from_query_params():
             st.session_state.authenticated = True
             st.session_state.username = payload.get("user", "Guest")
             st.session_state.role = payload.get("role", "User")
+            st.session_state.branch = payload.get("branch", "None")
 
     except Exception as e:
         print("SID decryption failed:", e)
@@ -36,6 +37,8 @@ def restore_state_from_query_params_test():
             st.session_state.authenticated = True
             st.session_state.username = payload.get("user", "Guest")
             st.session_state.role = payload.get("role", "User")
+            st.session_state.branch = payload.get("branch", "None")
+
 
     except Exception as e:
         print("SID decryption failed:", e)
@@ -56,14 +59,16 @@ def sync_query_params_from_session():
         payload = {
             "auth": True,
             "user": st.session_state.username,
-            "role": st.session_state.role
+            "role": st.session_state.role,
+            "branch":st.session_state.branch
         }
         st.query_params["sid"] = encrypt_data(payload)
 
 def get_current_user_info():
     username = st.session_state.get("username", "NF")
     role = st.session_state.get("role", "NF")
-    return username, role
+    branch = st.session_state.get("branch", "NF")
+    return username, role, branch
 
 def check_authentication_state_login_page():
     # If already authenticated, redirect to Dashboard

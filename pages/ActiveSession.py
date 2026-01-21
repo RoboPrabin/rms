@@ -15,7 +15,7 @@ class ActiveSession:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
-        self.username, self.role = app_state.get_current_user_info()
+        self.username, self.role, self.branch = app_state.get_current_user_info()
         st.header("🕓 Active Sessions", anchor=False)
 
         render_sidebar()

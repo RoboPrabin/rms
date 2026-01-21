@@ -64,7 +64,7 @@ class DueList:
 
         activate_client_code_hotkey()
         
-        self.username, self.role = app_state.get_current_user_info()
+        self.username, self.role, self.branch = app_state.get_current_user_info()
         navigation.render_sidebar()
 
         # unified engine connection

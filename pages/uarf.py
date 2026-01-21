@@ -30,7 +30,7 @@ class Uarf:
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
-        self.username, self.role = app_state.get_current_user_info()
+        self.username, self.role, self.branch = app_state.get_current_user_info()
         navigation.render_sidebar()
 
         # DB Connection
@@ -210,21 +210,7 @@ class Uarf:
                         employee_type
                         )
                 
-                # db.submit_manager_request(
-                    # full_name,
-                    # dob_bs,
-                    # dob_ad,
-                    # citizenship_number,
-                    # citizenship_issued_place,
-                    # personal_phone,
-                    # personal_email,
-                    # supervisor_name,
-                    # selected_platforms,
-                    # self.username
-                # )
-                # st.success("✅ UARF submitted successfully and forwarded to HR.")
-                # sleep(1)
-                # st.rerun()
+
         
         elif view == "Pending/Approved":
             if normal_df.empty and rejected_df.empty:
