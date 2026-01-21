@@ -54,7 +54,8 @@ def update_demat_record(
     renew_type: str,
     rm_name: str,
     updated_by: str,
-    bo_to_bo:bool
+    bo_to_bo:bool,
+    client_code:str
 ):
     """
     Update a demat record by ID.
@@ -71,7 +72,8 @@ def update_demat_record(
             rm_name = %(rm_name)s,
             updated_at = CURRENT_TIMESTAMP,
             updated_by = %(updated_by)s,
-            is_bo_to_bo = %(is_bo_to_bo)s
+            is_bo_to_bo = %(is_bo_to_bo)s,
+            client_code = %(client_code)s
         WHERE boid = %(boid)s;
     """
 
@@ -84,7 +86,8 @@ def update_demat_record(
         "renew_type": renew_type.strip(),
         "rm_name": rm_name.strip(),
         "updated_by": updated_by,
-        "is_bo_to_bo":bo_to_bo
+        "is_bo_to_bo":bo_to_bo,
+        "client_code":client_code
         # "id": record_id
     }
 
@@ -108,7 +111,8 @@ def insert_demat_record(
     open_by: str,
     created_at_bs:str,
     remarks:str,
-    bo_to_bo:bool
+    bo_to_bo:bool,
+    client_code:str
 ):
     """
     Inserts a demat record if BOID does not already exist.
@@ -140,7 +144,8 @@ def insert_demat_record(
             created_at_bs,
             updated_by,
             remarks,
-            is_bo_to_bo
+            is_bo_to_bo,
+            client_code
         )
         VALUES (
             %(client_name)s,
@@ -154,7 +159,8 @@ def insert_demat_record(
             %(created_at_bs)s,
             %(updated_by)s,
             %(remarks)s,
-            %(is_bo_to_bo)s
+            %(is_bo_to_bo)s,
+            %(client_code)s
         )
         RETURNING id;
     """
@@ -171,7 +177,8 @@ def insert_demat_record(
         "created_at_bs":  created_at_bs,
         "updated_by":open_by.strip().upper(),
         "remarks":remarks,
-        "is_bo_to_bo": bo_to_bo
+        "is_bo_to_bo": bo_to_bo,
+        "client_code":client_code
     }
 
     with conn.cursor() as cursor:
@@ -273,9 +280,6 @@ def fetch_demat_records_with_branch_df():
         cols.insert(0, cols.pop(cols.index("Branch")))
         df = df[cols]
     return df
-
-
-
 
 def save_transactions_to_db(transactions, created_by):
     """

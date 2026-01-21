@@ -56,7 +56,8 @@ class DematRecords:
             "payment_amount": "",
             "eng_date": date.today(),
             "nep_date": helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d")),
-            "remarks":""
+            "remarks":"",
+            "client_code":""
         }
 
         # ---------- Initialize session state ----------
@@ -88,7 +89,9 @@ class DematRecords:
                 st.selectbox("Gateway", helper.get_demat_gateways(), key="gateway")
                 st.date_input("Created Date (A.D.)", key="eng_date", min_value=date(1920,1,1), max_value=date.today(), disabled=True)
                 remarks = st.text_input("Remarks (Optional)", key="remarks")
+                bo_to_bo= st.checkbox("Is BO-TO-BO")
             with col2:
+                st.text_input("Client Code (TMS)", key="client_code")
                 st.text_input("BOID", key="boid")
                 st.multiselect(
                     "Renew Type",
@@ -96,10 +99,9 @@ class DematRecords:
                     key="renew_type"
                 )
                 st.selectbox("BRO", ["N/A"] + self.all_user_options, key="rm_name")
-                st.text_input("Open By", value=self.username, disabled=True)
                 st.text_input("Created Date (B.S.)", key="nep_date", value=defaults['nep_date'], disabled=True)
+                st.text_input("Open By", value=self.username, disabled=True)
                 st.markdown("<br>", unsafe_allow_html=True)
-                bo_to_bo= st.checkbox("Is BO-TO-BO")
                 # st.write(bo_to_bo)
             # ---------- Submit ----------
             if st.button("ᯓ➤ Submit"):
@@ -116,8 +118,8 @@ class DematRecords:
                     errors.append("BOID must contain only numbers")
                 elif len(boid_value) != 16:
                     errors.append("BOID must be exactly 16 digits")
-                elif not boid_value.startswith("13011400"):  # or "12011400" if that is correct
-                    errors.append("BOID must start with 13011400")
+                # elif not boid_value.startswith("13011400"):  # or "12011400" if that is correct
+                #     errors.append("BOID must start with 13011400")
 
                 # TSL Number
                 if not st.session_state.tsl_number.strip():
@@ -156,7 +158,8 @@ class DematRecords:
                     open_by=self.username,
                     created_at_bs=st.session_state.nep_date,
                     remarks=remarks,
-                    bo_to_bo=bo_to_bo
+                    bo_to_bo=bo_to_bo,
+                    client_code= st.session_state.client_code
 
                 )
 
@@ -252,7 +255,9 @@ class DematRecords:
             bro_options_clean = [opt.strip() for opt in bro_options]
             rm_index = (bro_options_clean.index(rm_value_mapped) if rm_value_mapped in bro_options_clean else 0)
             rm_name = st.selectbox("BRO",bro_options,index=rm_index)
+            st.text_input("Open By", value=selected_row["Open By"], disabled=True)
         with col2:
+            client_code = st.text_input("Client Code", value=selected_row["Client Code"])
             boid = st.text_input("BOID", value=selected_row["Boid"], disabled=True)
             renew_type_list = selected_row['Renew Type'].split(",")  # → ["BO OPEN", "LIFETIME MEROSHARE"]
             renew_type = st.multiselect(
@@ -272,10 +277,9 @@ class DematRecords:
                 disabled=True
             )
 
-
-            st.text_input("Open By", value=selected_row["Open By"], disabled=True)
-        is_bo_to_bo_val = selected_row['Is Bo To Bo']
-        bo_to_bo = st.checkbox("Is BO-To-BO", value=is_bo_to_bo_val)
+            st.markdown("<br>", unsafe_allow_html=True)
+            is_bo_to_bo_val = selected_row['Is Bo To Bo']
+            bo_to_bo = st.checkbox("Is BO-To-BO", value=is_bo_to_bo_val)
 
         col1, spcr, col2 = st.columns([1,4.1,1])
         with col1:
@@ -328,7 +332,8 @@ class DematRecords:
                 # renew_type=str(renew_type),
                 rm_name=rm_name.split("-")[0].strip(),
                 updated_by=self.username,
-                bo_to_bo=bo_to_bo
+                bo_to_bo=bo_to_bo,
+                client_code=client_code
             )
 
             if success:
