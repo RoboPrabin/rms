@@ -173,6 +173,13 @@ class DematRecords:
 
     def view_records(self):
         df = db.fetch_demat_records_with_branch_df()
+    
+        # Kathmandu sees everything, others see only their branch
+        if self.branch != "KATHMANDU":
+            df = df[df["Branch"] == self.branch]
+        
+
+
         # print(df.columns)
         # Filter
         branches = ["All"] + df["Branch"].dropna().unique().tolist()

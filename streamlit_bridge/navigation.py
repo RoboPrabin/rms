@@ -206,6 +206,9 @@ def render_sidebar():
             st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare Accounts", icon="📝")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
+        with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
+            st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
+            
         with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
             st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
 
