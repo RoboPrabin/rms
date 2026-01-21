@@ -121,12 +121,11 @@ def render_sidebar():
     if role == "USER":
         st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
         st.sidebar.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
-
         st.sidebar.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
-        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
         st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
         st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
         st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
+        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     if role == "ADMIN":
@@ -152,7 +151,7 @@ def render_sidebar():
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
-            
+
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
 
@@ -162,7 +161,7 @@ def render_sidebar():
         
 
 
-        with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
+        with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
             st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
                                     
         with st.sidebar.expander("‎‎ ‎ User Management", icon="🤹🏻", expanded=(active_menu == "user")):
@@ -212,7 +211,7 @@ def render_sidebar():
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
             
-        with st.sidebar.expander("‎‎ ‎ AML", icon="🗒️", expanded=(active_menu == "aml")):
+        with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
             st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
 
         with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
