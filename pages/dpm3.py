@@ -819,7 +819,8 @@ class DPM3:
         # Drop temporary column
         holdings.drop(columns=['sell_quantity'], inplace=True)
 
-        return holdings.sort_values(['clientcode', 'symbol', 'branch'])
+        return holdings.sort_values(['symbol', 'quantity'], ascending=[True, False])
+        # return holdings.sort_values(['clientcode', 'symbol', 'branch'])
 
 
     def floorsheet_ui(self):
@@ -839,6 +840,7 @@ class DPM3:
                 filtered_df = new_df
             filtered_df.reset_index(inplace=True, drop=True)
             filtered_df.index = filtered_df.index + 1
+            st.badge(f"Total data: {len(filtered_df):,.2f}")
             st.data_editor(data=filtered_df)
 
 

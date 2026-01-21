@@ -19,10 +19,32 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def delete_demat_records(boid: int):
+    """
+    Mark a record as DELETED in demat_records table.
+    """
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE demat_records
+                    SET status = 'DELETED'
+                    WHERE boid = %s;
+                    """,
+                    (boid,)
+                )
+        # print(f"Record {boid} marked as DELETED.")
+        return True
+    except Exception as e:
+        return False
+    finally:
+        conn.close()
 
 
 def update_demat_record(
-    record_id: str,
+    # record_id: str,
     *,
     client_name: str,
     boid: str,
@@ -31,7 +53,8 @@ def update_demat_record(
     gateway: str,
     renew_type: str,
     rm_name: str,
-    updated_by: str
+    updated_by: str,
+    bo_to_bo:bool
 ):
     """
     Update a demat record by ID.
@@ -47,8 +70,9 @@ def update_demat_record(
             renew_type = %(renew_type)s,
             rm_name = %(rm_name)s,
             updated_at = CURRENT_TIMESTAMP,
-            updated_by = %(updated_by)s
-        WHERE id = %(id)s;
+            updated_by = %(updated_by)s,
+            is_bo_to_bo = %(is_bo_to_bo)s
+        WHERE boid = %(boid)s;
     """
 
     params = {
@@ -60,7 +84,8 @@ def update_demat_record(
         "renew_type": renew_type.strip(),
         "rm_name": rm_name.strip(),
         "updated_by": updated_by,
-        "id": record_id
+        "is_bo_to_bo":bo_to_bo
+        # "id": record_id
     }
 
     with get_connection() as conn:
@@ -82,7 +107,8 @@ def insert_demat_record(
     rm_name: str,
     open_by: str,
     created_at_bs:str,
-    remarks:str
+    remarks:str,
+    bo_to_bo:bool
 ):
     """
     Inserts a demat record if BOID does not already exist.
@@ -113,7 +139,8 @@ def insert_demat_record(
             open_by,
             created_at_bs,
             updated_by,
-            remarks
+            remarks,
+            is_bo_to_bo
         )
         VALUES (
             %(client_name)s,
@@ -126,7 +153,8 @@ def insert_demat_record(
             %(open_by)s,
             %(created_at_bs)s,
             %(updated_by)s,
-            %(remarks)s
+            %(remarks)s,
+            %(is_bo_to_bo)s
         )
         RETURNING id;
     """
@@ -142,7 +170,8 @@ def insert_demat_record(
         "open_by": open_by.strip().upper(),
         "created_at_bs":  created_at_bs,
         "updated_by":open_by.strip().upper(),
-        "remarks":remarks
+        "remarks":remarks,
+        "is_bo_to_bo": bo_to_bo
     }
 
     with conn.cursor() as cursor:
@@ -156,41 +185,41 @@ def insert_demat_record(
         return record_id
 
 
-def fetch_all_demat_records():
-    """
-    Fetches all records from demat_records table.
-    Returns:
-        - List of dictionaries (column_name -> value)
-    """
-    query = """
-        SELECT 
-            id,
-            client_name,
-            boid,
-            tsl_number,
-            payment_amount,
-            gateway,
-            renew_type,
-            rm_name,
-            open_by,
-            created_at,
-            created_at_bs
-        FROM demat_records
-        ORDER BY created_at DESC;
-    """
+# def fetch_all_demat_records():
+#     """
+#     Fetches all records from demat_records table.
+#     Returns:
+#         - List of dictionaries (column_name -> value)
+#     """
+#     query = """
+#         SELECT 
+#             id,
+#             client_name,
+#             boid,
+#             tsl_number,
+#             payment_amount,
+#             gateway,
+#             renew_type,
+#             rm_name,
+#             open_by,
+#             created_at,
+#             created_at_bs
+#         FROM demat_records
+#         ORDER BY created_at DESC;
+#     """
 
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            # Convert DictRow to regular dict
-            return [dict(row) for row in rows]
+#     with get_connection() as conn:
+#         with conn.cursor() as cursor:
+#             cursor.execute(query)
+#             rows = cursor.fetchall()
+#             # Convert DictRow to regular dict
+#             return [dict(row) for row in rows]
         
 def fetch_demat_records_df():
     """
     Fetch all records from demat_records and return as a Pandas DataFrame
     """
-    query = "SELECT * FROM demat_records ORDER BY created_at DESC;"
+    query = "SELECT * FROM demat_records WHERE status = 'ACTIVE' ORDER BY created_at DESC;"
 
     with get_connection() as conn:
         with conn.cursor() as cursor:
@@ -345,8 +374,9 @@ def delete_unverified_transaction(description):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                DELETE FROM unverified_trans
-                WHERE description = %s
+                UPDATE unverified_trans
+                SET status = 'DELETED'
+                WHERE description = %s;
                 """,
                 (description,)
             )
@@ -366,6 +396,7 @@ def get_unverified_transactions():
                 """
                 SELECT *
                 FROM unverified_trans
+                WHERE status = 'ACTIVE'
                 ORDER BY created_at DESC;
                 """
             )

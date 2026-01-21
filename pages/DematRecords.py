@@ -13,104 +13,7 @@ from decimal import Decimal, InvalidOperation
 
 
 
-@st.dialog("Edit / Delete Demat Records", width='medium')
-def edit_record_dialog(selected_row):
-    """
-    Opens a dialog to edit a selected demat record.
-    `selected_row` should be a dict or pandas row.
-    """
-    if selected_row is None:
-        st.info("Select a row to edit first.")
-        return
 
-    record_id = selected_row["Boid"]
-
-    # ---------- Open Dialog ----------
-    col1, col2 = st.columns(2)
-
-    with col1:
-        client_name = st.text_input("Client Name", value=selected_row["Client Name"])
-        tsl_number = st.text_input("TSL Number", value=selected_row["Tsl Number"])
-        gateway = st.text_input("Gateway", value=selected_row["Gateway"])
-        bro_options = ["N/A"] + self.all_user_options
-
-        # normalize stored value
-        rm_value = (
-            selected_row.get("Rm Name", "N/A")
-            .strip()
-        )
-
-        # normalize options (index-safe)
-        bro_options_clean = [opt.strip() for opt in bro_options]
-
-        rm_index = (
-            bro_options_clean.index(rm_value)
-            if rm_value in bro_options_clean
-            else 0
-        )
-
-        rm_name = st.selectbox(
-            "BRO",
-            bro_options,
-            index=rm_index
-        )
-
-
-    with col2:
-        boid = st.text_input("BOID", value=selected_row["Boid"])
-        renew_type = st.multiselect("Renew Type", get_renew_values())
-        payment_amount = st.text_input("Payment Amount", value=str(selected_row["Payment Amount"]), disabled=True)
-        st.text_input("Open By", value=selected_row["Open By"], disabled=True)
-
-    if st.button("Update", icon="🔄"):
-        errors = []
-
-        # ---------- Validation ----------
-        if not client_name.strip():
-            errors.append("Client Name is required")
-
-        if not boid.strip():
-            errors.append("BOID is required")
-        elif not boid.isdigit() or len(boid) != 16:
-            errors.append("BOID must be exactly 16 digits and numeric")
-
-        if not tsl_number.strip():
-            errors.append("TSL Number is required")
-
-        try:
-            payment_amount_decimal = Decimal(payment_amount)
-            if payment_amount_decimal <= 0:
-                errors.append("Payment Amount must be greater than 0")
-        except:
-            errors.append("Payment Amount must be a valid number")
-
-        if not gateway.strip():
-            errors.append("Gateway is required")
-
-        if rm_name == "N/A":
-            errors.append("Please select a valid BRO")
-
-        if errors:
-            for err in errors:
-                st.error(err)
-            return
-
-        # ---------- Call DB Update ----------
-        success = db.update_demat_record(
-            record_id,
-            client_name=client_name,
-            boid=boid,
-            tsl_number=tsl_number,
-            payment_amount=payment_amount_decimal,
-            gateway=gateway,
-            renew_type=renew_type,
-            rm_name=rm_name.split("-")[0].strip(),
-            updated_by=self.username
-        )
-
-        if success:
-            st.success("Record updated successfully!")
-            st.rerun()
 
 def get_renew_values():
     return {
@@ -139,6 +42,8 @@ class DematRecords:
                 f"{user['username']} - {user['full_name']}"
                 for user in sorted(self.app_users, key=lambda u: u["username"].lower())
             ]
+
+
     def entry_ui(self):
         # ---------- Defaults ----------
         defaults = {
@@ -176,26 +81,26 @@ class DematRecords:
 
             # ---------- Convert eng_date to nep_date ----------
             st.session_state.nep_date = helper.convert_ad_to_bs(st.session_state.eng_date.strftime("%Y-%m-%d"))
-
             with col1:
                 st.text_input("Client Name", key="client_name")
                 st.text_input("TSL-Number", key="tsl_number")
                 st.text_input("Payment Amount", key="payment_amount", disabled=True)
                 st.selectbox("Gateway", helper.get_demat_gateways(), key="gateway")
                 st.date_input("Created Date (A.D.)", key="eng_date", min_value=date(1920,1,1), max_value=date.today(), disabled=True)
+                remarks = st.text_input("Remarks (Optional)", key="remarks")
             with col2:
                 st.text_input("BOID", key="boid")
                 st.multiselect(
                     "Renew Type",
-                    ['ALL','BO OPEN','LIFETIME BO', 'LIFETIME MEROSHARE'],
+                    get_renew_values(),
                     key="renew_type"
                 )
                 st.selectbox("BRO", ["N/A"] + self.all_user_options, key="rm_name")
                 st.text_input("Open By", value=self.username, disabled=True)
-                st.text_input("Created Date (B.S.)", key="nep_date", value=st.session_state.nep_date, disabled=True)
-                # st.text_input("Created Date (B.S.)", key="nep_date", value=st.session_state.nep_date)
-
-            remarks = st.text_input("Remarks (Optional)", key="remarks")
+                st.text_input("Created Date (B.S.)", key="nep_date", value=defaults['nep_date'], disabled=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                bo_to_bo= st.checkbox("Is BO-TO-BO")
+                # st.write(bo_to_bo)
             # ---------- Submit ----------
             if st.button("ᯓ➤ Submit"):
                 errors = []
@@ -203,7 +108,6 @@ class DematRecords:
                 # Client Name
                 if not st.session_state.client_name.strip():
                     errors.append("Client Name is required")
-
                 # BOID
                 boid_value = st.session_state.boid.strip()
                 if not boid_value:
@@ -251,7 +155,9 @@ class DematRecords:
                     rm_name=st.session_state.rm_name.split("-")[0].strip(),
                     open_by=self.username,
                     created_at_bs=st.session_state.nep_date,
-                    remarks=remarks
+                    remarks=remarks,
+                    bo_to_bo=bo_to_bo
+
                 )
 
                 if record_id:
@@ -263,9 +169,6 @@ class DematRecords:
                     st.rerun()
                 else:
                     st.warning("BOID already exists.", icon="⚠️")
-
-
-
 
 
     def view_records(self):
@@ -314,9 +217,130 @@ class DematRecords:
 
 
 
+    @st.dialog("Edit / Delete Demat Records", width='medium')
+    def edit_record_dialog(self, selected_row):
+        """
+        Opens a dialog to edit a selected demat record.
+        `selected_row` should be a dict or pandas row.
+        """
+        if selected_row is None:
+            st.info("Select a row to edit first.")
+            return
+
+        # record_id = selected_row["Id"]
+
+        # ---------- Open Dialog ----------
+        col1, col2 = st.columns(2)
+
+        with col1:
+            client_name = st.text_input("Client Name", value=selected_row["Client Name"])
+            tsl_number = st.text_input("TSL Number", value=selected_row["Tsl Number"])
+            selected_gateway = selected_row["Gateway"]
+            options = helper.get_demat_gateways()
+            gateway = st.selectbox("Gateway",options,index=options.index(selected_gateway))
+            bro_options = ["N/A"] + self.all_user_options
+            rm_value = selected_row.get("Rm Name", "N/A").strip()
+            username_to_option = {user["username"]: f"{user['username']} - {user['full_name']}"for user in self.app_users}
+            rm_value_mapped = username_to_option.get(rm_value, "N/A")
+            bro_options_clean = [opt.strip() for opt in bro_options]
+            rm_index = (bro_options_clean.index(rm_value_mapped) if rm_value_mapped in bro_options_clean else 0)
+            rm_name = st.selectbox("BRO",bro_options,index=rm_index)
+        with col2:
+            boid = st.text_input("BOID", value=selected_row["Boid"], disabled=True)
+            renew_type_list = selected_row['Renew Type'].split(",")  # → ["BO OPEN", "LIFETIME MEROSHARE"]
+            renew_type = st.multiselect(
+                "Renew Type",
+                options=list(get_renew_values().keys()),
+                default=renew_type_list
+            )
 
 
+            # Calculate payment amount based on selected renew types
+            renew_values = get_renew_values()
+            total_payment = sum(renew_values[rt] for rt in renew_type)
 
+            payment_amount = st.text_input(
+                "Payment Amount",
+                value=str(total_payment),  # must be string
+                disabled=True
+            )
+
+
+            st.text_input("Open By", value=selected_row["Open By"], disabled=True)
+        is_bo_to_bo_val = selected_row['Is Bo To Bo']
+        bo_to_bo = st.checkbox("Is BO-To-BO", value=is_bo_to_bo_val)
+
+        col1, spcr, col2 = st.columns([1,4.1,1])
+        with col1:
+            update_btn = st.button("Update", icon="🔄")
+        with col2:
+            delete_btn = st.button("Delete", icon="🗑️")
+
+        if update_btn:
+            errors = []
+
+            # ---------- Validation ----------
+            if not client_name.strip():
+                errors.append("Client Name is required")
+
+            if not boid.strip():
+                errors.append("BOID is required")
+            elif not boid.isdigit() or len(boid) != 16:
+                errors.append("BOID must be exactly 16 digits and numeric")
+
+            if not tsl_number.strip():
+                errors.append("TSL Number is required")
+
+            try:
+                payment_amount_decimal = Decimal(payment_amount)
+                if payment_amount_decimal <= 0:
+                    errors.append("Payment Amount must be greater than 0")
+            except:
+                errors.append("Payment Amount must be a valid number")
+
+            if not gateway.strip():
+                errors.append("Gateway is required")
+
+            if rm_name == "N/A":
+                errors.append("Please select a valid BRO")
+
+            if errors:
+                for err in errors:
+                    st.error(err)
+                return
+
+            # ---------- Call DB Update ----------
+            success = db.update_demat_record(
+                # record_id,
+                client_name=client_name,
+                boid=boid,
+                tsl_number=tsl_number,
+                payment_amount=payment_amount_decimal,
+                gateway=gateway,
+                renew_type=",".join(renew_type),
+                # renew_type=str(renew_type),
+                rm_name=rm_name.split("-")[0].strip(),
+                updated_by=self.username,
+                bo_to_bo=bo_to_bo
+            )
+
+            if success:
+                st.success("Record updated successfully!")
+                sleep(1)
+                st.rerun()
+            else:
+                st.error(f"Something went wrong. Please contact IT.")
+                st.stop()
+
+        if delete_btn:
+            status = db.delete_demat_records(boid=boid)
+            if status:
+                st.success(f"Record with boid '{boid}' deleted successfully.")
+                sleep(1)
+                st.rerun()
+            else:
+                st.error(f"Something went wrong. Please contact IT.")
+    
     def render_page(self):
         mode = st.radio("Mode", ['Entry', 'View/Edit'], horizontal=True)
         if mode == "Entry":
