@@ -830,14 +830,16 @@ class DPM3:
         # st.badge(f"Total data: {len(st.session_state.floorsheet_data):,.2f}")
         # print(st.session_state.floorsheet_data.columns)
         # st.data_editor(data=st.session_state.floorsheet_data)
-        search_symbol = st.text_input("Search by Symbol", "").strip().upper()
+        with st.spinner("Loading data. Please wait...", show_time=True):
+            search_symbol = st.text_input("Search by Symbol", "").strip().upper()
 
-        if search_symbol:
-            filtered_df = new_df[new_df['symbol'].str.upper().str.contains(search_symbol)]
-        else:
-            filtered_df = new_df
-
-        st.data_editor(data=filtered_df)
+            if search_symbol:
+                filtered_df = new_df[new_df['symbol'].str.upper().str.contains(search_symbol)]
+            else:
+                filtered_df = new_df
+            filtered_df.reset_index(inplace=True, drop=True)
+            filtered_df.index = filtered_df.index + 1
+            st.data_editor(data=filtered_df)
 
 
 
