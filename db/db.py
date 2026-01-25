@@ -19,6 +19,89 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
+def dump_demat_records(df:pd.DataFrame, loggedin_username:str):
+    # Read uploaded Excel file
+    # Normalize columns to match your mapping
+    df.columns = [col.strip().upper() for col in df.columns]
+
+    # Map Excel columns to DB columns
+    column_mapping = {
+        'DATE': 'created_at_bs',
+        'BOID': 'boid',
+        'NAME': 'client_name',
+        'CLIENT CODE': 'client_code',
+        'TSL': 'tsl_number',
+        'AMOUNT': 'payment_amount',
+        'GATEWAY': 'gateway',
+        'RENEW TYPE': 'renew_type',
+        'OPEN BY': 'open_by',
+        'REMARKS': 'remarks',
+        'BRANCH':'branch',
+        'BRO':'rm_name'
+    }
+
+    # Rename dataframe columns
+    df = df.rename(columns=column_mapping)
+
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        inserted_count = 0
+        skipped_count = 0
+
+        for _, row in df.iterrows():
+            boid = str(row['boid']).strip()  # Convert BOID to string
+
+            # Check if BOID already exists
+            cursor.execute("SELECT 1 FROM demat_records WHERE boid = %s", (boid,))
+            if cursor.fetchone():
+                skipped_count += 1
+                continue  # Skip existing BOID
+
+            # Prepare insert statement
+            insert_query = """
+                INSERT INTO demat_records
+                (client_name, client_code, boid, tsl_number, payment_amount,
+                 gateway, renew_type, open_by, created_at_bs, remarks, rm_name, updated_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, (
+                row.get('client_name'),
+                '' if pd.isna(row.get('client_code')) else row.get('client_code'),
+                boid,
+                row.get('tsl_number'),
+                row.get('payment_amount'),
+                row.get('gateway'),
+                str(row.get('renew_type')).strip(),
+                row.get('open_by'),
+                row.get('created_at_bs'),
+                '' if pd.isna(row.get('remarks')) else row.get('remarks'),  
+                row.get('rm_name'),
+                loggedin_username        
+            ))
+            inserted_count += 1
+
+        conn.commit()
+        return inserted_count, skipped_count
+        # st.success(f"Data import completed! Inserted: {inserted_count}, Skipped (BOID exists): {skipped_count}")
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(e)
+        return 0,0
+
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
+
+
+
+
 def delete_demat_records(boid: int):
     """
     Mark a record as DELETED in demat_records table.

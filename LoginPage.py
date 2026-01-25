@@ -43,7 +43,6 @@ class LoginPage:
     def handle_successful_login(self, user):
         # reset failed_attempts on success
         update_login_status(user["username"], success=True)
-        print(user)
         payload = {
             "auth": True,
             "user": user["username"].upper(),

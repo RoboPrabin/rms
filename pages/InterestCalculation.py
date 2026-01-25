@@ -1,4 +1,5 @@
-import test_copy
+# import test_copy
+from calculation import interest_calculation
 from utils.formatting import *
 from datetime import date
 from time import sleep
@@ -193,7 +194,7 @@ class InterestCalculation:
                 st.divider()
                 st.subheader("📄 Bill Ageing", anchor=False)
                 with st.spinner(text="Calculating bill ageing",show_time=True):
-                    df_new = test_copy.main(df=df_for_ageing)
+                    df_new = interest_calculation.calculate(df=df_for_ageing)
                     df_new["Ageing"] = pd.to_timedelta(df_new["Ageing"], errors="coerce")
                     df_new["Ageing"] = df_new["Ageing"].dt.days.where(df_new["Ageing"].notna(), df_new["Ageing"])
 

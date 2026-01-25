@@ -818,19 +818,22 @@ class DPM3:
 
         # Drop temporary column
         holdings.drop(columns=['sell_quantity'], inplace=True)
-
+        holdings['amount'] = holdings['quantity'] * holdings['rate']
         return holdings.sort_values(['symbol', 'quantity'], ascending=[True, False])
         # return holdings.sort_values(['clientcode', 'symbol', 'branch'])
 
 
     def floorsheet_ui(self):
         st.subheader("Data from floorsheet", anchor=False)
-        if 'floorsheet_data' not in st.session_state:
-            st.session_state.floorsheet_data = db.get_floorsheet_data()
-        new_df = self.calculate_holdings(st.session_state.floorsheet_data)
-        # st.badge(f"Total data: {len(st.session_state.floorsheet_data):,.2f}")
-        # print(st.session_state.floorsheet_data.columns)
-        # st.data_editor(data=st.session_state.floorsheet_data)
+        loading_placeholder = st.empty()
+        with loading_placeholder.status("Fetching client holding data. Please wait !", expanded=False) as status:
+            if 'floorsheet_data' not in st.session_state:
+                st.session_state.floorsheet_data = db.get_floorsheet_data()
+            new_df = self.calculate_holdings(st.session_state.floorsheet_data)
+            status.update(label="Data fetched successfully.", state="complete", expanded=False)
+            sleep(0.5)
+        loading_placeholder.empty()
+
         with st.spinner("Loading data. Please wait...", show_time=True):
             search_symbol = st.text_input("Search by Symbol", "").strip().upper()
 

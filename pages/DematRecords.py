@@ -1,5 +1,5 @@
-
 from datetime import date
+from io import BytesIO
 from nepali_datetime import date as nepali_date
 from time import sleep
 import pandas as pd
@@ -87,7 +87,7 @@ class DematRecords:
                 st.text_input("TSL-Number", key="tsl_number")
                 st.text_input("Payment Amount", key="payment_amount", disabled=True)
                 st.selectbox("Gateway", helper.get_demat_gateways(), key="gateway")
-                st.date_input("Created Date (A.D.)", key="eng_date", min_value=date(1920,1,1), max_value=date.today(), disabled=True)
+                st.date_input("Created Date (A.D.)", key="eng_date", min_value=date(1920,1,1), max_value=date.today())
                 remarks = st.text_input("Remarks (Optional)", key="remarks")
                 bo_to_bo= st.checkbox("Is BO-TO-BO")
             with col2:
@@ -98,8 +98,8 @@ class DematRecords:
                     get_renew_values(),
                     key="renew_type"
                 )
-                st.selectbox("BRO", ["N/A"] + self.all_user_options, key="rm_name")
-                st.text_input("Created Date (B.S.)", key="nep_date", value=defaults['nep_date'], disabled=True)
+                st.selectbox("BRO", ["N/A", "SELF"] + self.all_user_options, key="rm_name")
+                st.text_input("Created Date (B.S.)   -  (Auto-Generate)", key="nep_date", value=defaults['nep_date'])
                 st.text_input("Open By", value=self.username, disabled=True)
                 st.markdown("<br>", unsafe_allow_html=True)
                 # st.write(bo_to_bo)
@@ -176,13 +176,15 @@ class DematRecords:
 
     def view_records(self):
         df = db.fetch_demat_records_with_branch_df()
-    
         # Kathmandu sees everything, others see only their branch
         if self.branch != "KATHMANDU":
             df = df[df["Branch"] == self.branch]
         
 
-
+        if df.empty:
+            st.warning(f"Records not found.", icon="⚠️")
+            st.stop()
+            
         # print(df.columns)
         # Filter
         branches = ["All"] + df["Branch"].dropna().unique().tolist()
@@ -248,9 +250,15 @@ class DematRecords:
             selected_gateway = selected_row["Gateway"]
             options = helper.get_demat_gateways()
             gateway = st.selectbox("Gateway",options,index=options.index(selected_gateway))
-            bro_options = ["N/A"] + self.all_user_options
+
+            bro_options = ["N/A", "SELF"] + self.all_user_options
             rm_value = selected_row.get("Rm Name", "N/A").strip()
-            username_to_option = {user["username"]: f"{user['username']} - {user['full_name']}"for user in self.app_users}
+            
+            username_to_option = {
+                user["username"]: (user["username"] if user["username"] == "SELF"
+                                else f"{user['username']} - {user['full_name']}")
+                for user in [{"username": "SELF", "full_name": "SELF"}] + self.app_users
+            }
             rm_value_mapped = username_to_option.get(rm_value, "N/A")
             bro_options_clean = [opt.strip() for opt in bro_options]
             rm_index = (bro_options_clean.index(rm_value_mapped) if rm_value_mapped in bro_options_clean else 0)
@@ -354,11 +362,73 @@ class DematRecords:
                 st.error(f"Something went wrong. Please contact IT.")
     
     def render_page(self):
-        mode = st.radio("Mode", ['Entry', 'View/Edit'], horizontal=True)
+        mode = st.radio("Mode", ['Entry', 'View/Edit', 'File Upload'], horizontal=True)
         if mode == "Entry":
             self.entry_ui()
-        else:
+        elif mode=='View/Edit':
             self.view_records()
+        elif mode == 'File Upload':
+            self.file_upload()
+    
+    def download_template(self):
+        # Create empty DataFrame with required columns
+        required_columns = ['DATE', 'BOID', 'NAME', 'CLIENT CODE', 'TSL', 
+                        'AMOUNT', 'GATEWAY', 'RENEW TYPE', 'OPEN BY', 'BRO' ,'REMARKS']
+        data = [['2082-09-25' ,'1301140000291235','SAPANA CHAND', '', 'TSL 17800','1200',	'CASH',	'BO OPEN,LIFETIME BO',	'SANGITA', 'SELF', ''],
+                ['2082-09-26' ,'1301140000294543','BIPANA THAPA', '', 'TSL 17777','1700',	'CASH',	'ALL',	'SANGITA', 'UMESH', ''],
+                ['2082-09-26' ,'1301140000294543','RAM ALI KHAN', '', 'TSL 17888','200',	'CASH',	'BO OPEN',	'SANGITA', 'UMESH', '']]
+        df = pd.DataFrame(data=data,columns=required_columns)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Template')
+        data = output.getvalue()
+
+        st.download_button(
+            label="Download Sample File",
+            data=data,
+            file_name="sample_demat_records.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    def file_upload(self):
+        self.download_template()
+        
+        # Use dynamic key to allow reset
+        if 'uploader_reset' not in st.session_state:
+            st.session_state.uploader_reset = 0
+        
+        key = f"demat_uploader_{st.session_state.uploader_reset}"
+        
+        with st.spinner("Loading data...", show_time=True):
+            uploaded_file = st.file_uploader(
+                "Upload Filled Template",
+                type=".xlsx",
+                key=key
+            )
+            
+            if uploaded_file:
+                df = pd.read_excel(uploaded_file)
+                st.write("Preview of Uploaded Data:")
+                df.index = df.index + 1
+                df['BRANCH'] = self.branch
+                st.dataframe(df)
+                
+                if st.button("ᯓ➤ Submit"):
+                    inserted_count, skipped_count = db.dump_demat_records(df, self.username)
+                    
+                    if inserted_count == 0 and skipped_count == 0:
+                        st.error("Something went wrong. Please contact IT.")
+                        st.stop()
+                    else:
+                        st.success(f"Data import completed! Inserted: {inserted_count}")
+                        st.warning(f"Skipped (BOID exists): {skipped_count}")
+                    
+                    # Reset → clears uploader
+                    st.session_state.uploader_reset += 1
+                    sleep(2.5)
+                    st.rerun()
+
+
 
 if __name__ == "__main__":
     DematRecords().render_page()
