@@ -20,6 +20,83 @@ def get_connection():
     )
 
 
+def insert_aml_transactions_bulk(df, created_by='system'):
+    """
+    Insert multiple rows from a DataFrame into transaction_monitor.
+    Skips rows if client_code already exists.
+    
+    Expects df columns: ['Client Code', 'Client Name', 'Occupation', 'Company', 'Restrict Company']
+    """
+    conn = None
+    inserted_count = 0
+    skipped_count = 0
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Step 1: fetch all existing client_codes to skip
+        cur.execute("SELECT client_code FROM transaction_monitor;")
+        existing_codes = set([row[0] for row in cur.fetchall()])
+
+        # Step 2: prepare rows to insert
+        rows_to_insert = []
+        for _, row in df.iterrows():
+            client_code = str(row.get('Client Code', '')).strip()
+            if not client_code or client_code in existing_codes:
+                skipped_count += 1
+                continue
+
+            client_name = str(row.get('Client Name', '')).strip()
+            occupation = str(row.get('Occupation', '')).strip()
+            company = str(row.get('Company', '')).strip()
+            restrict_company = str(row.get('Restrict Company', '')).strip() if 'Restrict Company' in df.columns else None
+
+            rows_to_insert.append((
+                client_code,
+                client_name,
+                occupation,
+                company,
+                restrict_company,
+                created_by,
+                created_by
+            ))
+
+        # Step 3: bulk insert using execute_values
+        if rows_to_insert:
+            insert_query = """
+                INSERT INTO transaction_monitor (
+                    client_code,
+                    client_name,
+                    occupation,
+                    company,
+                    restrict_company,
+                    created_by,
+                    updated_by
+                )
+                VALUES %s
+            """
+            psycopg2.extras.execute_values(
+                cur, insert_query, rows_to_insert, template=None, page_size=100
+            )
+            conn.commit()
+            inserted_count = len(rows_to_insert)
+
+        # print(f"Inserted {inserted_count} rows, skipped {skipped_count} rows (already exist).")
+        return inserted_count, skipped_count
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"Error inserting bulk transactions: {e}")
+        return 0, 0
+
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+
 def dump_demat_records(df:pd.DataFrame, loggedin_username:str):
     # Read uploaded Excel file
     # Normalize columns to match your mapping
@@ -499,27 +576,53 @@ def get_unverified_transactions():
     finally:
         conn.close()
 
+# def get_unique_client_code_from_floorsheet():
+#     conn = get_connection()
+#     try:
+#         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+#             cur.execute(
+#                 """
+#                 SELECT DISTINCT clientcode
+#                 FROM floorsheet ORDER BY clientcode ASC LIMIT 10    ;
+#                 """
+#             )
+#             rows = cur.fetchall()
+
+#             # This will include all columns from the DB exactly as they are
+#             df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
+
+#             return df
+#     except Exception as e:
+#         print("Error fetching transactions:", e)
+#         raise
+#     finally:
+#         conn.close()
+
+
 def get_unique_client_code_from_floorsheet():
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             cur.execute(
                 """
-                SELECT DISTINCT clientcode
-                FROM floorsheet ORDER BY clientcode ASC;
+                SELECT DISTINCT f.clientcode
+                FROM floorsheet f
+                LEFT JOIN transaction_monitor t
+                ON f.clientcode = t.client_code
+                WHERE t.client_code IS NULL
+                ORDER BY f.clientcode ASC;
                 """
             )
             rows = cur.fetchall()
-
-            # This will include all columns from the DB exactly as they are
             df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
-
             return df
+
     except Exception as e:
-        print("Error fetching transactions:", e)
+        print("Error fetching unique client codes:", e)
         raise
     finally:
         conn.close()
+
 
 
 

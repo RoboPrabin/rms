@@ -62,6 +62,7 @@ def get_ledger(token, ac_code, date_from, date_to):
 
 
 class InterestCalculation:
+    
     def __init__(self):
         # helper.eliminate_top_padding()
         st.session_state.active_menu = "user"

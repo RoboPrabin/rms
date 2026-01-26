@@ -201,22 +201,24 @@ class PayableAndReceivable:
 
             df_holder = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
             st.badge(f"Total data: {len(df_holder)}")
-            
-            df_holder.drop(columns=["id"], inplace=True)
+            try:
+                df_holder.drop(columns=["id"], inplace=True)
+                df_holder.index = df_holder.index + 1
+                st.dataframe(df_holder, width='stretch')
 
-            df_holder.index = df_holder.index + 1
-            st.dataframe(df_holder, width='stretch')
+                total_buy_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "BUY", "amount"].sum()
+                total_sell_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "SELL", "amount"].sum()
 
-            total_buy_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "BUY", "amount"].sum()
-            total_sell_bc_t0 = df_holder.loc[df_holder["transaction_type"].str.upper() == "SELL", "amount"].sum()
+                final_buy = total_buy_bc_t0 + floorsheet_buy_after
+                final_sell = total_sell_bc_t0 + floorsheet_sell_after
 
-            final_buy = total_buy_bc_t0 + floorsheet_buy_after
-            final_sell = total_sell_bc_t0 + floorsheet_sell_after
+                st.markdown("---")
 
-            st.markdown("---")
+                net_amount = (final_buy - final_sell) + total_tds
+                st.badge(f"Total TDS: {total_tds:,.2f}", color="green")
+            except Exception:
+                pass
 
-            net_amount = (final_buy - final_sell) + total_tds
-            st.badge(f"Total TDS: {total_tds:,.2f}", color="green")
         
         else:
             col1, col2 = st.columns(2)

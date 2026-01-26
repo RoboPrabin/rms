@@ -131,10 +131,92 @@ def compute_top_traded(df):
     )
 
 
+
+
+# def show_notification():
+#     with st.popover("", type='tertiary', icon='🔔'):
+#         st.markdown("Hello world.")
+
+def show_notification(message="hy"):
+    st.markdown(f"""
+        <style>
+        /* Container at top-right */
+        .top-right-notification {{
+            position: fixed;
+            top: 80px;
+            right: 50px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }}
+
+        /* Bell icon styling */
+        .bell {{
+            font-size: 22px;
+            padding: 10px 12px 10px 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(255, 165, 0, 0); /* initial no glow */
+            transition: transform 0.2s;
+            animation: popIn 0.5s ease-out, glow 2s ease-in-out infinite alternate;
+        }}
+
+        .bell:hover {{
+            transform: scale(1.3);
+        }}
+
+        /* Glow animation */
+        @keyframes glow {{
+            0% {{ box-shadow: 0 0 5px rgba(255, 165, 0, 0.5); }}
+            50% {{ box-shadow: 0 0 20px rgba(255, 165, 0, 1); }}
+            100% {{ box-shadow: 0 0 5px rgba(255, 165, 0, 0.5); }}
+        }}
+
+        /* Pop-in animation */
+        @keyframes popIn {{
+            0% {{ transform: scale(0); opacity: 0; }}
+            70% {{ transform: scale(1.2); opacity: 1; }}
+            100% {{ transform: scale(1); }}
+        }}
+
+        /* Notification popup */
+        .popup {{
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 15px;
+            min-width: 220px;
+            font-size: 14px;
+            color: black;
+            animation: fadeIn 0.3s ease-out;
+        }}
+
+        /* Show popup on hover with fade-in/fade-out */
+        .top-right-notification:hover .popup {{
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }}
+
+        @keyframes fadeIn {{
+            0% {{ opacity: 0; transform: translateY(-10px); }}
+            100% {{ opacity: 1; transform: translateY(0); }}
+        }}
+        </style>
+
+        <div class="top-right-notification">
+            <div class="bell">🔔</div>
+            <div class="popup">{message}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    
 # ---------------------------------------------------------
 # 🖥️ DASHBOARD CLASS
 # ---------------------------------------------------------
-
 class Dashboard:
 
     def __init__(self):
@@ -168,7 +250,8 @@ class Dashboard:
             width=400
         )
         self.week_day = self.selected_date.strftime("%A")
-
+        # show_notification()
+        
     # ---------------------------------------------------------
     # 🚀 MAIN RENDER
     # ---------------------------------------------------------
