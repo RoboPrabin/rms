@@ -202,6 +202,8 @@ class TransactionMonitoring:
                 df['client_code'].astype(str)
                 + " - "
                 + df['client_name'].astype(str)
+                + " - "
+                + df['company'].astype(str)
             ).tolist()
 
             # Map for instant lookup
@@ -257,14 +259,14 @@ class TransactionMonitoring:
     def render_page(self):
         mode = st.radio(
             "Mode",
-            ['Traders Info', 'Populate Traders Info', 'View All Restrictions', 'Reports'],
+            ['Data Entry', 'Populate Traders Info', 'View All Restrictions', 'Reports'],
             horizontal=True,
             index=0
         )
 
         if mode == 'Populate Traders Info':
             self.populate_traders_info()
-        elif mode == "Traders Info":
+        elif mode == "Data Entry":
             self.show_traders_info()
         elif mode == "View All Restrictions":
             self.view_restrictions_clients()
