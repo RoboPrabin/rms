@@ -20,6 +20,82 @@ def get_connection():
     )
 
 
+def update_restrict_company(client_code: str, updated_by:str ,restrict_company: list):
+    query = """
+        UPDATE transaction_monitor
+        SET restrict_company = %s,
+            updated_by = %s
+        WHERE client_code = %s;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (",".join(restrict_company), updated_by ,client_code))
+        conn.commit()
+
+def get_restricted_scripts(client_code: str) -> list[str]:
+    """
+    Fetch restricted scripts for a given client from DB (Postgres, camelCase columns).
+    Returns a list of strings in format "SYMBOL - SecurityName".
+    """
+    query = """
+        SELECT ap."symbol", ap."securityName"
+        FROM "transaction_monitor" tm
+        JOIN "average_price" ap 
+            ON ap."symbol" = ANY(string_to_array(tm."restrict_company", ','))
+        WHERE tm."client_code" = %s
+    """
+    
+    with get_connection() as conn:  # Replace with your actual DB connection handler
+        with conn.cursor() as cursor:
+            cursor.execute(query, (client_code,))
+            rows = cursor.fetchall()
+    
+    # Format as "SYMBOL - SecurityName"
+    return [f"{symbol} - {name}" for symbol, name in rows]
+
+
+
+
+def get_aml_transaction_data():
+    query = "SELECT client_code, client_name, occupation, company, restrict_company, flag from transaction_monitor ORDER BY client_code ASC;"
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                return pd.DataFrame()  # empty DataFrame if no records
+
+            # Convert list of DictRow to DataFrame
+            df = pd.DataFrame([dict(row) for row in rows])
+            return df  
+def get_all_unverified_transaction():
+    query = "SELECT * from unverified_trans ORDER BY created_at DESC;"
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                return pd.DataFrame()  # empty DataFrame if no records
+
+            # Convert list of DictRow to DataFrame
+            df = pd.DataFrame([dict(row) for row in rows])
+            return df  
+
+def get_scripts():
+    query = """SELECT symbol, "securityName" from average_price ORDER BY symbol ASC;"""
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                return pd.DataFrame()  
+
+            # Convert list of DictRow to DataFrame
+            df = pd.DataFrame([dict(row) for row in rows])
+            return df  
+
+
 def insert_aml_transactions_bulk(df, created_by='system'):
     """
     Insert multiple rows from a DataFrame into transaction_monitor.

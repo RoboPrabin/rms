@@ -57,38 +57,21 @@ class TransactionMonitoring:
         helper.eliminate_top_padding()
         st.session_state.active_menu = "aml"
         activate_client_code_hotkey()
-
         st.set_page_config("AML - Transaction Monitoring", page_icon="🕵🏻", layout='wide')
-
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
-
         # Authentication
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
         self.username, self.role, self.branch = app_state.get_current_user_info()
         navigation.render_sidebar()
-
-
         # DB
         self.holding_engine = helper.get_holding_engine()
-
         st.header("🕵🏻 AML - Transaction Monitoring", anchor=False)
-        st.header("⚠️ Page under construction", anchor=False)
 
 
-    def render_page(self):
-        mode = st.radio(
-            "Mode",
-            ['Traders Info', 'Populate Traders Info'],
-            horizontal=True,
-            index=1
-        )
-
-        if mode != 'Populate Traders Info':
-            return
-
+    def populate_traders_info(self):
         # ─── Session flags ────────────────────────────────────────
         if 'fetch_done' not in st.session_state:
             st.session_state.fetch_done = False
@@ -99,6 +82,9 @@ class TransactionMonitoring:
         # ─── Init data only once ──────────────────────────────────
         if 'trader_df' not in st.session_state:
             df = db.get_unique_client_code_from_floorsheet()
+            if df.empty:
+                st.info("No new records yet.", icon="ℹ️")
+                st.stop()
             df.rename(columns={'clientcode': 'Client Code'}, inplace=True)
             # After creating/renaming df
             df.columns = [str(col) for col in df.columns]
@@ -134,11 +120,6 @@ class TransactionMonitoring:
         if st.session_state.submit_done:
             st.success("Data submitted successfully ✓")
             st.info("Go to 'Traders Info' tab to start working.")
-            # if st.button("Start new population"):
-            #     for k in ['trader_df', 'fetch_done', 'submit_done']:
-            #         if k in st.session_state:
-            #             del st.session_state[k]
-            #     st.rerun()
             return
 
         # ─── Already fetched, waiting for submit ──────────────────
@@ -198,6 +179,97 @@ class TransactionMonitoring:
             st.success("Fetch completed ✓ Ready to submit.")
             sleep(1)
             st.rerun()   # → switches to submit view
+    
+    
+
+    def show_traders_info(self):
+        if 'aml_data' not in st.session_state:
+            st.session_state.aml_data = db.get_aml_transaction_data()
+            st.session_state.count = len(st.session_state.aml_data)
+        if 'scripts' not in st.session_state:
+            df_scripts = db.get_scripts()
+            st.session_state.scripts = (df_scripts['symbol'] + " - " + df_scripts['securityName']).tolist()
+
+        if 'client_options' not in st.session_state:
+            df = st.session_state.aml_data
+
+            if df.empty:
+                st.info("Data not found.", icon="ℹ️")
+                st.stop()
+
+            # Vectorized (fast) — no iterrows
+            st.session_state.client_options = (
+                df['client_code'].astype(str)
+                + " - "
+                + df['client_name'].astype(str)
+            ).tolist()
+
+            # Map for instant lookup
+            st.session_state.client_map = dict(
+                zip(st.session_state.client_options, df.index)
+            )
+
+        st.badge(f"Total Traders Count: {st.session_state.count:,.2f}")
+        col1, col2 = st.columns(2)
+        if 'selected_client' not in st.session_state:
+            st.session_state.selected_client = ''
+        with col1:
+            selected_client = st.selectbox("Select Client", ['None'] + st.session_state.client_options)
+        with col2:
+            if selected_client != 'None':
+                client_code = str(selected_client.split("-")[0].strip())
+
+                # Only set default once per client selection
+                if "restricted_scripts" not in st.session_state or st.session_state.selected_client != selected_client:
+                    st.session_state.restricted_scripts = db.get_restricted_scripts(client_code)
+                    st.session_state.selected_client = selected_client  # track current client
+            if selected_client != 'None':
+                restricted_scripts = st.multiselect(
+                    "Restrict Scripts",
+                    st.session_state.scripts,
+                    key="restricted_scripts",
+                    accept_new_options=True
+                )
+
+            
+        if st.button("Restrict now !", icon="🚫"):
+            symbols = [item.split(" - ", 1)[0] for item in restricted_scripts]
+            selected_client = str(selected_client.split("-")[0].strip())
+            db.update_restrict_company(client_code=selected_client, updated_by=self.username, restrict_company=symbols)
+            st.success("Data updated successfully.", icon="✅")
+            sleep(1)
+            st.rerun()
+    
+
+    def view_restrictions_clients(self):
+       
+        if 'view_data' not in st.session_state:
+            st.session_state.view_data = db.get_aml_transaction_data()
+        df = st.session_state.view_data
+        df.rename(columns={'client_code':'Client Code', 'client_name': 'Client Name', 
+                           'occupation': 'Occupation', 'company':'Company', 'restrict_company':'Restrict Company', 'flag':'Flag'}, inplace=True)
+        df.reset_index(inplace=True, drop=True)
+        df.index = df.index + 1
+        st.badge(f"Total Count: {len(df):,.2f}")
+        st.dataframe(st.session_state.view_data)
+
+    
+    def render_page(self):
+        mode = st.radio(
+            "Mode",
+            ['Traders Info', 'Populate Traders Info', 'View All Restrictions', 'Reports'],
+            horizontal=True,
+            index=0
+        )
+
+        if mode == 'Populate Traders Info':
+            self.populate_traders_info()
+        elif mode == "Traders Info":
+            self.show_traders_info()
+        elif mode == "View All Restrictions":
+            self.view_restrictions_clients()
+
+       
 
 
 

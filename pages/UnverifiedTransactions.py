@@ -217,12 +217,18 @@ class UnverifiedTransactions:
 
 
     def render_page(self):
-        mode = st.radio("Select Mode",['Add', 'View'], horizontal=True, index=0)
+        mode = st.radio("Select Mode",['Add', 'View', 'History'], horizontal=True, index=2)
         if mode == 'Add':
             self.show_input_ui()
-        else:
+        elif mode == 'View':
             self.show_all_unverified_transactions()
+        elif mode == 'History':
+            df = db.get_all_unverified_transaction()
+            df.drop(columns=['id'], inplace=True)
+            df = df.rename(columns=helper.camel_to_title)
 
+            df.index = df.index + 1
+            st.dataframe(df)
 
 
 if __name__ == "__main__":
