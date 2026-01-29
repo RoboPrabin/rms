@@ -230,15 +230,17 @@ def render_sidebar():
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-            st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
-            st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
+
+        with st.sidebar.expander("‎‎ ‎ Client Management", icon="🤹🏻", expanded=(active_menu == "user")):
+            st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
 
         with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
             st.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
@@ -248,6 +250,7 @@ def render_sidebar():
             st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
             st.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
         
+
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     if role == "HR":
