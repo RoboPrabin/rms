@@ -52,6 +52,8 @@ def get_kyc_details(ac_code, token):
     return resp.json()
 
 
+
+
 class TransactionMonitoring:
     def __init__(self):
         helper.eliminate_top_padding()
@@ -69,6 +71,70 @@ class TransactionMonitoring:
         # DB
         self.holding_engine = helper.get_holding_engine()
         st.header("🕵🏻 AML - Transaction Monitoring", anchor=False)
+
+    @st.dialog("🔄 Update Client Details", width='medium')
+    def show_dialog(self):
+        col1, col2 = st.columns(2)
+        with col1:
+            client_code = st.text_input(
+                "Client Code",
+                value=st.session_state.dialog_client_code,
+                disabled=True
+            ).upper()
+
+            company = st.text_input(
+                "Company",
+                value=st.session_state.dialog_company
+            ).upper()
+
+        with col2:
+            client_name = st.text_input(
+                "Client Name",
+                value=st.session_state.dialog_client_name
+            ).upper()
+
+            occupation = st.text_input(
+                "Occupation",
+                value=st.session_state.dialog_occupation
+            ).upper()
+
+        if st.button("Update info", icon="🔄"):
+            # Compare current input values with original session state values
+            changed = (
+                company != st.session_state.dialog_company or
+                client_name != st.session_state.dialog_client_name or
+                occupation != st.session_state.dialog_occupation
+            )
+
+            info_banner = st.empty()
+
+            if changed:
+                # Only update DB if something changed
+                db.update_client_info_aml(
+                    client_name=client_name,
+                    company=company,
+                    occupation=occupation,
+                    updated_by=self.username,
+                    client_code=client_code.strip()
+                )
+                info_banner.success("Updated successfully ✅")
+                sleep(0.5)
+            else:
+                info_banner.info("No changes detected — Database not updated.", icon="📌")
+                sleep(2)
+            info_banner.empty()
+
+
+            # try:
+            #     # Clear session state so dialog disappears
+            #     for key in [
+            #         'dialog_client_code', 'dialog_company',
+            #         'dialog_client_name', 'dialog_occupation',
+            #         'show_dialog_flag'
+            #     ]:
+            #         st.session_state.pop(key, None)
+            # except Exception as e:
+            #     pass
 
 
     def populate_traders_info(self):
@@ -182,7 +248,8 @@ class TransactionMonitoring:
     
     
 
-    def show_traders_info(self):
+    def data_entry(self):
+        
         if 'aml_data' not in st.session_state:
             st.session_state.aml_data = db.get_aml_transaction_data()
             st.session_state.count = len(st.session_state.aml_data)
@@ -233,9 +300,10 @@ class TransactionMonitoring:
                     accept_new_options=True
                 )
 
-            
         if st.button("Restrict now !", icon="🚫"):
             symbols = [item.split(" - ", 1)[0] for item in restricted_scripts]
+            if len(symbols) == 0:
+                symbols = None
             selected_client = str(selected_client.split("-")[0].strip())
             db.update_restrict_company(client_code=selected_client, updated_by=self.username, restrict_company=symbols)
             st.success("Data updated successfully.", icon="✅")
@@ -249,13 +317,162 @@ class TransactionMonitoring:
             st.session_state.view_data = db.get_aml_transaction_data()
         df = st.session_state.view_data
         df.rename(columns={'client_code':'Client Code', 'client_name': 'Client Name', 
-                           'occupation': 'Occupation', 'company':'Company', 'restrict_company':'Restrict Company', 'flag':'Flag'}, inplace=True)
+                           'occupation': 'Occupation', 'company':'Company', 
+                           'restrict_company':'Restrict Company', 'flag':'Flag'}, inplace=True)
         df.reset_index(inplace=True, drop=True)
         df.index = df.index + 1
         st.badge(f"Total Count: {len(df):,.2f}")
-        st.dataframe(st.session_state.view_data)
+        try:
+            df.drop(columns=['Flag'], inplace=True)
+        except Exception as e:
+            pass
+        selection = st.dataframe(st.session_state.view_data, key='view_restriction', selection_mode='single-row', on_select='rerun')
+        selection = st.session_state.get("view_restriction", {}).get("selection", {})
+        selected_rows = selection.get("rows", [])
 
-    
+        if selected_rows:
+            selected_index = selected_rows[0]
+
+            # Fetch raw row (zero-based index)
+            selected_row = df.iloc[selected_index].to_dict()
+            if len(selected_row)>0:
+                # Store values in session state
+                st.session_state.dialog_client_code = selected_row['Client Code']
+                st.session_state.dialog_company = selected_row.get('Company') or ""
+                st.session_state.dialog_client_name = selected_row.get('Client Name') or ""
+                st.session_state.dialog_occupation = selected_row.get('Occupation') or ""
+                self.show_dialog()
+
+    def show_reports(self):
+        try:
+            del st.session_state.restrict_script
+        except Exception:
+            pass
+        banner = None
+        has_load_button_clicked = False
+        with st.expander("Show Date Range", icon="ℹ️"):
+            with st.form("Load data", clear_on_submit=False):
+                st.caption("*Note: This section loads the floorsheet data of provied data range.")
+                col1, col2 = st.columns(2)
+                with col1:
+                    from_date = st.date_input(label="From Date")
+                with col2:
+                    to_date = st.date_input(label="To Date")
+                submit_btn = st.form_submit_button("Load data")
+                if submit_btn:
+                    banner = st.empty()
+                    has_load_button_clicked = True
+                    banner.info("Loading floorsheet. Please wait...", icon="ℹ️")
+
+
+        # Cache restriction scripts once
+        if 'restrict_script' not in st.session_state:
+            st.session_state.restrict_script = db.get_clients_with_restriction_scripts()  # has client_code, restrict_company
+
+        # Always refresh floorsheet when date changes
+        st.session_state.aml_floorsheet = db.get_floorsheet_range_aml(
+            from_selected_date=from_date,
+            to_selected_date=to_date
+        )
+
+
+        # Assign local variables
+        df_restrict_scripts = st.session_state.restrict_script.copy()
+        df_floorsheet = st.session_state.aml_floorsheet.copy()
+
+        # Normalize column names
+        df_floorsheet = df_floorsheet.rename(columns={"clientcode": "client_code"})
+
+        # Split restrict_company into lists
+        df_restrict_scripts["restrict_list"] = df_restrict_scripts["restrict_company"].str.split(",")
+
+        # Strip whitespace and uppercase for consistency
+        df_restrict_scripts["restrict_list"] = df_restrict_scripts["restrict_list"].apply(
+            lambda lst: [s.strip().upper() for s in lst] if isinstance(lst, list) else []
+        )
+        df_floorsheet["symbol"] = df_floorsheet["symbol"].str.upper()
+        # Format to 12-hour with seconds and date
+        df_floorsheet["tradetime"] = pd.to_datetime(df_floorsheet["tradetime"], errors='coerce')
+        df_floorsheet["tradetime"] = df_floorsheet["tradetime"].dt.strftime("%d-%b-%Y %I:%M:%S %p")
+        # Build trade time mapping per client + symbol
+        # Build FIRST trade-time mapping per client + symbol
+        trade_time_map = (
+            df_floorsheet
+            .sort_values("tradetime")  # ensure chronological order
+            .drop_duplicates(subset=["client_code", "symbol"], keep="first")
+            .set_index(["client_code", "symbol"])["tradetime"]
+            .to_dict()
+        )
+
+        # Check if traded restricted symbols
+        def check_restricted(row):
+            client_trades = df_floorsheet[df_floorsheet["client_code"] == row["client_code"]]["symbol"].tolist()
+            return list(set(client_trades) & set(row["restrict_list"]))  # intersection
+
+        df_restrict_scripts["violated_symbols"] = df_restrict_scripts.apply(check_restricted, axis=1)
+
+        # Filter only violators
+        df_violations = df_restrict_scripts[
+            df_restrict_scripts["violated_symbols"].map(len) > 0
+        ].copy()
+
+        df_violations["violated_symbols"] = df_violations["violated_symbols"].apply(
+            lambda x: list(x) if isinstance(x, (list, set, tuple)) else []
+        )
+
+
+        trade_days_col = []
+        for _, row in df_violations.iterrows():
+            trade_days = []
+            for symbol in row["violated_symbols"]:
+                key = (row["client_code"], symbol)
+                if key in trade_time_map:
+                    trade_days.append(f"{symbol} ({trade_time_map[key]})")
+            trade_days_col.append(trade_days)
+        df_violations["Trade Day"] = trade_days_col
+
+
+
+
+        # Drop original restrict_company column (since we now have restrict_list + violated_symbols)
+        df_restrict_scripts.drop(columns=['restrict_company'], inplace=True)
+
+        # Show results
+        if len(df_violations) > 0:
+            st.subheader("🚨 Found Violation", anchor=False)
+            df_violations.reset_index(drop=True, inplace=True)
+            df_violations.index = df_violations.index + 1
+            df_violations.rename(columns={'client_code':'Client Code', 
+                                          'client_name':'Client Name', 
+                                          'restrict_company':'Restrict Company',
+                                          'restrict_list': 'Restrict Scripts',
+                                          'violated_symbols': 'Violated Scripts', 
+                                          'company':'Workplace'}, inplace=True)
+            df_violations.drop(columns=['Restrict Company'], inplace=True)
+            st.badge(f"Total Violation: {len(df_violations)}", color='red')
+            st.dataframe(df_violations)
+            st.divider()
+        if len(df_violations)<=0:
+            st.info(f"Violation not found. \n\nTotal transactions on selected date range: {len(st.session_state.aml_floorsheet)}.",icon="📢")
+            st.divider()
+
+        st.subheader("🚫 Restriction List", anchor=False)
+        df_restrict_scripts.reset_index(drop=True, inplace=True)
+        df_restrict_scripts.index = df_restrict_scripts.index + 1
+        df_restrict_scripts.rename(columns={'client_code':'Client Code', 
+                                          'client_name':'Client Name', 
+                                          'restrict_company':'Restrict Company',
+                                          'restrict_list': 'Restrict List',
+                                          'violated_symbols': 'Violated Script', 'company':'Company'}, inplace=True)
+        st.badge(f"Total Restrictions Clients: {len(df_restrict_scripts)}", color='blue')
+        st.dataframe(df_restrict_scripts)
+        if has_load_button_clicked:
+            banner.success("Data fetched successfully.", icon="✅")
+            sleep(1)
+            banner.empty()
+            st.session_state.restrict = False
+
+
     def render_page(self):
         mode = st.radio(
             "Mode",
@@ -264,12 +481,15 @@ class TransactionMonitoring:
             index=0
         )
 
-        if mode == 'Populate Traders Info':
+        if mode == "Data Entry":
+            self.data_entry()
+        elif mode == 'Populate Traders Info':
             self.populate_traders_info()
-        elif mode == "Data Entry":
-            self.show_traders_info()
         elif mode == "View All Restrictions":
             self.view_restrictions_clients()
+        elif mode == "Reports":
+            self.show_reports()
+
 
        
 

@@ -106,7 +106,7 @@ def get_today_data():
     if response.status_code == 200:
         data = response.json()['data']
         df = pd.DataFrame(data)
-        df['date'] = datetime.now().strftime("%Y-%m-%d"),
+        df['date'] = datetime.now().strftime("%Y-%m-%d")
         df.to_sql("top_brokers", engine, if_exists='append',index=False)
     else:
         print("Failed to fetch data.")

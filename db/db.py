@@ -20,7 +20,7 @@ def get_connection():
     )
 
 
-def update_restrict_company(client_code: str, updated_by:str ,restrict_company: list):
+def update_restrict_company(client_code: str, updated_by:str ,restrict_company):
     query = """
         UPDATE transaction_monitor
         SET restrict_company = %s,
@@ -30,7 +30,32 @@ def update_restrict_company(client_code: str, updated_by:str ,restrict_company: 
 
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query, (",".join(restrict_company), updated_by ,client_code))
+            if restrict_company == None:
+                companies = None
+            else:
+                companies = ",".join(restrict_company)
+            cursor.execute(query, (companies, updated_by ,client_code))
+        conn.commit()
+
+def update_client_info_aml(client_name: str, company:str, occupation:str, updated_by:str, client_code:str):
+    query = """
+        UPDATE transaction_monitor
+        SET client_name = %s,
+            company = %s,
+            occupation = %s,
+            updated_by = %s
+
+        WHERE client_code = %s;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            if occupation == "":
+                occupation = None
+            if company == "":
+                company = None
+
+            cursor.execute(query, (client_name, company, occupation ,updated_by,client_code))
         conn.commit()
 
 def get_restricted_scripts(client_code: str) -> list[str]:
@@ -54,9 +79,6 @@ def get_restricted_scripts(client_code: str) -> list[str]:
     # Format as "SYMBOL - SecurityName"
     return [f"{symbol} - {name}" for symbol, name in rows]
 
-
-
-
 def get_aml_transaction_data():
     query = "SELECT client_code, client_name, occupation, company, restrict_company, flag from transaction_monitor ORDER BY client_code ASC;"
     with get_connection() as conn:
@@ -69,6 +91,28 @@ def get_aml_transaction_data():
             # Convert list of DictRow to DataFrame
             df = pd.DataFrame([dict(row) for row in rows])
             return df  
+
+        
+def get_clients_with_restriction_scripts():
+    query = """
+        SELECT client_code, client_name, restrict_company, company
+        FROM transaction_monitor
+        WHERE restrict_company IS NOT NULL
+        ORDER BY id ASC;
+        """
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                return pd.DataFrame()  # empty DataFrame if no records
+
+            # Convert list of DictRow to DataFrame
+            df = pd.DataFrame([dict(row) for row in rows])
+            return df  
+        
+
+
 def get_all_unverified_transaction():
     query = "SELECT * from unverified_trans ORDER BY created_at DESC;"
     with get_connection() as conn:
@@ -1205,6 +1249,8 @@ def get_today_floorsheet(selected_date):
     except Exception as e:
         print("DB Error:", e)
         return pd.DataFrame()
+    
+
 
 def get_floorsheet_by_script_and_date_range(script, start_date, end_date):
     query = """
@@ -1276,6 +1322,29 @@ def get_today_floorsheet_range(from_selected_date, to_selected_date):
         WHERE to_date(substr(uploaded_at, 1, 10), 'YYYY-MM-DD') 
             BETWEEN %s AND %s;
 
+            """
+
+    conn = None
+    df = pd.DataFrame()
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query, (from_selected_date, to_selected_date))
+            rows = cur.fetchall()
+            df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
+    except Exception as e:
+        print("Error fetching floorsheet:", e)
+    finally:
+        if conn:
+            conn.close()
+    return df
+
+def get_floorsheet_range_aml(from_selected_date, to_selected_date):
+    query = """
+       SELECT clientcode, clientname, symbol, tradetime
+        FROM floorsheet
+        WHERE to_date(substr(uploaded_at, 1, 10), 'YYYY-MM-DD') 
+            BETWEEN %s AND %s;
             """
 
     conn = None
