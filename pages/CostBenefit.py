@@ -46,8 +46,8 @@ class CostBenefit:
         #     width=400
         # )
         # self.week_day = self.selected_date.strftime("%A")
-        if 'cbr' not in st.session_state:
-            st.session_state['cbr'] = db.get_cost_benefit_data()
+        # if 'cbr' not in st.session_state:
+        #     st.session_state['cbr'] = db.get_cost_benefit_data()
         
 
     def render_page(self):
