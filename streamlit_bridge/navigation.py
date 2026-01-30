@@ -286,6 +286,8 @@ def render_sidebar():
 
     if role == "VIEWER":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
+        st.sidebar.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
+
         st.sidebar.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
         st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
