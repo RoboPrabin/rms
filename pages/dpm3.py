@@ -15,6 +15,9 @@ from utils import helper
 
 pd.set_option("styler.render.max_elements", 1579383)
 
+
+
+
 class DPM3:
     def __init__(self):
         helper.eliminate_top_padding()
@@ -424,71 +427,71 @@ class DPM3:
     #         )
 
 
+
+    @st.cache_data(ttl=3600)
+    def get_and_format_holdings(_self):
+        raw_data = db.get_floorsheet_data()
+        df = _self.calculate_holdings(raw_data)
+        for col in ['rate', 'amount']:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else x)
+        return df
+
     
-    def view_holdings(self):
-        # Load data once
-        if "dpm_df" not in st.session_state or "kyc_raw" not in st.session_state:
-            st.session_state.dpm_df = db.get_dpm3()
-            st.session_state.kyc_raw = db.get_kyc()
+    def floorsheet_ui(self):
+        st.subheader("Data from floorsheet", anchor=False)
+        
+        loading_placeholder = st.empty()
+        with loading_placeholder.status("Fetching client holding data...", expanded=False) as status:
+            new_df = self.get_and_format_holdings()
+            status.update(label="Data fetched successfully.", state="complete", expanded=False)
+            sleep(0.5)
+        loading_placeholder.empty()
 
-        if "display_df" not in st.session_state:
-            dpm_df = st.session_state.dpm_df
-            kyc_df = pd.DataFrame(
-                st.session_state.kyc_raw,
-                columns=["clientmembercode", "clientfullname", "clientbranch", "boid"]
-            )
+        with st.spinner("Loading data...", show_time=True):
+            new_df = self.get_and_format_holdings()   # fast after first run due to cache
 
-            # Normalize columns
-            dpm_df["CLIENT CODE"] = dpm_df["CLIENT CODE"].astype(str).str.strip()
-            kyc_df["clientmembercode"] = kyc_df["clientmembercode"].astype(str).str.strip()
+            filter_options = ['None', 'Client Code', 'Client Name', 'Symbol']
 
-            # Merge
-            df = dpm_df.merge(
-                kyc_df[["clientmembercode", "clientfullname"]],
-                left_on="CLIENT CODE",
-                right_on="clientmembercode",
-                how="left"
-            )
+            col1, col2 = st.columns(2)
+            with col1:
+                selected_filter = st.selectbox("Filter by", filter_options, key="fs_filter")
 
-            df["CLIENT NAME"] = df["clientfullname"]
-            df.drop(columns=["clientmembercode", "clientfullname"], errors="ignore", inplace=True)
-            df.drop(columns=["ISIN", "uploaded_at"], errors="ignore", inplace=True)
+            filtered_df = new_df.copy()
 
-            st.session_state.display_df = df
+            with col2:
+                if selected_filter == "Client Code":
+                    search = st.text_input("Search by Client Code", "", key="fs_cc").strip().upper()
+                    if search:
+                        filtered_df = filtered_df[filtered_df['clientcode'].str.upper().str.contains(search, na=False)]
 
-        df = st.session_state.display_df.copy()  # safe working copy
+                elif selected_filter == "Client Name":
+                    search = st.text_input("Search by Client Name", "", key="fs_cn").strip().upper()
+                    if search:
+                        filtered_df = filtered_df[filtered_df['clientname'].str.upper().str.contains(search, na=False)]
 
-        # Search
-        search_box = st.text_input(
-            "Search by Script",
-            placeholder="e.g. NABIL, NTC, API"
-        ).strip().upper()
+                elif selected_filter == "Symbol":
+                    search = st.text_input("Search by Symbol", "", key="fs_sym").strip().upper()
+                    if search:
+                        filtered_df = filtered_df[filtered_df['symbol'].str.upper().str.contains(search, na=False)]
 
-        if search_box:
-            df = df[
-                df["SCRIPT"].astype(str).str.upper().str.contains(search_box, na=False)
-            ].sort_values("CURRENT BALANCE", ascending=False)
-            df.reset_index(inplace=True, drop=True)
-        # 1-based index only if rows exist
-        if not df.empty:
-            df.index = df.index + 1
 
-        # Display
-        st.caption(f"Total records: {len(df):,}")
-        # df.sort_values(by="CURRENT BALANCE", inplace=True, ascending=False)
-        # df = df.reset_index(drop=True, inplace=True)
+            st.badge(f"Total data: {len(filtered_df):,}")
 
-        st.dataframe(
-            df,
-            column_config={
-                "TOTAL VALUATION": st.column_config.NumberColumn(format="%d"),
-                "CURRENT BALANCE": st.column_config.NumberColumn(format="%d"),
-                "FREE BALANCE":    st.column_config.NumberColumn(format="%d"),
-                "CLOSING PRICE":   st.column_config.NumberColumn(format="%.2f"),
-            },
-            use_container_width=True,
-            hide_index=False
-        )
+            filtered_df = filtered_df.rename(columns={
+                'clientcode': 'Client Code',
+                'clientname': 'Client Name',
+                'branch': 'Branch',
+                'symbol': 'Symbol',
+                'quantity': 'Quantity',
+                'rate': 'Rate',
+                'amount': 'Amount'
+            })
+
+            filtered_df = filtered_df.sort_values(by='Client Name').reset_index(drop=True)
+            filtered_df.index = filtered_df.index + 1
+
+            st.data_editor(data=filtered_df, disabled=True)
 
 
 
@@ -772,7 +775,7 @@ class DPM3:
         
         elif selected_radio_bt == 'Latest Holdings':
             self.view_holdings()
-        else:
+        elif selected_radio_bt == "Test":
             self.floorsheet_ui()
 
 
@@ -833,18 +836,58 @@ class DPM3:
             status.update(label="Data fetched successfully.", state="complete", expanded=False)
             sleep(0.5)
         loading_placeholder.empty()
-
         with st.spinner("Loading data. Please wait...", show_time=True):
-            search_symbol = st.text_input("Search by Symbol", "").strip().upper()
+            filter_options = ['None', 'Client Code', 'Client Name', 'Symbol']
 
-            if search_symbol:
-                filtered_df = new_df[new_df['symbol'].str.upper().str.contains(search_symbol)]
-            else:
-                filtered_df = new_df
+            col1, col2 = st.columns(2)
+            with col1:
+                selected_filter = st.selectbox("Filter by", filter_options)
+
+            with col2:
+                # dynamic search input based on filter choice
+                search_value = ""
+                if selected_filter == "Client Code":
+                    search_value = st.text_input("Search by Client Code", "").strip().upper()
+                    if search_value:
+                        filtered_df = new_df[new_df['clientcode'].str.upper().str.contains(search_value)]
+                    else:
+                        filtered_df = new_df
+
+                elif selected_filter == "Client Name":
+                    search_value = st.text_input("Search by Client Name", "").strip().upper()
+                    if search_value:
+                        filtered_df = new_df[new_df['clientname'].str.upper().str.contains(search_value)]
+                    else:
+                        filtered_df = new_df
+
+                elif selected_filter == "Symbol":
+                    search_value = st.text_input("Search by Symbol", "").strip().upper()
+                    if search_value:
+                        filtered_df = new_df[new_df['symbol'].str.upper().str.contains(search_value)]
+                    else:
+                        filtered_df = new_df
+
+                else:
+                    filtered_df = new_df
+
+
+
+            st.badge(f"Total data: {len(filtered_df):,.2f}")
+            # format numeric columns with commas
+            for col in ['rate', 'amount']:
+                if col in filtered_df.columns:
+                    filtered_df[col] = filtered_df[col].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else x)
+
+            filtered_df.rename(columns={'clientcode':'Client Code', 'clientname':'Client Name', 'branch':'Branch', 'symbol':'Symbol', 'quantity':'Quantity',
+                                        'rate':'Rate', 'amount':'Amount'}, inplace=True)
+            filtered_df.sort_values(by='Client Name', inplace=True)
+            
+            
             filtered_df.reset_index(inplace=True, drop=True)
             filtered_df.index = filtered_df.index + 1
-            st.badge(f"Total data: {len(filtered_df):,.2f}")
-            st.data_editor(data=filtered_df)
+            st.data_editor(data=filtered_df, disabled=True)
+
+
 
 
 
