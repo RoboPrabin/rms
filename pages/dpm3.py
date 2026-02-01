@@ -17,6 +17,17 @@ pd.set_option("styler.render.max_elements", 1579383)
 
 
 
+@st.cache_data(ttl=3600)
+def get_latest_closing_price():
+    row = db.get_table_average_price()
+    df = pd.DataFrame(row, columns=['Symbol', 'Ltp'])
+    return df
+
+@st.cache_data(ttl=3600)
+def get_today_due_list():
+    # IMPORTANT: use date(), not strftime()
+    target_date = datetime.now().date()
+    return db.get_due_list_for_dpm3(target_date)
 
 class DPM3:
     def __init__(self):
@@ -733,7 +744,8 @@ class DPM3:
         if self.role in ["USER", "VIEWER"]:
             selected_radio_bt = st.radio("Select option", [ 'View Holdings'], horizontal=True)
         else:
-            selected_radio_bt = st.radio("Select option", ['Import DPM3', 'Latest Holdings', 'Weekly DPM3 only', 'Test'], index=3, horizontal=True)
+            selected_radio_bt = st.radio("Select option", ['Import DPM3', 'Latest Holdings', 'Weekly DPM3 only', 
+                                                           'Test', 'Holding Summary of Due Clients'], index=4, horizontal=True)
         
         if selected_radio_bt == "Import DPM3":
             if not db.is_sunday_file_uploaded():
@@ -777,6 +789,199 @@ class DPM3:
             self.view_holdings()
         elif selected_radio_bt == "Test":
             self.floorsheet_ui()
+        elif selected_radio_bt == "Holding Summary of Due Clients":
+            self.holding_summary()
+
+    def holding_summary(self):
+        status , due_list_df = get_today_due_list()
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        weekday_name = datetime.now().strftime("%A")
+
+        if 'AM' in status:
+            st.subheader(f"Holdings Summary of Due Clients: {today_date} ({weekday_name}) - Morning Session", anchor=False)
+        else:
+            st.subheader(f"Holdings Summary of Due Clients: {today_date} ({weekday_name}) - Evening Session", anchor=False)
+
+        loading_placeholder = st.empty()
+        with loading_placeholder.status("Fetching due clients holding data. Please wait !", expanded=False) as status:
+            if 'floorsheet_data' not in st.session_state:
+                st.session_state.floorsheet_data = db.get_floorsheet_data()
+            new_df = self.calculate_holdings(st.session_state.floorsheet_data)
+            status.update(label="Data fetched successfully.", state="complete", expanded=False)
+            sleep(0.5)
+
+        loading_placeholder.empty()
+        with st.spinner("Loading data. Please wait...", show_time=True):
+            filter_options = ['None', 'Client Code', 'Client Name', 'Symbol']
+
+            col1, col2 = st.columns(2)
+            with col1:
+                selected_filter = st.selectbox("Filter by", filter_options)
+
+            with col2:
+                search_value = ""
+                if selected_filter == "Client Code":
+                    search_value = st.text_input("Search by Client Code", "").strip().upper()
+                    if search_value:
+                        filtered_df = new_df[new_df['clientcode'].str.upper().str.contains(search_value)]
+                    else:
+                        filtered_df = new_df
+
+                elif selected_filter == "Client Name":
+                    search_value = st.text_input("Search by Client Name", "").strip().upper()
+                    if search_value:
+                        filtered_df = new_df[new_df['clientname'].str.upper().str.contains(search_value)]
+                    else:
+                        filtered_df = new_df
+
+                elif selected_filter == "Symbol":
+                    search_value = st.text_input("Search by Symbol", "").strip().upper()
+                    if search_value:
+                        filtered_df = new_df[new_df['symbol'].str.upper().str.contains(search_value)]
+                    else:
+                        filtered_df = new_df
+
+                else:
+                    filtered_df = new_df
+
+            # Merge with latest closing price
+            df = get_latest_closing_price()
+            merge_df = filtered_df.merge(df, left_on="symbol", right_on="Symbol", how="left")
+            merge_df.drop(columns=['Symbol'], inplace=True)
+
+            # Merge with due list
+            merge_df_with_due = merge_df.merge(
+                due_list_df[['clientCode', 'adjustedBalance']],
+                left_on="clientcode",
+                right_on="clientCode",
+                how="left"
+            )
+
+            # Compute amount
+            merge_df_with_due['amount'] = merge_df_with_due['Ltp'] * merge_df_with_due['quantity']
+
+            # Aggregate summary (keep clientcode!)
+            summary_df = (
+                merge_df_with_due
+                .groupby(['clientcode', 'clientname', 'branch'], as_index=False)
+                .agg({
+                    'amount': 'sum',
+                    'adjustedBalance': 'first'
+                })
+            )
+
+            # Keep only rows where adjustedBalance is not null/empty
+            summary_df = summary_df[
+                summary_df['adjustedBalance'].notna() & (summary_df['adjustedBalance'] != '')
+            ]
+
+            # Restrict to required columns
+            summary_df = summary_df[['clientcode', 'clientname', 'branch', 'amount', 'adjustedBalance']]
+            summary_df.sort_values(by="adjustedBalance", inplace=True)
+            summary_df.reset_index(drop=True, inplace=True)
+            summary_df.index = summary_df.index + 1
+
+            # Ensure numeric
+            summary_df['amount'] = pd.to_numeric(summary_df['amount'], errors='coerce')
+            summary_df['adjustedBalance'] = pd.to_numeric(summary_df['adjustedBalance'], errors='coerce')
+
+            # Rename for display
+            summary_df.rename(columns={
+                'clientcode': 'Client Code',
+                'clientname': 'Client Name',
+                'branch': 'Branch',
+                'amount':'Amount',
+                'adjustedBalance':'Adjusted Due Balance'
+            }, inplace=True)
+
+            # Formatter: positives normal, negatives in brackets
+            def accounting_format(val):
+                if pd.isnull(val):
+                    return ""
+                if val < 0:
+                    return f"({abs(val):,.2f})"   # brackets for negatives
+                return f"{val:,.2f}"              # normal for positives
+
+            # Apply formatting
+            styled_summary = summary_df.style.format({
+                'Adjusted Due Balance': accounting_format,
+                'Amount': accounting_format
+            })
+
+            # Apply red color for negatives
+            def red_if_negative(val):
+                try:
+                    num = float(str(val).replace(",","").replace("(","").replace(")",""))
+                    if num < 0:
+                        return "color: red;"
+                except:
+                    return ""
+                return ""
+
+            styled_summary = styled_summary.map(red_if_negative, subset=['Adjusted Due Balance','Amount'])
+
+            # Show in Streamlit
+            st.badge(f"Total data: {len(summary_df):,.0f}")
+            st.data_editor(styled_summary, disabled=True)
+            if st.toggle("Show Reference"):
+                merge_df_with_due.drop(columns="clientCode", inplace=True)
+                merge_df_with_due.rename(columns={
+                    'clientcode':'Client Code',
+                    'clientname':'Client Name',
+                    'branch':'Branch',
+                    'symbol':'Symbol',
+                    'quantity':'Quantity',
+                    'rate':'Purchase Rate',
+                    'amount':'Amount',
+                    'adjustedBalance':'Adjusted Balance'
+                }, inplace=True)
+
+                column_order = [
+                    'Client Code', 'Client Name', 'Branch',
+                    'Symbol', 'Quantity', 'Purchase Rate',
+                    'Ltp', 'Amount', 'Adjusted Balance'
+                ]
+                merge_df_with_due = merge_df_with_due[column_order]
+
+                merge_df_with_due.reset_index(drop=True, inplace=True)
+                merge_df_with_due.index = merge_df_with_due.index + 1
+
+                # Ensure numeric for Amount and Adjusted Balance only
+                merge_df_with_due['Amount'] = pd.to_numeric(merge_df_with_due['Amount'], errors='coerce')
+                merge_df_with_due['Adjusted Balance'] = pd.to_numeric(merge_df_with_due['Adjusted Balance'], errors='coerce')
+
+                # Formatter: positives normal, negatives in brackets
+                def accounting_format(val):
+                    if pd.isnull(val):
+                        return ""
+                    if val < 0:
+                        return f"({abs(val):,.2f})"   # brackets for negatives
+                    return f"{val:,.2f}"              # normal for positives
+
+                # Format only Amount and Adjusted Balance
+                styled_df = merge_df_with_due.style.format({
+                    'Amount': accounting_format,
+                    'Adjusted Balance': accounting_format,
+                    'Quantity': '{:,.0f}'.format,          # integer, no decimals
+                    'Purchase Rate': '{:,.2f}'.format,     # 2 decimals
+                    'Ltp': '{:,.2f}'.format                # 2 decimals
+                })
+
+                # Apply red color for negatives in Amount and Adjusted Balance
+                def red_if_negative(val):
+                    try:
+                        num = float(str(val).replace(",","").replace("(","").replace(")",""))
+                        if num < 0:
+                            return "color: red;"
+                    except:
+                        return ""
+                    return ""
+
+                styled_df = styled_df.map(red_if_negative, subset=['Amount','Adjusted Balance'])
+
+                st.data_editor(styled_df, disabled=True)
+
+
 
 
     def calculate_holdings(self, df):

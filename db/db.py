@@ -1660,6 +1660,74 @@ def transfer_bulk_clients(from_rm: str, to_rm: str, to_rm_full_name: str):
 #         return pd.DataFrame()
 
 
+# def get_due_list_for_dpm3(target_date: date) -> pd.DataFrame:
+#     query = """
+#         SELECT "clientCode", "adjustedBalance"
+#         FROM due_list
+#         WHERE TO_TIMESTAMP(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::DATE = %s
+#           AND RIGHT(uploaded_at, 2) = 'AM';
+#     """
+
+#     try:
+#         conn = get_connection()
+#         cur = conn.cursor()
+
+#         # psycopg2 will safely map Python date -> PostgreSQL DATE
+#         cur.execute(query, (target_date,))
+#         rows = cur.fetchall()
+
+#         columns = [desc[0] for desc in cur.description]
+
+#     finally:
+#         cur.close()
+#         conn.close()
+
+#     return pd.DataFrame(rows, columns=columns)
+    
+
+
+def get_due_list_for_dpm3(target_date: date) -> tuple[str, pd.DataFrame]:
+    """
+    Try fetching due list for PM first, fallback to AM if no rows.
+    Returns (status, DataFrame).
+    """
+    base_query = """
+        SELECT "clientCode", "adjustedBalance"
+        FROM due_list
+        WHERE TO_TIMESTAMP(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::DATE = %s
+          AND RIGHT(uploaded_at, 2) = %s;
+    """
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # Try PM first
+        cur.execute(base_query, (target_date, "PM"))
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+
+        if rows:  # found PM rows
+            status = "PM rows"
+            return status, pd.DataFrame(rows, columns=columns)
+
+        # Fallback to AM
+        cur.execute(base_query, (target_date, "AM"))
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+
+        if rows:
+            status = "AM rows"
+            return status, pd.DataFrame(rows, columns=columns)
+        else:
+            status = "No rows found for either PM or AM"
+            return status, pd.DataFrame(columns=["clientCode", "adjustedBalance"])
+
+    finally:
+        cur.close()
+        conn.close()
+
+
 
 def get_due_list(selected_start_date: date, selected_end_date: date):
     query = """
@@ -1672,7 +1740,6 @@ def get_due_list(selected_start_date: date, selected_end_date: date):
     try:
         conn = get_connection()
         cur = conn.cursor()
-        # ✅ pass both start and end dates
         cur.execute(query, (selected_start_date, selected_end_date))
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
