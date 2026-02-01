@@ -873,7 +873,10 @@ class DPM3:
             # Keep only rows where adjustedBalance is not null/empty
             summary_df = summary_df[
                 summary_df['adjustedBalance'].notna() & (summary_df['adjustedBalance'] != '')
-            ]
+            ].copy()
+
+            # Restrict to required columns
+            summary_df = summary_df[['clientcode', 'clientname', 'branch', 'amount', 'adjustedBalance']].copy()
 
             # Restrict to required columns
             summary_df = summary_df[['clientcode', 'clientname', 'branch', 'amount', 'adjustedBalance']]
