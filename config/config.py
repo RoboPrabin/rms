@@ -95,9 +95,9 @@ credentials_dg = {"username": "AUTOBOT", "password": "Autom@ti0n"}
 # BASE URL TMS
 base_url_tms = "https://tms48.nepsetms.com.np"
 
+
 credentials_tms = {
     "username": "DEV-PROD",
-    "password": "Dev@Prod319",
+    "password": "Dev.Prod@319",
     "server_id": "105675",
 }
-
