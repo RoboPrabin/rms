@@ -100,7 +100,6 @@ class Floorsheet:
         activate_client_code_hotkey()
 
         # Get the day name (e.g. Monday, Tuesday)
-        self.day_name = today.strftime("%A")
 
 
     # ✔ FIX: Proper decorator placement
@@ -280,7 +279,7 @@ class Floorsheet:
             # --- Branch Summary ---
             elif view_mode == "Branch Summary":
                 
-                st.subheader("𖦥 Branch Summary : " + str(nepali_date.today()) + " (" + self.day_name + ")", anchor=False)
+                st.subheader("𖦥 Branch Summary" , anchor=False)
                 if not display_df.empty:
                     df2 = display_df.copy()
                     df2.index = df2.index + 1
