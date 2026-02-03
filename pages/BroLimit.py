@@ -1,3 +1,5 @@
+from time import sleep
+from db import db
 from decimal import Decimal
 import streamlit as st
 import pandas as pd
@@ -6,12 +8,48 @@ from utils import helper
 from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.ClientLimit import ClientLimit
+from config.config import credentials_tms_for_collateral_only
+from api.tms import api_collateral
+
+
+
+def get_client_list(bro):
+    rows = db.get_table_rm_child_map_for_client_limit_by_bro(rm_name=bro)
+    df = pd.DataFrame(rows, columns=['BRO','BROFullName','Client Name', 'Client Code', 'Category'])
+    return df
+
+cookies, session_id = db.get_tms_session()
+
+def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/client-search',):
+    return {
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'en-US,en;q=0.9',
+        'content-type': 'application/json',
+        'host-session-id': session_id,
+        'origin': 'https://tms48.nepsetms.com.np',
+        'priority': 'u=1, i',
+        'referer': referer,
+        'request-owner': credentials_tms_for_collateral_only['server_id'],
+        'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+        'x-xsrf-token': cookies['XSRF-TOKEN'],
+
+    }
+
+
+
 
 class BroLimitManager:
     def __init__(self):
         helper.eliminate_top_padding()
         st.session_state.active_menu = "rm"
-        st.set_page_config(page_title="Bro Limit", layout='wide', page_icon="🧑‍🦱")
+        st.set_page_config(page_title="BRO Limit", layout='wide', page_icon="🧑‍🦱")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
         app_state.check_authenticaiton_state()
@@ -31,13 +69,14 @@ class BroLimitManager:
         
     # @st.cache_data(ttl=helper.default_ttl())
     def get_bro_codes(_self):
-        df = _self._query('SELECT "broCode" FROM bro_limit ORDER BY "broCode"')
-        return df["broCode"].tolist()
+        df = _self._query("""SELECT username, full_name, role FROM app_user WHERE role = 'BRO' ORDER BY username""")
+        df.sort_values(by="username", inplace=True)
+        return df["username"] + " - " + df['full_name'].tolist()
 
     
     # @st.cache_data(ttl=helper.default_ttl())
     def get_login_bro_code(_self, username: str):
-        return _self._query('SELECT "clientCode", "clientName" FROM client_summary WHERE bro = :username', {"username": username})
+        return _self._query('SELECT "clientCode", "clientName" FROM client_rm_map WHERE "rmName" = :username', {"username": username})
         # return self._query('SELECT "clientCode", "clientName" FROM client_summary WHERE TRIM(bro) = :username', {"username": username})
 
     def update_total_limit(self, bro_code: str, new_limit: float):
@@ -112,7 +151,6 @@ class BroLimitManager:
         return result
     
     def add_new_client_in_client_summary_table(self, bro, client_name, client_code, assigned_limit):
-
         # Step 2: Insert new client
         insert_sql = """
             INSERT INTO client_summary (
@@ -132,18 +170,118 @@ class BroLimitManager:
             "assignedLimit": assigned_limit
         })
 
+
+    def tms_api(self, client_code, limit_amount):
+        result = api_collateral.load_collateral_for_specific_client(headers=get_headers(), cookies=cookies, amount=limit_amount, 
+            client_code=client_code, loaded_by=self.username.upper())
+        if result.lower() == "success":
+            banner = st.empty()
+            banner.success(f"Client '{client_code}' with amount {limit_amount} updated successfully.", icon="✅")
+            sleep(0.4)
+            banner.empty()
+        else:
+            st.error(f"Something went wrong: {result}")
+    
+    def show_set_limit_ui(self, client):
+        with st.expander(f"Set Limit on TMS: {client.upper()}", expanded=True):
+            client_code = str(client).split("-")[0].strip()
+            has_from_db = False
+            category_from_db = db.get_category_client_rm_map(client_code=client_code)
+            if category_from_db == None:
+                set_category = helper.default_category_list()
+            else:
+                set_category = category_from_db
+                has_from_db = True
+
+            selected_category = st.selectbox("Category", set_category)
+
+
+            if selected_category != "None":
+                if not has_from_db:
+                    if st.button("Update category", icon="🗂️"):
+                        result = db.update_category_client_rm_map(client_code=client_code, new_category=selected_category)
+                        if result == 1:
+                            st.success(f"Category updated successfully.", icon="✅")
+                            sleep(0.3)
+                            st.rerun()
+                            limit_amount = st.number_input("Credit For Sale Limit")
+                            if st.button("Update Limit", icon="💷"):
+                                self.tms_api(client_code=client_code, limit_amount=limit_amount)
+                elif has_from_db:
+                    limit_amount = st.number_input("Credit For Sale Limit")
+                    if st.button("Update Limit", icon="💷"):
+                        # HIT TMS API FOR CFS
+                        self.tms_api(client_code=client_code, limit_amount=limit_amount)
+    
+    def limiter(self):
+        if 'client_map' not in st.session_state:
+            st.session_state.client_map = get_client_list(bro=self.username)
+
+        df = st.session_state.client_map
+
+        # =====================
+        # BRO DROPDOWN
+        # =====================
+        bro_map = (
+            df[['BRO', 'BROFullName']]
+            .drop_duplicates()
+            .assign(display=lambda x: x['BRO'] + " - " + x['BROFullName'])
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            selected_bro = st.selectbox(
+                "BRO",
+                bro_map['BRO'],
+                format_func=lambda bro: bro_map.loc[
+                    bro_map['BRO'] == bro, 'display'
+                ].values[0]
+            )
+
+        # =====================
+        # FILTER CLIENTS BY BRO
+        # =====================
+        filtered_df = df[df['BRO'] == selected_bro]
+
+
+
+        filtered_df = filtered_df.copy()
+
+        filtered_df = filtered_df.sort_values(
+            by="Client Name",
+            ascending=True
+        )
+
+        filtered_df['Display'] = (
+            filtered_df['Client Code'].astype(str)
+            + " - "
+            + filtered_df['Client Name']
+        )
+
+        options = filtered_df['Display'].tolist()
+
+
+        st.badge(
+            f"Total Mapped Clients: {len(filtered_df):,.0f}",
+            color="green"
+        )
+
+        # =====================
+        # CLIENT DROPDOWN
+        # =====================
+        with col2:
+            selected_client = st.selectbox("Select Client", options)
+
+        if selected_client != "None":
+            self.show_set_limit_ui(client=selected_client)
+
     
 
-# 🔌 Instantiate manager
+
 manager = BroLimitManager()
-
-
-# 🔐 Session info
-
-# print(f"Logged in as: {manager.username} with role: {manager.role}")
-# 🧮 Admin/Manager View
-if manager.role in ['MANAGER', 'ADMIN']:
-    st.title("🧮 Bro Limit Manager", anchor=False)
+if manager.role in ['MANAGER', 'ADMIN', 'MANAGEMENT']:
+    st.title("🧮 BRO Limit Manager", anchor=False)
 
     bro_codes = manager.get_bro_codes()
     selected_bro = st.selectbox("Select Bro Code", bro_codes)
@@ -167,27 +305,60 @@ if manager.role in ['MANAGER', 'ADMIN']:
 
 else:
     # 👤 Individual BRO View
-    st.title("🧮 Limit Manager", anchor=False)
+    st.title("🧮 Client Limit Manager", anchor=False)
     selected_type = st.radio(
     "Client Type",
-    ["Cred Clients", "UnCred Clients"],
+    ["My Clients", 'Limiter'],
+    # ["Cred Clients", "UnCred Clients"],
     horizontal=True,
-    index=0  # Default selection: "Cred Clients"
+    index=0
     )
-    if selected_type == "Cred Clients":
-        # bro_code_df = manager.get_login_bro_code(username="N/A ")
-        # bro_code_df = manager.get_login_bro_code(username="YUBARAJ")
+    if selected_type == "My Clients":
         bro_code_df = manager.get_login_bro_code(username=manager.username)
         if bro_code_df.empty:
             st.warning("No clients found for your BRO code.")
         else:
-            client_options = bro_code_df["clientName"] + "  [" + bro_code_df["clientCode"] + "]"
-            selected_client = st.selectbox("Select Client Code", client_options)
-            client_code = selected_client.split("[")[-1].replace("]", "").strip()
+            bro_code_df = bro_code_df.sort_values(by="clientName")
+            client_options = bro_code_df["clientCode"] + " - " + bro_code_df["clientName"].str.upper()
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                selected_client = st.selectbox("Select Client Code", client_options)
+            client_code = selected_client.split("-")[0].strip()
+            with col2:
+                new_credit_limit = st.number_input("Credit Limit", min_value=0, step=1)
+            with col3:
+                trading_limit = st.number_input("Trading Limit", min_value=0, step=1)
+            if st.button("Update Limit", icon="🔄️"):
+                # manager.update_provided_limit(client_code, manager.username, new_limit)
+                banner = st.empty()
+                db.update_limits(client_code=client_code, credit_limit=new_credit_limit, trading_limit=trading_limit, updated_by=manager.username.upper())
+                banner.success(f"Limit updated successfully.", icon="✅")
+                sleep(1)
+                banner.empty()
+            
+            st.markdown("---")
+            st.subheader("📊 My Current Limit", anchor=False)
+            df = helper.format_dataframe(manager.fetch_login_user_limits(username=manager.username))
+            df.index = df.index + 1
+            st.dataframe(df, width='stretch')
 
-            new_limit = st.number_input("Enter Limit", min_value=0.0, step=0.01)
-            if st.button("Update Limit"):
-                manager.update_provided_limit(client_code, manager.username, new_limit)
+            st.markdown("---")
+            st.subheader("🍁 My Clients Summary", anchor=False)
+
+            # df = helper.format_dataframe(manager.client_summary(username=manager.username))
+            # df.rename(columns={"Profit Loss Percentage": "Profit (Loss) Percentage", "Profit Loss Amount" : "Profit (Loss) Amount"}, inplace=True)
+            rows = db.get_clients_by_rm(rm_name=manager.username)
+            df = pd.DataFrame(rows, columns=['Client Code', 'Client Name', 'Category', 'Credit Limit', 'Trading Limit'])
+            df.sort_values(by="Client Name", inplace=True)
+            df.reset_index(inplace=True, drop=True)
+            df.index = df.index + 1
+            st.dataframe(df, width='stretch')
+                        
+    
+    elif selected_type == 'Limiter':
+        manager.limiter()
+
+    
     else:
         new_client = st.text_input("Enter Client Name").upper()
         new_client_code = st.text_input("Enter Client Code").upper()
@@ -214,15 +385,4 @@ else:
 
 
 
-    st.markdown("---")
-    st.subheader("📊 My Current Limit")
-    df = helper.format_dataframe(manager.fetch_login_user_limits(username=manager.username))
-    df.index = df.index + 1
-    st.dataframe(df, width='stretch')
-
-    st.markdown("---")
-    st.subheader("🍁 My Clients Summary")
-
-    df = helper.format_dataframe(manager.client_summary(username=manager.username))
-    df.rename(columns={"Profit Loss Percentage": "Profit (Loss) Percentage", "Profit Loss Amount" : "Profit (Loss) Amount"}, inplace=True)
-    st.dataframe(df, width='stretch')
+   

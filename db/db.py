@@ -1,4 +1,7 @@
+
 #db.py
+import ast
+import json
 import uuid
 from psycopg2 import sql
 import psycopg2
@@ -18,6 +21,119 @@ def get_connection():
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
     )
+
+def upsert_tms_session(cookies, session_id, created_by=None, updated_by=None):
+    cookies_str = json.dumps(cookies) if isinstance(cookies, dict) else str(cookies)
+    session_id_str = str(session_id)
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # Try to update the single row
+        cur.execute(
+            """
+            UPDATE tms_session
+            SET cookies = %s,
+                session_id = %s,
+                updated_at = %s,
+                updated_by = %s
+            WHERE TRUE;  -- since only one row exists
+            """,
+            (cookies_str, session_id_str, datetime.now(), updated_by)
+        )
+        updated_count = cur.rowcount
+
+        # If no row exists, insert one
+        if updated_count == 0:
+            cur.execute(
+                """
+                INSERT INTO tms_session (cookies, session_id, created_at, created_by)
+                VALUES (%s, %s, %s, %s);
+                """,
+                (cookies_str, session_id_str, datetime.now(), created_by)
+            )
+            updated_count = cur.rowcount
+
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    return updated_count
+
+
+def get_tms_session():
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT cookies, session_id FROM tms_session LIMIT 1;")
+        row = cur.fetchone()
+        if row:
+            cookies_raw, session_id = row
+
+            # If cookies_raw is stored as a Python list string, parse it
+            try:
+                cookies_list = ast.literal_eval(cookies_raw)
+            except Exception:
+                cookies_list = cookies_raw  # fallback if already a list
+
+            # Build dict keyed by cookie name
+            cookies_dict = {
+                cookie["name"]: cookie["value"]
+                for cookie in cookies_list
+                if cookie.get("name") in ["XSRF-TOKEN", "_aid", "_rid"]
+            }
+            session_set = ast.literal_eval(session_id)
+            session_id = next(iter(session_set))
+            return cookies_dict, session_id
+        else:
+            return None, None
+    finally:
+        cur.close()
+        conn.close()
+
+
+
+def update_limits(client_code, credit_limit, trading_limit, updated_by):
+    conn = get_connection()
+    cur = conn.cursor()
+    query = sql.SQL("""
+        UPDATE client_rm_map
+        SET credit_limit = %s,
+            trading_limit = %s,
+            updated_by = %s,
+            updated_at = %s
+        WHERE "clientCode" = %s
+    """)
+    
+    with conn.cursor() as cur:
+        cur.execute(query, (
+            credit_limit,
+            trading_limit,
+            updated_by,
+            datetime.now(),
+            client_code
+        ))
+        conn.commit()
+
+
+def get_clients_by_rm(rm_name):
+    conn = get_connection()
+    query = sql.SQL("""
+        SELECT "clientCode", "clientName", category, credit_limit, trading_limit
+        FROM client_rm_map
+        WHERE "rmName" = %s
+    """)
+    
+    with conn.cursor() as cur:
+        cur.execute(query, (rm_name,))
+        rows = cur.fetchall()
+    
+    conn.close()
+    return rows
+
+
+
+
 
 
 def update_restrict_company(client_code: str, updated_by:str ,restrict_company):
@@ -2221,6 +2337,85 @@ def get_table_rm_child_map():
     cur.close()
     conn.close()
     return row
+
+
+def get_table_rm_child_map_for_client_limit():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""SELECT "rmName", "rmFullName" ,"clientName", 
+                "clientCode", "category" from client_rm_map where "rmName" = order by "rmName" ASC;""")
+    row = cur.fetchall()
+    cur.close()
+    conn.close()
+    return row
+
+
+def get_table_rm_child_map_for_client_limit_by_bro(rm_name):
+    conn = get_connection()
+    query = sql.SQL("""
+        SELECT "rmName", "rmFullName", "clientName", 
+               "clientCode", "category"
+        FROM client_rm_map
+        WHERE "rmName" = %s
+        ORDER BY "rmName" ASC;
+    """)
+    
+    with conn.cursor() as cur:
+        cur.execute(query, (rm_name,))
+        rows = cur.fetchall()
+    
+    conn.close()
+    return rows
+
+
+
+
+def update_category_client_rm_map(client_code, new_category):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # Perform the update
+        cur.execute(
+            """
+            UPDATE client_rm_map
+            SET "category" = %s
+            WHERE "clientCode" = %s;
+            """,
+            (new_category, client_code)
+        )
+        conn.commit()
+
+        # Return the count of rows updated
+        updated_count = cur.rowcount
+    finally:
+        cur.close()
+        conn.close()
+
+    return updated_count
+
+def get_category_client_rm_map(client_code):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # Fetch the category for the given client_code
+        cur.execute(
+            """
+            SELECT "category"
+            FROM client_rm_map
+            WHERE "clientCode" = %s;
+            """,
+            (client_code,)
+        )
+        row = cur.fetchone()
+        # Return the category if found, else None
+        return row[0] if row else None
+    finally:
+        cur.close()
+        conn.close()
+
+
+
+
 
 # def get_rm_name_from_client_rm_map_table(client_code: str):
 #     conn = get_connection()

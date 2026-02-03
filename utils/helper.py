@@ -64,6 +64,9 @@ from typing import Tuple
 #         raise ValueError(f"Invalid fiscal year '{fiscal_year}': {e}")
     
 
+def default_category_list():
+    return ['None','CASH', 'CREDIT', 'DUE']
+
 
 def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:
     try:

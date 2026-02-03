@@ -101,3 +101,10 @@ credentials_tms = {
     "password": "Dev.Prod@319",
     "server_id": "105675",
 }
+
+
+credentials_tms_for_collateral_only = {
+    "username": "DEV-TEST",
+    "password": "Dev@Test90",
+    "server_id": "105674",
+}

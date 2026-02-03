@@ -150,7 +150,8 @@ def render_sidebar():
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
+            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit", icon="🧑")
+            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
@@ -205,7 +206,7 @@ def render_sidebar():
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ RM Limit", icon="🧑")
+            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit", icon="🧑")
 
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):

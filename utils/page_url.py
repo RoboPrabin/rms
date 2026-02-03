@@ -11,6 +11,7 @@ edis_call_url = base_path + "EDISCall.py"
 transaction_monitoring_url = base_path + "TransactionMonitoring.py" 
 unverified_trans_url = base_path + "UnverifiedTransactions.py" 
 demat_records_url = base_path + "DematRecords.py" 
+client_limit_url = base_path + "ClientLimit.py" 
 
 
 cache_url = base_path + "Cache.py" 

@@ -15,6 +15,12 @@ from sqlalchemy import create_engine
 from utils.custom_hotkey import activate_client_code_hotkey
 
 
+
+
+
+
+
+
 @st.cache_data(ttl=120)
 def get_all_kyc_info():
     rows = db.get_kyc()
@@ -36,6 +42,10 @@ class RMTag:
         self.holding_engine = helper.get_holding_engine()
         activate_client_code_hotkey()
 
+
+    
+
+
     # ---------------------------
     # Utility functions
     # ---------------------------
@@ -43,7 +53,6 @@ class RMTag:
     def get_rm_list(_self, username: str ,only_self=False):
         engine = _self.holding_engine  
         if only_self and _self.role == "BRO":
-            # rm_code = _self.username.upper()
             alias = helper.get_alias_name(username)
             query = 'SELECT id, alias, "full_name" FROM app_user WHERE alias = %s'
             return pd.read_sql(query, engine, params=(alias,))
@@ -63,7 +72,7 @@ class RMTag:
         engine = create_engine(_self.holding_engine)
 
         query = """
-            SELECT "clientName", "clientCode", "assignBy", "assignAt"
+            SELECT "clientName", "clientCode", "category" ,"assignBy", "assignAt"
             FROM client_rm_map
             WHERE "rmName" = %s
         """
@@ -73,7 +82,7 @@ class RMTag:
     # Mode handlers
     # ---------------------------
     def show_rm_clients(self):
-        rm_df = self.get_rm_list(only_self=True, username = self.username)
+        rm_df :pd.DataFrame = self.get_rm_list(only_self=True, username = self.username)
         rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
         rm_df.sort_values(by="alias", inplace=True)
 
@@ -82,9 +91,7 @@ class RMTag:
             return
 
         rm_code = rm_df.loc[rm_df["display"] == selected_rm, "alias"].values[0].strip()
-        
         client_df = self.get_rm_client_map(rm_code=rm_code, username = self.username)
-        
         client_df.index = client_df.index + 1
 
         if len(client_df) >= 1:
@@ -96,7 +103,7 @@ class RMTag:
         client_df.reset_index(drop=True, inplace=True)
         client_df.index = client_df.index + 1
         client_df.rename(
-            columns={"clientName": "Client Name", "clientCode": "Client Code", "assignBy": "Assign By"},
+            columns={"clientName": "Client Name", "clientCode": "Client Code", "assignBy": "Assign By", "category":"Category"},
             inplace=True,
         )
         if len(client_df)==0:
@@ -109,14 +116,22 @@ class RMTag:
         client_df.sort_values(by="clientfullname", inplace=True)
         client_df["display"] = client_df["clientmembercode"] + " - " + client_df["clientfullname"]
 
+        
         selected_client = st.selectbox("Select Client", client_df["display"].tolist())
         rm_df = self.get_rm_list(only_self=True, username = self.username)
         rm_df.sort_values(by="alias", inplace=True)
         rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
 
-        selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
+        col1, col2 = st.columns(2)
+        with col1:
+            client_type = st.selectbox("Select Client Type", helper.default_category_list())
+        with col2:
+            selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
 
-        if st.button("Assign client to RM"):
+        if st.button("Assign client to RM", icon="🙋🏻‍♂️"):
+            if client_type == "None":
+                st.warning(f"Please select client type", icon="⚠️")
+                return
             client_code = selected_client.split(" - ")[0].strip()
             client_id = client_df.loc[client_df["clientmembercode"] == client_code, "id"].values[0]
 
@@ -153,6 +168,7 @@ class RMTag:
                     cur.execute(insert_query, values)
                     self.conn.commit()
 
+                db.update_category_client_rm_map(client_code=client_code, new_category=client_type)
                 st.success(f"Client {client_code} successfully assigned to RM {rm_brocode} - {rm_fullname}.")
 
     def search_tagged_client(self):
@@ -509,6 +525,7 @@ class RMTag:
             return False, "File contains empty values. Please fix and upload again."
 
         return True, "OK"
+    
     def validate_transfer_rm_from_file(self, df: pd.DataFrame):
         expected_cols = ["SOURCE_RM", "CLIENT_CODE", "DEST_RM"]
 
