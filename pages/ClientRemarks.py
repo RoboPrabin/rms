@@ -56,16 +56,16 @@ class ClientRemarks:
             self.show_remarks()
         
     def show_remarks(self):
-        if 'view_remarks' not in st.session_state:
-            rows = db.get_client_remarks()
-            df = pd.DataFrame(rows, columns=['Client Code', 'Client Name', 'Remarks', 'Created At', 'Created By'])
-            st.session_state.view_remarks = df
+        # if 'view_remarks' not in st.session_state:
+        rows = db.get_client_remarks()
+        df = pd.DataFrame(rows, columns=['Client Code', 'Client Name', 'Remarks', 'Created At', 'Created By'])
+        # st.session_state.view_remarks = df
 
-        if st.session_state.view_remarks.empty:
+        if df.empty:
             st.info("Records not found.", icon="ℹ️")
             return
 
-        df = st.session_state.view_remarks.copy()
+        # df = st.session_state.view_remarks.copy()
         df.reset_index(drop=True, inplace=True)
         df.index = df.index + 1
 
