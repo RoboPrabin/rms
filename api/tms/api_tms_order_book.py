@@ -78,7 +78,7 @@ def fetch_order_book_completed():
 
         else:
             # login_tms()
-            cookies, headers = refresh_token()
+            cookies, headers = refresh_token(cookies=cookies_init, headers=get_headers())
             cookies_init = cookies
 
 
@@ -99,7 +99,7 @@ def fetch_order_book_open():
                 return df_trade_book
         else:
             # login_tms()
-            cookies, headers = refresh_token()
+            cookies, headers = refresh_token(cookies=cookies_init, headers=get_headers())
             cookies_init = cookies
 
 
@@ -182,7 +182,7 @@ def fetch_trade_book():
         else:
             show_message("Failed to fetch data, retrying...", 'red')
             # login_tms()
-            cookies, headers = refresh_token()
+            cookies, headers = refresh_token(cookies=cookies_init, headers=get_headers())
             cookies_init = cookies
 
     df_trade_book = pd.DataFrame(response.json())

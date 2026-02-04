@@ -22,6 +22,44 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
+def insert_client_remark(client_code, client_name, remarks, created_by):
+    conn = get_connection()
+    try:
+        query = """
+            INSERT INTO client_remarks (
+                client_code, client_name, remarks, created_at, created_by
+            )
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP, %s)
+            RETURNING id;
+        """
+        with conn.cursor() as cur:
+            cur.execute(query, (client_code, client_name, remarks, created_by))
+            new_id = cur.fetchone()[0]  # get the UUID of the inserted row
+        conn.commit()
+        return new_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def get_client_remarks():
+    conn = get_connection()
+    try:
+        query = """
+            SELECT client_code, client_name, remarks, created_at ,created_by
+            FROM client_remarks
+            ORDER BY created_at DESC;
+        """
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+        return rows
+    finally:
+        conn.close()
+
+
 def upsert_tms_session(cookies, session_id, created_by=None, updated_by=None):
     cookies_str = json.dumps(cookies) if isinstance(cookies, dict) else str(cookies)
     session_id_str = str(session_id)
@@ -2343,7 +2381,7 @@ def get_table_rm_child_map_for_client_limit():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""SELECT "rmName", "rmFullName" ,"clientName", 
-                "clientCode", "category" from client_rm_map where "rmName" = order by "rmName" ASC;""")
+                "clientCode", "category" from client_rm_map  order by "rmName" ASC;""")
     row = cur.fetchall()
     cur.close()
     conn.close()
@@ -2352,13 +2390,13 @@ def get_table_rm_child_map_for_client_limit():
 
 def get_table_rm_child_map_for_client_limit_by_bro(rm_name):
     conn = get_connection()
-    query = sql.SQL("""
+    query = """
         SELECT "rmName", "rmFullName", "clientName", 
                "clientCode", "category"
         FROM client_rm_map
         WHERE "rmName" = %s
         ORDER BY "rmName" ASC;
-    """)
+    """
     
     with conn.cursor() as cur:
         cur.execute(query, (rm_name,))

@@ -132,6 +132,7 @@ def render_sidebar():
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Remarks", icon="🖊️")
             st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
@@ -189,6 +190,7 @@ def render_sidebar():
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Remarks", icon="🖊️")
             st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
@@ -235,6 +237,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Remarks", icon="🖊️")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")

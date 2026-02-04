@@ -64,7 +64,10 @@ class ClientLimit:
 
     def tms_api(self, client_code, limit_amount):
         result = api_collateral.load_collateral_for_specific_client(headers=get_headers(), cookies=cookies, amount=limit_amount, 
-            client_code="20250329860", loaded_by=self.username.upper())
+            client_code=client_code, loaded_by=self.username.upper())
+        if result == None:
+            st.error(f"Something went wrong, contat IT Depart.", icon="🚨")
+            return
         if result.lower() == "success":
             st.success(f"Client '{client_code}' with amount {limit_amount} updated successfully.", icon="✅")
         else:

@@ -118,7 +118,16 @@ class BroLimitManager:
 
     # @st.cache_data(ttl=helper.default_ttl())
     def fetch_all_limits(_self):
-        return _self._query('SELECT "broCode", name, "totalLimit", "usedLimit", "availableLimit" FROM bro_limit ORDER BY "broCode"')
+        # return _self._query('SELECT "broCode", name, "totalLimit", "usedLimit", "availableLimit" FROM bro_limit ORDER BY "broCode"')
+        return _self._query("""SELECT 
+                    u.username, 
+                    u."full_name", 
+                    l."totalLimit", 
+                    l."usedLimit"
+                FROM app_user u
+                JOIN bro_limit l ON u.username = l."broCode"
+                WHERE u.role = 'BRO';   
+            """)
 
     def fetch_login_user_limits(_self, username: str):
         return _self._query("""
@@ -282,11 +291,12 @@ class BroLimitManager:
 manager = BroLimitManager()
 if manager.role in ['MANAGER', 'ADMIN', 'MANAGEMENT']:
     st.title("🧮 BRO Limit Manager", anchor=False)
-
+    col1, col2 = st.columns(2)
     bro_codes = manager.get_bro_codes()
-    selected_bro = st.selectbox("Select Bro Code", bro_codes)
-
-    new_limit = st.number_input("Enter New Total Limit", min_value=0.0, step=0.01)
+    with col1:
+        selected_bro = st.selectbox("Select BRO Code", bro_codes)
+    with col2:
+        new_limit = st.number_input("Limit for BRO", min_value=0.0, step=0.01)
     if st.button("Update Limit"):
         manager.update_total_limit(selected_bro, new_limit)
 

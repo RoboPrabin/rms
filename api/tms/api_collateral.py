@@ -4,7 +4,7 @@ from utils import helper
 from ui.login_tms import login_tms
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from .api_refresh_token import refresh_token
+from .api_refresh_token import refresh_token_collateral
 from utils.helper import show_message
 
 # Setup retry-enabled session
@@ -21,6 +21,7 @@ session.mount("https://", adapter)
 
 
 def get_client_server_id(headers, cookies, client_code: str):
+    count = 0
     while True:
         print("Trying to get server_id ...... ")
         response = session.get(
@@ -42,13 +43,15 @@ def get_client_server_id(headers, cookies, client_code: str):
 
         elif response.status_code == 401:
             show_message(f"Unauthorized, refreshing token...")
-            cookies, headers = refresh_token(cookies=cookies, headers=headers)
+            cookies, headers = refresh_token_collateral(cookies=cookies, headers=headers)
+            count += 1
 
         else:
             show_message(f"Error {response.status_code}: {response.text}")
             return 0, cookies, headers
 
-
+        if count >= 3:
+            break
 
 
 def load_collateral_for_specific_client(
@@ -58,7 +61,10 @@ def load_collateral_for_specific_client(
     client_code: str,
     loaded_by:str,
 ) -> str:
-    client_server_id, cook, head = get_client_server_id(headers=headers, cookies=cookies, client_code=client_code)
+    try:
+        client_server_id, cook, head = get_client_server_id(headers=headers, cookies=cookies, client_code=client_code)
+    except Exception:
+        return
     show_message(f"Server id : {client_server_id}", color='green')
     if client_server_id != 0:
         # print(topup_amount, non_cash_collateral)
