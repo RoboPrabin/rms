@@ -1,3 +1,4 @@
+import uuid
 from time import sleep
 from db import db
 from decimal import Decimal
@@ -79,14 +80,38 @@ class BroLimitManager:
         return _self._query('SELECT "clientCode", "clientName" FROM client_rm_map WHERE "rmName" = :username', {"username": username})
         # return self._query('SELECT "clientCode", "clientName" FROM client_summary WHERE TRIM(bro) = :username', {"username": username})
 
-    def update_total_limit(self, bro_code: str, new_limit: float):
+    # def update_total_limit(self, bro_code: str, new_limit: float):
+    #     try:
+    #         with self.engine.begin() as conn:
+    #             conn.execute(text('UPDATE bro_limit SET "totalLimit" = :limit WHERE "broCode" = :code'),
+    #                          {"limit": new_limit, "code": bro_code})
+    #         st.success(f"Limit updated for {bro_code}")
+    #     except Exception as e:
+    #         st.error(f"Error updating totalLimit: {e}")
+
+    def update_total_limit(self, bro_name: str, bro_code: str, new_limit: float):
         try:
             with self.engine.begin() as conn:
-                conn.execute(text('UPDATE bro_limit SET "totalLimit" = :limit WHERE "broCode" = :code'),
-                             {"limit": new_limit, "code": bro_code})
-            st.success(f"Total limit updated for {bro_code}")
+                query = text("""
+                    INSERT INTO bro_limit (id, name, "broCode", "totalLimit")
+                    VALUES (:id, :name, :code, :limit)
+                    ON CONFLICT ("broCode")
+                    DO UPDATE SET 
+                        "totalLimit" = EXCLUDED."totalLimit",
+                        name = EXCLUDED.name;
+                """)
+                conn.execute(query, {
+                    "id": uuid.uuid4(),       # UUID string passed from params
+                    "name": bro_name,   # Name passed from params
+                    "code": bro_code,
+                    "limit": new_limit
+                })
+            st.success(f"Limit updated/inserted for {bro_code}")
         except Exception as e:
             st.error(f"Error updating totalLimit: {e}")
+
+
+
 
     def update_provided_limit(self, client_code: str, bro_code: str, used_limit: float):
         try:
@@ -122,8 +147,7 @@ class BroLimitManager:
         return _self._query("""SELECT 
                     u.username, 
                     u."full_name", 
-                    l."totalLimit", 
-                    l."usedLimit"
+                    l."totalLimit"
                 FROM app_user u
                 JOIN bro_limit l ON u.username = l."broCode"
                 WHERE u.role = 'BRO';   
@@ -131,7 +155,7 @@ class BroLimitManager:
 
     def fetch_login_user_limits(_self, username: str):
         return _self._query("""
-            SELECT "broCode", name, "totalLimit", "usedLimit", "availableLimit"
+            SELECT "broCode", name, "totalLimit"
             FROM bro_limit WHERE "broCode" = :username
         """, {"username": username})
 
@@ -213,21 +237,20 @@ class BroLimitManager:
                             st.success(f"Category updated successfully.", icon="✅")
                             sleep(0.3)
                             st.rerun()
-                            limit_amount = st.number_input("Credit For Sale Limit")
-                            if st.button("Update Limit", icon="💷"):
-                                self.tms_api(client_code=client_code, limit_amount=limit_amount)
-                elif has_from_db:
-                    limit_amount = st.number_input("Credit For Sale Limit")
-                    if st.button("Update Limit", icon="💷"):
-                        # HIT TMS API FOR CFS
-                        self.tms_api(client_code=client_code, limit_amount=limit_amount)
+                            # limit_amount = st.number_input("Credit For Sale Limit")
+                            # if st.button("Update Limit", icon="💷"):
+                            #     self.tms_api(client_code=client_code, limit_amount=limit_amount)
+                # elif has_from_db:
+                #     limit_amount = st.number_input("Credit For Sale Limit")
+                #     if st.button("Update Limit", icon="💷"):
+                #         self.tms_api(client_code=client_code, limit_amount=limit_amount)
     
     def limiter(self):
         if 'client_map' not in st.session_state:
             st.session_state.client_map = get_client_list(bro=self.username)
 
         df = st.session_state.client_map
-
+        df['Client Name'] = df['Client Name'].str.upper()
         # =====================
         # BRO DROPDOWN
         # =====================
@@ -295,10 +318,13 @@ if manager.role in ['MANAGER', 'ADMIN', 'MANAGEMENT']:
     bro_codes = manager.get_bro_codes()
     with col1:
         selected_bro = st.selectbox("Select BRO Code", bro_codes)
+        st.write(selected_bro)
     with col2:
-        new_limit = st.number_input("Limit for BRO", min_value=0.0, step=0.01)
+        new_limit = st.number_input("Limit for BRO", min_value=0, step=1)
     if st.button("Update Limit"):
-        manager.update_total_limit(selected_bro, new_limit)
+        bro_code = selected_bro.split("-")[0].strip()
+        bro_name = selected_bro.split("-")[1].strip()
+        manager.update_total_limit(bro_code=bro_code, bro_name=bro_name, new_limit=new_limit)
 
     st.markdown("---")
     st.subheader("📊 Current BRO Limits", anchor=False)
@@ -349,6 +375,7 @@ else:
             st.markdown("---")
             st.subheader("📊 My Current Limit", anchor=False)
             df = helper.format_dataframe(manager.fetch_login_user_limits(username=manager.username))
+            df.rename(columns={'Bro Code': 'BRO Code'}, inplace=True)
             df.index = df.index + 1
             st.dataframe(df, width='stretch')
 
@@ -362,6 +389,8 @@ else:
             df.sort_values(by="Client Name", inplace=True)
             df.reset_index(inplace=True, drop=True)
             df.index = df.index + 1
+            df['Client Name'] = df['Client Name'].str.upper()
+            st.badge(f"Total Clients: {len(df)}", color='green')
             st.dataframe(df, width='stretch')
                         
     

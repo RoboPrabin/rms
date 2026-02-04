@@ -1,11 +1,11 @@
 from pathlib import Path
-PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
-chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
-GALLERY_PATH = r"D:\Trishakti_Gallery"
+# PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
+# chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
+# GALLERY_PATH = r"D:\Trishakti_Gallery"
 
-# PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
-# chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
-# GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
+PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
+chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
+GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
 
 
