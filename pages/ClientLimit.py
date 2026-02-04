@@ -47,7 +47,7 @@ def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/cl
 class ClientLimit:
     def __init__(self):
         # helper.eliminate_top_padding()
-        st.session_state.active_menu = "rm"
+        st.session_state.active_menu = "business"
         st.set_page_config(page_title="Client Limit", page_icon="💷", layout="wide")
         app_state.restore_state_from_query_params()
         app_state.sync_query_params_from_session()
@@ -75,7 +75,6 @@ class ClientLimit:
     
     def show_set_limit_ui(self, client):
         with st.expander(f"Set Limit on TMS: {client.upper()}", expanded=True):
-            st.caption("PHASE 1")
             client_code = str(client).split("-")[0].strip()
             has_from_db = False
             category_from_db = db.get_category_client_rm_map(client_code=client_code)
@@ -94,7 +93,6 @@ class ClientLimit:
                         result = db.update_category_client_rm_map(client_code=client_code, new_category=selected_category)
                         if result == 1:
                             st.success(f"Category updated successfully.", icon="✅")
-                            st.caption("PHASE 2")
                             limit_amount = st.number_input("Credit For Sale Limit")
                             if st.button("Update Limit", icon="💷"):
                                 self.tms_api(client_code=client_code, limit_amount=limit_amount)
