@@ -129,9 +129,6 @@ class RMTag:
             selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
 
         if st.button("Assign client to RM", icon="🙋🏻‍♂️"):
-            if client_type == "None":
-                st.warning(f"Please select client type", icon="⚠️")
-                return
             client_code = selected_client.split(" - ")[0].strip()
             client_id = client_df.loc[client_df["clientmembercode"] == client_code, "id"].values[0]
 

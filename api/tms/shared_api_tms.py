@@ -4,9 +4,8 @@ from config.config import session_management_path_tms_cookies, session_managemen
 import pickle
 
 
-global xsrf
 def load_cookies():
-    xsrf = ''
+    global xsrf
     with open(session_management_path_tms_cookies, "rb") as f:
         cookies = pickle.load(f)
     cookie_dict = {cookie['name']: cookie['value'] for cookie in cookies}
