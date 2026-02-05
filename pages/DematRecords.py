@@ -28,9 +28,11 @@ class DematRecords:
         # helper.eliminate_top_padding()
         st.session_state.active_menu = "kyc"
         st.set_page_config(page_title="Demat Records", page_icon="🧾", layout="wide")
-        app_state.restore_state_from_query_params()
-        app_state.sync_query_params_from_session()
-        app_state.check_authenticaiton_state()
+        # app_state.restore_state_from_query_params()
+        # app_state.sync_query_params_from_session()
+        # app_state.check_authenticaiton_state()
+        app_state.enforce_authentication()
+        app_state.sync_local_storage_to_session()
         self.username, self.role, self.branch = app_state.get_current_user_info()
         st.header("🧾 Demat Records", anchor=False)
 

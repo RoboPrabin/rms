@@ -1,3 +1,4 @@
+from streamlit_js_eval import streamlit_js_eval
 import pandas as pd
 import re
 from seleniumwire import webdriver
@@ -63,7 +64,13 @@ from typing import Tuple
 #     except Exception as e:
 #         raise ValueError(f"Invalid fiscal year '{fiscal_year}': {e}")
     
-
+def remove_token_from_local_storage():
+    streamlit_js_eval(
+        js_expressions="""
+            localStorage.removeItem('token');
+        """,
+        key=f"clear_my_token", 
+    )
 def default_category_list():
     return ['NONE','CASH', 'CREDIT', 'DUE']
 

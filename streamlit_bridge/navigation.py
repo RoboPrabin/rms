@@ -1,4 +1,5 @@
 # navigation.py
+import time
 import streamlit as st
 # from app_state import is_logged_in, current_user, logout_user
 import streamlit_bridge.app_state as app_state
@@ -13,9 +14,10 @@ def render_sidebar():
         st.session_state.active_menu = None
 
 
-    app_state.restore_state_from_query_params()
-    app_state.sync_query_params_from_session()
-    app_state.check_authenticaiton_state()
+    # app_state.restore_state_from_query_params()
+    # app_state.sync_query_params_from_session()
+    # app_state.check_authenticaiton_state()
+    app_state.sync_local_storage_to_session()
 
     username, role, branch = app_state.get_current_user_info()
     st.markdown("""
@@ -129,6 +131,10 @@ def render_sidebar():
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     if role == "ADMIN":
+        # Inside your dashboard
+        # if st.session_state.get("expiry"):
+        #     remaining = st.session_state.expiry - int(time.time())
+        #     st.sidebar.write(f"Session ends in: {remaining}s")
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):

@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 # PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
 # chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
 # GALLERY_PATH = r"D:\Trishakti_Gallery"
@@ -7,7 +8,8 @@ PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
 chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
 GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
-
+# Set expiry for 8 hours from now (60 sec * 60 min * 8)
+session_expiry_time = int(time.time()) + (3600 * 8)
 
 # ---------------- CONFIG ----------------
 dg_api_userName = "tri-api"

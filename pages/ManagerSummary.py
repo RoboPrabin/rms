@@ -11,10 +11,11 @@ class ManagerSummaryPage:
     def __init__(self):
         helper.eliminate_top_padding()
         st.set_page_config(page_title="Manager Summary", layout="wide", page_icon="👨‍💼")
-        app_state.restore_state_from_query_params()
-        app_state.sync_query_params_from_session()
-        app_state.check_authenticaiton_state()
-
+        # app_state.restore_state_from_query_params()
+        # app_state.sync_query_params_from_session()
+        # app_state.check_authenticaiton_state()
+        app_state.enforce_authentication()
+        app_state.sync_local_storage_to_session()
         helper.adjust_ui()
         render_sidebar()
 

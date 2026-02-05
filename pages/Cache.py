@@ -12,9 +12,11 @@ from utils import helper
 # helper.eliminate_top_padding()
 st.session_state.active_menu = "utility"
 # Authentication
-app_state.restore_state_from_query_params()
-app_state.sync_query_params_from_session()
-app_state.check_authenticaiton_state()
+# app_state.restore_state_from_query_params()
+# app_state.sync_query_params_from_session()
+# app_state.check_authenticaiton_state()
+app_state.enforce_authentication()
+app_state.sync_local_storage_to_session()
 username, role, branch = app_state.get_current_user_info()
 navigation.render_sidebar()
 if st.button("Clear cache", icon="🗑️"):

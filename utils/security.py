@@ -16,9 +16,9 @@ def encrypt_data(data: dict) -> str:
 
 def decrypt_data(token: str) -> dict:
     # Accept tokens with or without padding; add padding if missing
-    padding = '=' * (-len(token) % 4)
-    token_padded = token + padding
-    cipher_bytes = base64.urlsafe_b64decode(token_padded.encode('ascii'))
+    # padding = '=' * (-len(token) % 4)
+    # token_padded = token + padding
+    cipher_bytes = base64.urlsafe_b64decode(token.encode('ascii'))
     plaintext = _xor_bytes(cipher_bytes, KEY)
     return json.loads(plaintext.decode('utf-8'))
 

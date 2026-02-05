@@ -1,5 +1,10 @@
+
+
 import os
 os.system("")
+from config import config
+from utils.security import decrypt_data
+from streamlit_js_eval import streamlit_js_eval
 
 # Login.py
 from utils import page_url
@@ -8,18 +13,63 @@ import streamlit as st
 import streamlit_bridge.app_state as app_state
 from db.db import get_user_by_username, update_login_status, create_session
 from utils import security, helper
+import extra_streamlit_components as stx
 
-
+def save_encrypted_token_in_local_storage(encrypted_data):
+    streamlit_js_eval(
+                js_expressions=f"""
+                    localStorage.setItem('token', '{encrypted_data}');
+                """,
+                key="save_creds",
+            )
 class LoginPage:
     def __init__(self):
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
-
     # ---------------------------
     # State checks
     # ---------------------------
     def check_logged_in(self):
-        app_state.restore_state_from_query_params()
-        app_state.check_authentication_state_login_page()
+        token_from_browser = streamlit_js_eval(
+            js_expressions="localStorage.getItem('token')", 
+            key="already_login_check"
+        )
+
+        # 1. Wait for the browser to respond
+        if token_from_browser is None:
+            # We don't do anything yet; wait for the component to rerun the script
+            return 
+
+        if token_from_browser == "null" or token_from_browser == "undefined":
+            return # No token found, stay on login page
+
+        try:
+            # 2. Decrypt and Validate
+            payload = decrypt_data(token_from_browser)
+            
+            if payload and payload.get('auth'):
+                current_time = int(time.time())
+                expiry = payload.get('expiry', 0)
+
+                # 3. Only redirect if the token is STILL VALID
+                if current_time < expiry:
+                    # Set session state so other pages know we are in
+                    st.session_state.authenticated = True
+                    st.session_state.username = payload.get("user")
+                    st.session_state.role = payload.get("role")
+                    st.session_state.expiry = expiry
+                    
+                    st.success("Already Loggedin! Redirecting...")
+                    time.sleep(0.7)
+                    st.switch_page(page_url.dashbord_url)
+                else:
+                    # Token exists but is expired - stay here and maybe clear it
+                    pass
+
+        except Exception as e:
+            # If decryption fails (corrupted token), just stay on login page
+            print(f"Silent login failed: {e}")
+        # app_state.restore_state_from_query_params()
+        # app_state.check_authentication_state_login_page()
 
     # ---------------------------
     # Validation helpers
@@ -42,17 +92,21 @@ class LoginPage:
 
     def handle_successful_login(self, user):
         # reset failed_attempts on success
+        self.has_clicked = True
         update_login_status(user["username"], success=True)
+        expiry_time = config.session_expiry_time
         payload = {
             "auth": True,
             "user": user["username"].upper(),
             "role": user["role"].upper(),
-            "branch": user['branch'].upper()
+            "branch": user['branch'].upper(),
+            "expiry": expiry_time  # Add this key
         }
         encrypted = security.encrypt_data(payload)
 
         # create_session(username=user["username"])
         status, data = create_session(user['username'], sid=encrypted)
+        # print(status, data)
         # if status == "EXISTS":
         #     st.warning("You are already logged in from another device.", icon="⚠️")
         #     st.json({
@@ -65,16 +119,19 @@ class LoginPage:
         #     return
         
         st.session_state.authenticated = True
-        st.session_state.username = payload["user"]
-        st.session_state.role = payload["role"]
-        st.session_state.branch = payload['branch']
+        st.session_state.expiry = expiry_time
+        # st.session_state.username = payload["user"]
+        # st.session_state.role = payload["role"]
+        # st.session_state.branch = payload['branch']
 
-        st.query_params["sid"] = encrypted
+        # st.query_params["sid"] = encrypted
 
 
         st.success("Login successful! 👍 Redirecting...")
-        time.sleep(0.5)
-        if st.session_state['role'] == "USER":
+        save_encrypted_token_in_local_storage(encrypted_data=encrypted)
+        time.sleep(1)
+        if payload['role'] == "USER":
+        # if st.session_state['role'] == "USER":
             st.switch_page(page_url.book_closure_url)
         else:
             st.switch_page(page_url.dashbord_url)
@@ -112,7 +169,8 @@ class LoginPage:
                 username = st.text_input("Username", placeholder="Enter username", icon="🧑🏻‍💼", width='stretch').upper()
                 password = st.text_input("Password", type="password", placeholder="Enter password", icon="🔑", width='stretch')
                 # st.markdown("<br>", unsafe_allow_html=True)
-                submitted = st.form_submit_button("‎‎ ‎‎‎ ‎‎‎ ‎‎‎ ‎ Login‎‎ ‎‎‎ ‎‎‎ ‎‎‎ ‎", width='content',)
+                submitted = st.form_submit_button("‎‎ ‎‎‎ ‎‎‎ ‎‎‎ ‎ Login‎‎ ‎‎‎ ‎‎‎ ‎‎‎ ‎", 
+                                    width='content')
 
                 if not submitted:
                     return
