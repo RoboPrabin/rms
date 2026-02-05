@@ -86,7 +86,7 @@ class RMTag:
         rm_df["display"] = rm_df["alias"] + " - " + rm_df["full_name"]
         rm_df.sort_values(by="alias", inplace=True)
 
-        selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
+        selected_rm = st.selectbox("Select RM", rm_df["display"].tolist(), disabled=True if self.role == "BRO" else False)
         if not selected_rm:
             return
 
@@ -126,7 +126,7 @@ class RMTag:
         with col1:
             client_type = st.selectbox("Select Client Type", helper.default_category_list())
         with col2:
-            selected_rm = st.selectbox("Select RM", rm_df["display"].tolist())
+            selected_rm = st.selectbox("Select RM", rm_df["display"].tolist(), disabled=True if self.role == "BRO" else False)
 
         if st.button("Assign client to RM", icon="🙋🏻‍♂️"):
             client_code = selected_client.split(" - ")[0].strip()

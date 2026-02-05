@@ -92,14 +92,14 @@ class ClientLimit:
                     result = db.update_category_client_rm_map(client_code=client_code, new_category=selected_category)
                     if result == 1:
                         st.success(f"Category updated successfully.", icon="✅")
-                        limit_amount = st.number_input("Credit For Sale Limit")
-                        if st.button("Update Limit", icon="💷"):
-                            self.tms_api(client_code=client_code, limit_amount=limit_amount)
-            elif has_from_db:
-                limit_amount = st.number_input("Credit For Sale Limit")
-                if st.button("Update Limit", icon="💷"):
-                    # HIT TMS API FOR CFS
-                    self.tms_api(client_code=client_code, limit_amount=limit_amount)
+                        # limit_amount = st.number_input("Credit For Sale Limit")
+                        # if st.button("Update Limit", icon="💷"):
+                        #     self.tms_api(client_code=client_code, limit_amount=limit_amount)
+            # elif has_from_db:
+            #     limit_amount = st.number_input("Credit For Sale Limit")
+            #     if st.button("Update Limit", icon="💷"):
+            #         # HIT TMS API FOR CFS
+            #         self.tms_api(client_code=client_code, limit_amount=limit_amount)
     
     def limiter(self):
         if 'client_map' not in st.session_state:
