@@ -594,7 +594,7 @@ def show_message_box(title:str = "Demo purpose only", message:str = "Delete some
     root.destroy()
 
 def show_message(message: str, color: str='white'):
-    current_time = datetime.now().strftime("%I:%M:%S %p")  # 12-hour format with AM/PM
+    current_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")  # 12-hour format with AM/PM
     print(termcolor.colored(f" [{current_time}] {message.upper()}", color))
 
 def show_message_debug(message: str, color: str='magenta'):

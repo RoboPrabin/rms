@@ -12,22 +12,10 @@ from db.db import get_user_by_username, update_login_status, create_session
 from utils import auth_utils
 class LoginPage:
     def __init__(self):
-        # helper.eliminate_top_margin("-8rem")
+        helper.eliminate_top_margin("-4rem")
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
         self.manager = stx.CookieManager(key="trishakti_auth_manager")
-        # try:
-        #     self.manager.delete("auth_token")
-        # except Exception:
-        #     pass
 
-    # def get_manager(self):
-    #     """
-    #     Ensures CookieManager is created once per script run to avoid 
-    #     DuplicateElementKey error while remaining refresh-proof.
-    #     """
-    #     if self.cookie_manager is None:
-    #         self.cookie_manager = stx.CookieManager(key="trishakti_auth_manager")
-    #     return self.cookie_manager
 
     def check_logged_in(self):
         auth_utils.ensure_logged_in()
@@ -68,7 +56,7 @@ class LoginPage:
         #         print(f"Cookie auto-login failed: {e}")
 
     def handle_unregistered_user(self):
-        st.error("Please enter your credentials.", icon="❌")
+        st.error("You are not registered yet. Contact IT Department.", icon="❌")
 
     def handle_role_not_assigned(self):
         st.warning("Your account is created but role is not assigned. Contact admin.", icon="⚠️")
@@ -103,7 +91,7 @@ class LoginPage:
         st.session_state.branch = payload["branch"]
         
         create_session(user['username'], sid=encrypted_token)
-
+        # helper.show_message(message=user, color='green')
         st.success("Login successful! Redirecting...", icon="✅")
         
         # # CRITICAL: Allow JS to finish writing the cookie before killing the script
@@ -121,87 +109,85 @@ class LoginPage:
         else:
             st.warning(f"Invalid credentials! {remaining} attempts remaining.", icon="⚠️")
 
+    def show_login_form(self):
+        st.header("🔐 RMS Login", anchor=False)
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username", value="admin", placeholder="Enter username").upper()
+            password = st.text_input("Password", value="Prabin@123", type="password", placeholder="Enter password")
+            submitted = st.form_submit_button("➜] ‎ ‎‎ ‎  Login ‎ ‎ ‎ ‎ ")
+
+            if submitted:
+                if not username or not password:
+                    st.warning("Please enter both username and password.")
+                    return
+                
+                user = get_user_by_username(username)
+                if user is None:
+                    self.handle_unregistered_user()
+                elif user.get("role") is None:
+                    self.handle_role_not_assigned()
+                elif user.get("status") == "BLOCKED":
+                    self.handle_blocked_user()
+                elif password == user.get("password"):
+                    self.handle_successful_login(user)
+                else:
+                    self.handle_failed_login(username)
+
+
     # def show_login_form(self):
     #     st.header("🔐 RMS Login", anchor=False)
-    #     with st.form("login_form", clear_on_submit=False):
-    #         username = st.text_input("Username", value="admin", placeholder="Enter username").upper()
-    #         password = st.text_input("Password", value="Prabin@123", type="password", placeholder="Enter password")
-    #         submitted = st.form_submit_button("➜] ‎ ‎‎ ‎  Login ‎ ‎ ‎ ‎ ")
+    #     helper.eliminate_top_margin("-8rem")
+    #     # Initialize the loading state if it doesn't exist
+    #     if "login_loading" not in st.session_state:
+    #         st.session_state.login_loading = False
 
-    #         if submitted:
+    #     container = st.container(border=True)
+    #     with container:
+    #         username = st.text_input(
+    #             "Username", 
+    #             placeholder="Enter username",
+    #             disabled=st.session_state.login_loading # Disable inputs while processing
+    #         ).upper()
+            
+    #         password = st.text_input(
+    #             "Password", 
+    #             type="password", 
+    #             placeholder="Enter password",
+    #             disabled=st.session_state.login_loading
+    #         )
+            
+    #         # The Button
+    #         button_label = "Authenticating. Please wait..." if st.session_state.login_loading else "‎ ‎‎ ‎ ➜] ‎ ‎ Login ‎ ‎ ‎ ‎ "
+            
+    #         if st.button(
+    #             button_label, 
+    #             disabled=st.session_state.login_loading, 
+    #         ):
+    #             # Start the loading state and rerun to update UI
+    #             st.session_state.login_loading = True
+    #             st.rerun()
+
+    #         # This part runs ONLY after the rerun triggered by the click
+    #         if st.session_state.login_loading:
     #             if not username or not password:
     #                 st.warning("Please enter both username and password.")
+    #                 st.session_state.login_loading = False
+    #                 st.rerun()
     #                 return
                 
     #             user = get_user_by_username(username)
     #             if user is None:
     #                 self.handle_unregistered_user()
-    #             elif user.get("role") is None:
-    #                 self.handle_role_not_assigned()
-    #             elif user.get("status") == "BLOCKED":
-    #                 self.handle_blocked_user()
-    #             elif password == user.get("password"):
+    #                 st.session_state.login_loading = False
+    #                 st.rerun()
+    #             elif user.get("password") == password:
+    #                 # On success, keep it disabled and proceed
     #                 self.handle_successful_login(user)
+    #                 # Note: handle_successful_login will handle the redirect
     #             else:
     #                 self.handle_failed_login(username)
-
-
-    def show_login_form(self):
-        st.header("🔐 RMS Login", anchor=False)
-        
-        # Initialize the loading state if it doesn't exist
-        if "login_loading" not in st.session_state:
-            st.session_state.login_loading = False
-
-        container = st.container(border=True)
-        with container:
-            username = st.text_input(
-                "Username", 
-                value="admin", 
-                placeholder="Enter username",
-                disabled=st.session_state.login_loading # Disable inputs while processing
-            ).upper()
-            
-            password = st.text_input(
-                "Password", 
-                value="Prabin@123", 
-                type="password", 
-                placeholder="Enter password",
-                disabled=st.session_state.login_loading
-            )
-
-            # The Button
-            button_label = "Authenticating. Please wait..." if st.session_state.login_loading else "‎ ‎‎ ‎ ➜] ‎ ‎ Login ‎ ‎ ‎ ‎ "
-            
-            if st.button(
-                button_label, 
-                disabled=st.session_state.login_loading, 
-            ):
-                # Start the loading state and rerun to update UI
-                st.session_state.login_loading = True
-                st.rerun()
-
-        # This part runs ONLY after the rerun triggered by the click
-        if st.session_state.login_loading:
-            if not username or not password:
-                st.warning("Please enter both username and password.")
-                st.session_state.login_loading = False
-                st.rerun()
-                return
-            
-            user = get_user_by_username(username)
-            if user is None:
-                self.handle_unregistered_user()
-                st.session_state.login_loading = False
-                st.rerun()
-            elif user.get("password") == password:
-                # On success, keep it disabled and proceed
-                self.handle_successful_login(user)
-                # Note: handle_successful_login will handle the redirect
-            else:
-                self.handle_failed_login(username)
-                st.session_state.login_loading = False
-                st.rerun()
+    #                 st.session_state.login_loading = False
+    #                 st.rerun()
 
 
     def render_page(self):

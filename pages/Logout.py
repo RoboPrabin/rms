@@ -6,6 +6,7 @@ import extra_streamlit_components as stx
 from utils import auth_utils
 
 # End session in DB
+st.info("Logging out. Please wait ...", icon="ℹ️")
 user = auth_utils.ensure_logged_in()
 db.end_session(username=user['username'])
 
