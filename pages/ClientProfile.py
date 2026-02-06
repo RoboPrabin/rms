@@ -117,7 +117,7 @@ class ClientRemarks:
                     df = df[df['Created Date'] == selected_date]
 
         # --- Display filtered dataframe ---
-        df.drop(columns=['Created Date', 'Created Time'], inplace=True)
+        df.drop(columns=['Created Date', 'Created Time', 'Created At'], inplace=True)
         st.dataframe(df, width="stretch")
 
 
