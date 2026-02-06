@@ -11,7 +11,7 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from nepali_datetime import date as nepali_date
 from utils.custom_hotkey import activate_client_code_hotkey
-from utils import helper
+from utils import auth_utils, helper
 
 pd.set_option("styler.render.max_elements", 1579383)
 
@@ -40,13 +40,10 @@ class DPM3:
         self.today_np_date = nepali_date.today()
         activate_client_code_hotkey()
 
-        # Authentication & User Info
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-        self.username, self.role, self.branch = app_state.get_current_user_info()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
         navigation.render_sidebar()
 
         # DB Connection

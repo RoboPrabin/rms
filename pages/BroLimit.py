@@ -5,7 +5,7 @@ from decimal import Decimal
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
-from utils import helper
+from utils import auth_utils, helper
 from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
 from utils.custom_hotkey import activate_client_code_hotkey
@@ -51,12 +51,10 @@ class BroLimitManager:
         helper.eliminate_top_padding()
         st.session_state.active_menu = "rm"
         st.set_page_config(page_title="BRO Limit", layout='wide', page_icon="🧑‍🦱")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-        self.username, self.role, self.branch = app_state.get_current_user_info()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
 
         activate_client_code_hotkey()
         helper.adjust_ui()

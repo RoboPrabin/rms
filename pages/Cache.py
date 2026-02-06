@@ -1,6 +1,6 @@
 # _Logout.py
 import streamlit as st
-from utils import page_url
+from utils import auth_utils, page_url
 from time import sleep
 from streamlit_bridge import app_state
 from db import db
@@ -11,13 +11,10 @@ from utils import helper
 
 # helper.eliminate_top_padding()
 st.session_state.active_menu = "utility"
-# Authentication
-# app_state.restore_state_from_query_params()
-# app_state.sync_query_params_from_session()
-# app_state.check_authenticaiton_state()
-app_state.enforce_authentication()
-app_state.sync_local_storage_to_session()
-username, role, branch = app_state.get_current_user_info()
+user = auth_utils.ensure_logged_in()
+username= user['username']
+role= user['role']
+branch = user['branch']
 navigation.render_sidebar()
 if st.button("Clear cache", icon="🗑️"):
     st.cache_data.clear()      # clears all st.cache_data

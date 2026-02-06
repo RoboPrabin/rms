@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, text
 from utils import helper
 import requests
 from config import config
+from utils import auth_utils
 # ---------------- CONFIG ----------------
 BASE_API = "https://dgtrade.trishakti.com.np:8080/bom/"
 LOGIN_API = BASE_API + "tp-data/authenticate"
@@ -64,16 +65,13 @@ def get_ledger(token, ac_code, date_from, date_to):
 class InterestCalculation:
     
     def __init__(self):
-        # helper.eliminate_top_padding()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
+
         st.session_state.active_menu = ""
         st.set_page_config(page_title="Interest Calculation", page_icon="🧩", layout="wide")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        # THE GATEKEEPER - Must be the first line of code after imports
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-        self.username, self.role, self.branch = app_state.get_current_user_info()
         st.header("🧩 Interest Calculation", anchor=False)
 
         render_sidebar()

@@ -5,7 +5,7 @@ from datetime import datetime, date
 from db import db
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
-from utils import helper
+from utils import auth_utils, helper
 from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey, get_account_code, get_ledger, get_rm_and_client_name
 from streamlit_autorefresh import st_autorefresh
@@ -58,14 +58,12 @@ class DueList:
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config(page_title="Due List", page_icon="📋", layout="wide")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
 
         activate_client_code_hotkey()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-        self.username, self.role, self.branch = app_state.get_current_user_info()
         navigation.render_sidebar()
 
         # unified engine connection

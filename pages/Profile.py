@@ -4,30 +4,23 @@ import streamlit as st
 import pandas as pd
 import sqlalchemy
 import io
-from utils import page_url
+from utils import auth_utils, page_url
 from utils import helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
 
 
-class Settings:
+class Profile:
     def __init__(self):
         helper.eliminate_top_padding()
         st.session_state.active_menu = "utility"
-
-        # st.set_page_config(page_title="Dashboard")
         st.set_page_config(page_title=f"Profile",page_icon="💼",layout="wide")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-
-
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
         activate_client_code_hotkey()
-
-        self.username, self.role, self.branch = app_state.get_current_user_info()
         self.user =db.get_user_by_username(username=self.username)
         navigation.render_sidebar() 
         self.df: pd.DataFrame = None
@@ -117,7 +110,7 @@ class Settings:
 
 
 if __name__ == "__main__":
-    dashboad = Settings()
+    dashboad = Profile()
     dashboad.render_dashboard()
     
 

@@ -4,7 +4,7 @@ from db import db
 
 import streamlit as st
 import pandas as pd
-from utils import helper
+from utils import auth_utils, helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils.formatting import *
@@ -38,52 +38,6 @@ def get_floorsheet_by_date(selected_start_date: date, selected_end_date: date):
     )
 
 
-
-
-# # ✔ Cache branch summary per date
-# @st.cache_data(ttl=1600)
-# def compute_branch_summary( df: pd.DataFrame):
-#     if "branch" not in df.columns:
-#         return pd.DataFrame()
-
-#     def branch_summary_func(g):
-#         buy = g["transaction_type"] == "Buy"
-#         sell = g["transaction_type"] == "Sell"
-#         return pd.Series({
-#             "purchase_turnover": g.loc[buy, "amount"].sum(),
-#             "sales_turnover": g.loc[sell, "amount"].sum(),
-#             "total": g["amount"].sum(),
-#         })
-
-#     df2 = (
-#             df.groupby("branch", group_keys=False, observed=True)
-#             .apply(lambda g: branch_summary_func(g), include_groups=False)
-#             .reset_index()
-#         )
-#     return df2
-
-
-
-# @st.cache_data(ttl=1600)
-# def compute_branch_summary(df: pd.DataFrame):
-#     if "branch" not in df.columns:
-#         return pd.DataFrame()
-
-#     def branch_summary_func(g):
-#         buy = g["transaction_type"] == "Buy"
-#         sell = g["transaction_type"] == "Sell"
-#         return pd.Series({
-#             "purchase_turnover": g.loc[buy, "amount"].mean(),
-#             "sales_turnover": g.loc[sell, "amount"].mean(),
-#             "total": g["amount"].mean(),
-#         })
-
-#     df2 = (
-#         df.groupby("branch", group_keys=False, observed=True)
-#         .apply(lambda g: branch_summary_func(g), include_groups=False)
-#         .reset_index()
-#     )
-#     return df2
 
 @st.cache_data(ttl=1600)
 def compute_branch_summary(df: pd.DataFrame) -> pd.DataFrame:
@@ -124,10 +78,11 @@ class BusinessRatio:
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
         activate_client_code_hotkey()
-        self.username, self.role, self.branch = app_state.get_current_user_info()
         st.title("⚖️ Ratio of Due Amount with Business Turnover", anchor=False)
         # Sidebar
         navigation.render_sidebar()

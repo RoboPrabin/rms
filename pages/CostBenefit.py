@@ -6,7 +6,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from nepali_datetime import date as nepali_date
 
-from utils import helper
+from utils import auth_utils, helper
 from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey
 import streamlit_bridge.app_state as app_state
@@ -29,10 +29,10 @@ class CostBenefit:
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-
-        self.username, self.role, self.branch = app_state.get_current_user_info()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
         activate_client_code_hotkey()
         navigation.render_sidebar()
 

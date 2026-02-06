@@ -9,7 +9,8 @@ chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
 GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
 # Set expiry for 8 hours from now (60 sec * 60 min * 8)
-session_expiry_time = int(time.time()) + (3600 * 8)
+# session_expiry_time = int(time.time()) + (3600 * 8)
+session_expiry_time = int(time.time()) + 60
 
 # ---------------- CONFIG ----------------
 dg_api_userName = "tri-api"

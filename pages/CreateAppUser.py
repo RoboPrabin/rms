@@ -1,4 +1,4 @@
-from utils import mailer
+from utils import auth_utils, mailer
 from datetime import datetime
 from time import sleep
 from db import db
@@ -18,12 +18,10 @@ class CreateAppUser:
         st.session_state.active_menu = "user"
         self.header = "Create App User"
         st.set_page_config(page_title=self.header, layout="wide", page_icon="➕")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-        self.username, self.role, self.branch = app_state.get_current_user_info()
+        user = auth_utils.ensure_logged_in()
+        self.username= user['username']
+        self.role= user['role']
+        self.branch = user['branch']
 
         activate_client_code_hotkey()
 
