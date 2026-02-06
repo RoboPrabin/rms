@@ -19,7 +19,7 @@ if "auth_token" in cookies:
     controller.delete("auth_token")
 
 # Clear session and redirect
-sleep(0.3)              # small delay helps reliability
+sleep(0.4)              # small delay helps reliability
 st.session_state.clear()
 st.switch_page(page_url.login_url)
 st.stop()
