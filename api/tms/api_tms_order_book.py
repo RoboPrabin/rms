@@ -62,8 +62,8 @@ def extract_rm_in_order_book(order_book_df:pd.DataFrame):
 
 
 def fetch_order_book_completed():
-    cookies_init=get_cookie()
     while True:
+        cookies_init=get_cookie()
         response = requests.get(
             "https://tms48.nepsetms.com.np/tmsapi/orderTradeApi/tradebook-v2",
             cookies=cookies_init,
@@ -78,14 +78,16 @@ def fetch_order_book_completed():
 
         else:
             # login_tms()
-            cookies, headers = refresh_token(cookies=cookies_init, headers=get_headers())
-            cookies_init = cookies
+            refresh_token()
+            # cookies_init = cookies
 
 
 
 def fetch_order_book_open():
-    cookies_init=get_cookie()
+
     while True:
+        show_message(f"Fetching order book open.")
+        cookies_init=get_cookie()
         response = requests.get(
             'https://tms48.nepsetms.com.np/tmsapi/orderTradeApi/orderbook-v2?&activeStatus=CANCELLED&activeStatus=REJECTED&activeStatus=TMS_REJECTED&activeStatus=PARTIALLY_CANCELLED&activeStatus=MODIFIED_CANCELLED&activeStatus=OPEN&activeStatus=PARTIALLY_TRADED&activeStatus=PENDING&activeStatus=MODIFIED&',
             cookies=cookies_init,
@@ -99,8 +101,9 @@ def fetch_order_book_open():
                 return df_trade_book
         else:
             # login_tms()
-            cookies, headers = refresh_token(cookies=cookies_init, headers=get_headers())
-            cookies_init = cookies
+            show_message(f"Response code: {response.status_code}", color='cyan')
+            refresh_token()
+            # cookies_init = cookies
 
 
 
@@ -182,8 +185,8 @@ def fetch_trade_book():
         else:
             show_message("Failed to fetch data, retrying...", 'red')
             # login_tms()
-            cookies, headers = refresh_token(cookies=cookies_init, headers=get_headers())
-            cookies_init = cookies
+            refresh_token()
+            # cookies_init = cookies
 
     df_trade_book = pd.DataFrame(response.json())
     df_trade_book['buyOrSell'] = df_trade_book['buyOrSell'].replace({1: 'BUY', 2: 'SELL'})

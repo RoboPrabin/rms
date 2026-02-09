@@ -90,7 +90,6 @@ def get_city_code(full_name: str) -> str:
 
 
 # ---------- App ----------
-
 class Uarf:
     def __init__(self):
         # helper.eliminate_top_padding(padding_top="-90rem")

@@ -133,10 +133,19 @@ def render_sidebar():
     if role == "ADMIN":
         # Inside your dashboard
         # if st.session_state.get("expiry"):
+        #     # remaining = st.session_state.expiry - int(time.time())
+        #     # st.sidebar.write(f"Session ends in: {remaining}s")
         #     remaining = st.session_state.expiry - int(time.time())
-        #     st.sidebar.write(f"Session ends in: {remaining}s")
+
+        #     if remaining > 0:
+        #         st.sidebar.write(f"Session ends in: {remaining}s")
+        #     else:
+        #         st.sidebar.write("Session expired ❌")
+
+
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
+        st.sidebar.page_link(page_url.client_communication, label="‎‎ ‎‎‎ ‎‎‎ ‎ Client Communication", icon="📅")
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
             st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")

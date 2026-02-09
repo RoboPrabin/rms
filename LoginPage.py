@@ -12,48 +12,25 @@ from db.db import get_user_by_username, update_login_status, create_session
 from utils import auth_utils
 class LoginPage:
     def __init__(self):
-        helper.eliminate_top_margin("-4rem")
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
+        helper.eliminate_top_margin("-4rem")
         self.manager = stx.CookieManager(key="trishakti_auth_manager")
 
 
     def check_logged_in(self):
-        auth_utils.ensure_logged_in()
-        # """Try to auto-login using the cookie if session state is empty."""
-        # manager = self.get_manager()
-        
-        # # Give the browser a moment to send the cookie data
-        # token = manager.get("auth_token")
-        # if not token:
-        #     time.sleep(0.4)
-        #     token = manager.get("auth_token")
+        token = self.manager.get("auth_token")
 
-        # if token:
-        #     try:
-        #         payload = decrypt_data(token)
-        #         if payload and payload.get('auth'):
-        #             current_time = int(time.time())
-        #             expiry = payload.get('expiry', 0)
+        if token:
+            payload = decrypt_data(token=token)
 
-        #             if current_time < expiry:
-        #                 # Re-hydrate session state
-        #                 st.session_state.authenticated = True
-        #                 st.session_state.username = payload.get("user")
-        #                 st.session_state.role = payload.get("role")
-        #                 st.session_state.branch = payload.get("branch")
-        #                 st.session_state.expiry = expiry
-                        
-        #                 st.success("Welcome back! Redirecting...")
-        #                 time.sleep(0.5)
-                        
-        #                 # Route based on role
-        #                 if st.session_state.role == "USER":
-        #                     st.switch_page(page_url.book_closure_url)
-        #                 else:
-        #                     st.switch_page(page_url.dashbord_url)
-        #     except Exception as e:
-        #         # Log error silently
-        #         print(f"Cookie auto-login failed: {e}")
+            if payload.get("auth") and payload.get("expiry", 0) > int(time.time()):
+                st.info("Already logged in. Redirecting to dashboard…", icon="ℹ️")
+                st.switch_page(page_url.dashbord_url)
+                st.stop()
+                return True
+
+        return False
+
 
     def handle_unregistered_user(self):
         st.error("You are not registered yet. Contact IT Department.", icon="❌")
@@ -85,10 +62,11 @@ class LoginPage:
         )
 
         # 4. Update Session State (Immediate access)
-        st.session_state.authenticated = True
+        st.session_state.auth = True
         st.session_state.username = payload["username"]
         st.session_state.role = payload["role"]
         st.session_state.branch = payload["branch"]
+        st.session_state.expiry = payload["expiry"]
         
         create_session(user['username'], sid=encrypted_token)
         # helper.show_message(message=user, color='green')
@@ -134,71 +112,16 @@ class LoginPage:
                     self.handle_failed_login(username)
 
 
-    # def show_login_form(self):
-    #     st.header("🔐 RMS Login", anchor=False)
-    #     helper.eliminate_top_margin("-8rem")
-    #     # Initialize the loading state if it doesn't exist
-    #     if "login_loading" not in st.session_state:
-    #         st.session_state.login_loading = False
-
-    #     container = st.container(border=True)
-    #     with container:
-    #         username = st.text_input(
-    #             "Username", 
-    #             placeholder="Enter username",
-    #             disabled=st.session_state.login_loading # Disable inputs while processing
-    #         ).upper()
-            
-    #         password = st.text_input(
-    #             "Password", 
-    #             type="password", 
-    #             placeholder="Enter password",
-    #             disabled=st.session_state.login_loading
-    #         )
-            
-    #         # The Button
-    #         button_label = "Authenticating. Please wait..." if st.session_state.login_loading else "‎ ‎‎ ‎ ➜] ‎ ‎ Login ‎ ‎ ‎ ‎ "
-            
-    #         if st.button(
-    #             button_label, 
-    #             disabled=st.session_state.login_loading, 
-    #         ):
-    #             # Start the loading state and rerun to update UI
-    #             st.session_state.login_loading = True
-    #             st.rerun()
-
-    #         # This part runs ONLY after the rerun triggered by the click
-    #         if st.session_state.login_loading:
-    #             if not username or not password:
-    #                 st.warning("Please enter both username and password.")
-    #                 st.session_state.login_loading = False
-    #                 st.rerun()
-    #                 return
-                
-    #             user = get_user_by_username(username)
-    #             if user is None:
-    #                 self.handle_unregistered_user()
-    #                 st.session_state.login_loading = False
-    #                 st.rerun()
-    #             elif user.get("password") == password:
-    #                 # On success, keep it disabled and proceed
-    #                 self.handle_successful_login(user)
-    #                 # Note: handle_successful_login will handle the redirect
-    #             else:
-    #                 self.handle_failed_login(username)
-    #                 st.session_state.login_loading = False
-    #                 st.rerun()
-
-
     def render_page(self):
-        # self.check_logged_in()
-        self.show_login_form()
-        
-        st.markdown(
-            '<div style="position: fixed; bottom: 0; left: 0; width: 100%; text-align: center; padding: 15px; font-size: 14px; color: #555; z-index: 9999;">'
-            '© Trishakti Securities Limited. All rights reserved.</div>',
-            unsafe_allow_html=True
-        )
+        if self.check_logged_in():
+            return
+        else:
+            self.show_login_form()
+            st.markdown(
+                '<div style="position: fixed; bottom: 0; left: 0; width: 100%; text-align: center; padding: 15px; font-size: 14px; color: #555; z-index: 9999;">'
+                '© Trishakti Securities Limited. All rights reserved.</div>',
+                unsafe_allow_html=True
+            )
 
 if __name__ == "__main__":
     LoginPage().render_page()

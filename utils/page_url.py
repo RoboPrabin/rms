@@ -13,6 +13,7 @@ unverified_trans_url = base_path + "UnverifiedTransactions.py"
 demat_records_url = base_path + "DematRecords.py" 
 client_limit_url = base_path + "ClientLimit.py" 
 client_remarks_url = base_path + "ClientProfile.py" 
+client_communication = base_path + "ClientCommunication.py" 
 
 
 cache_url = base_path + "Cache.py" 

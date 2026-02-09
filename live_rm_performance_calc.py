@@ -1,5 +1,8 @@
 
 import os
+import pickle
+
+from ui.login_tms import login_tms
 os.system("")
 
 from live_bro_performance_func.bro_data import separate_data_by_bro_in_folder
@@ -210,6 +213,7 @@ def is_within_time_range():
  
 
 if __name__ == "__main__":
+    login_tms()
     while True:
         if not is_within_time_range():
             print("Time exceeded 03:05 PM. Exiting...")

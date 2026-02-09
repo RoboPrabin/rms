@@ -169,6 +169,21 @@ def get_clients_by_rm(rm_name):
     conn.close()
     return rows
 
+def get_clients_by_rm_for_client_comm(rm_name):
+    conn = get_connection()
+    query = sql.SQL("""
+        SELECT "clientCode", "clientName"
+        FROM client_rm_map
+        WHERE "rmName" = %s
+    """)
+    
+    with conn.cursor() as cur:
+        cur.execute(query, (rm_name,))
+        rows = cur.fetchall()
+    
+    conn.close()
+    return rows
+
 
 
 
