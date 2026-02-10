@@ -194,6 +194,8 @@ class LoginPage:
         else:
             st.switch_page(page_url.dashbord_url)
 
+        helper.show_message(message=f"{user}")
+
     def handle_failed_login(self, username):
         remaining = update_login_status(username, success=False)
         if remaining <= 0:
