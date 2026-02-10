@@ -190,7 +190,7 @@ class LoginPage:
         # Small delay to allow JS cookie injection to finish
         time.sleep(0.4) 
         
-        helper.show_message(message=f"{user}")
+        helper.show_message(message=f"{user}", color='green')
         if payload["role"] == "USER":
             st.switch_page(page_url.book_closure_url)
         else:
