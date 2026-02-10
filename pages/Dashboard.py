@@ -225,7 +225,7 @@ class Dashboard:
         self.username= user['username']
         self.role= user['role']
         self.branch = user['branch']
-        print("Dashboard", user)
+        # print("Dashboard", user)
         # self.branch = app_state.get_current_user_info()
         helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = ""
