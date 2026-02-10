@@ -1,0 +1,5 @@
+xpath_button_login = "//input[@value='Login']"
+xpath_input_username = "//input[@placeholder='Client Code/ User Name']"
+xpath_input_password = "//input[@id='password-field']"
+xpath_popup_msg = "//div[@class='toast-text']"
+xpath_input_captcha = "//input[@id='captchaEnter']"

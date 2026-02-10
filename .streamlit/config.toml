@@ -1,2 +1,30 @@
 [client]
+showSidebarNavigation = false
 showErrorDetails = false
+#toolbarMode = "minimal"
+
+#[theme]
+#base = "dark"
+#backgroundColor = "#272727ff"
+#secondaryBackgroundColor = "#111111"
+#textColor = "#FFFFFF"
+#primaryColor = "#1f77b4"
+
+
+
+[server]
+maxUploadSize = 1024  # in MB
+
+
+
+[logger]
+level="error"
+
+
+
+
+#[browser]
+#gatherUsageStats = false
+
+#[ui]
+#hideTopBar = true
