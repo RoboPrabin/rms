@@ -178,6 +178,8 @@ class LoginPage:
         # 2. Encrypt and Set Cookie Instantly (JavaScript)
         encrypted_token = security.encrypt_data(payload)
         auth_utils.set_cookie_instantly("auth_token", encrypted_token)        
+        time.sleep(0.4) 
+        st.success("Login successful! Redirecting...", icon="✅")
         
         # 3. Update Session State (Immediate server-side access)
         st.session_state.update(payload)
@@ -185,10 +187,8 @@ class LoginPage:
         # 4. Create Session in DB
         create_session(db_username, sid=encrypted_token)
         
-        st.success("Login successful! Redirecting...", icon="✅")
         
         # Small delay to allow JS cookie injection to finish
-        time.sleep(0.4) 
         
         helper.show_message(message=f"{user}", color='green')
         if payload["role"] == "USER":
