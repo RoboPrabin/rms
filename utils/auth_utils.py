@@ -35,15 +35,173 @@ def set_cookie_instantly(name, value, expiry_days=7):
     # This renders the script in the app
     components.html(js_code, height=0)
 
+# def get_cookies_fast():
+#     """Reads cookies instantly from HTTP headers (No lag)."""
+#     headers = _get_websocket_headers()
+#     if not headers or "Cookie" not in headers:
+#         return None
+    
+#     cookie_str = headers["Cookie"]
+#     cookies = dict(item.split("=", 1) for item in cookie_str.split("; ") if "=" in item)
+#     return cookies.get("auth_token")
+
+
+
+# def ensure_logged_in():
+#     now = int(time.time())
+
+#     # 1️⃣ VALIDATE SESSION STATE
+#     # Add a check: if username is None, treat it as expired/invalid
+#     if st.session_state.get("auth") and st.session_state.get("username"):
+#         if st.session_state.get("expiry", 0) <= now:
+#             st.session_state.clear() 
+#         else:
+#             return st.session_state
+
+#     # 2️⃣ CHECK COOKIE
+#     token = get_cookies_fast()
+#     if not token:
+#         print("TOKEN NOT FOUND", token)
+#         st.switch_page(page_url.login_url)
+#         st.stop()
+
+#     try:
+#         payload = decrypt_data(token=token)
+        
+#         # 3️⃣ VALIDATE DATA INTEGRITY
+#         # If the cookie exists but the username is missing/None, it's a "Ghost Cookie"
+#         if not payload or not payload.get("username"):
+#             logout_logic_only()
+#             st.session_state.clear()
+#             st.switch_page(page_url.login_url)
+#             st.stop()
+
+#         # 4️⃣ CHECK EXPIRY
+#         if payload["expiry"] <= now:
+#             logout_logic_only()
+#             st.error("Your session has expired.", icon="🚨")
+#             if st.button("Go to Login Page", icon="🔐"):
+#                 st.switch_page(page_url.login_url)
+#             st.stop()
+        
+#         # 5️⃣ SUCCESS: Sync and Return
+#         st.session_state.update(payload)
+#         return payload
+
+#     except Exception as e:
+#         logout_logic_only()
+#         st.session_state.clear()
+#         st.switch_page(page_url.login_url)
+#         st.stop()
+
+
+
+
 def get_cookies_fast():
-    """Reads cookies instantly from HTTP headers (No lag)."""
+    """Reads cookies from HTTP headers."""
     headers = _get_websocket_headers()
-    if not headers or "Cookie" not in headers:
+    if not headers:
         return None
     
-    cookie_str = headers["Cookie"]
-    cookies = dict(item.split("=", 1) for item in cookie_str.split("; ") if "=" in item)
+    cookie_header = headers.get("Cookie") or headers.get("cookie")
+    if not cookie_header:
+        return None
+    
+    # More robust parsing for multiple cookies
+    cookies = {}
+    for item in cookie_header.split(";"):
+        if "=" in item:
+            k, v = item.strip().split("=", 1)
+            cookies[k] = v
+            
     return cookies.get("auth_token")
+
+def ensure_logged_in():
+    now = int(time.time())
+
+    # 1️⃣ Check Session State (If this exists, we don't need the cookie)
+    if st.session_state.get("auth") and st.session_state.get("username"):
+        if st.session_state.get("expiry", 0) <= now:
+            st.session_state.clear() 
+        else:
+            return st.session_state
+
+    # 2️⃣ Check Cookie (Fast Headers)
+    token = get_cookies_fast()
+    
+    # 🚨 FIX: If token is None, wait a tiny bit and try ONE more time
+    # This handles the race condition where headers aren't ready
+    if not token:
+        time.sleep(0.2) 
+        token = get_cookies_fast()
+
+    if not token:
+        # Check if we are already on login page to avoid infinite loops
+        st.switch_page(page_url.login_url)
+        st.stop()
+
+    try:
+        payload = decrypt_data(token=token)
+        
+        # 3️⃣ Validate Integrity
+        if not payload or not payload.get("username"):
+            st.session_state.clear()
+            st.switch_page(page_url.login_url)
+            st.stop()
+
+        # 4️⃣ Validate Expiry
+        if payload["expiry"] <= now:
+            st.error("Session expired.")
+            st.stop()
+        
+        st.session_state.update(payload)
+        return payload
+    except Exception:
+        st.switch_page(page_url.login_url)
+        st.stop()
+
+
+
+
+def logout_logic_only():
+    """Wipes session and cookie without the full redirect."""
+    st.session_state.clear()
+    js_code = '<script>document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";</script>'
+    components.html(js_code, height=0)
+
+def logout_and_redirect(login_url_path):
+    """The most aggressive way to log out and move to login."""
+    st.session_state.clear()
+    js_code = f"""
+        <script>
+            document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            setTimeout(function(){{
+                window.parent.location.assign(window.parent.location.origin + "/{login_url_path}");
+            }}, 300);
+        </script>
+    """
+    components.html(js_code, height=0)
+    # st.switch_page(page_url.login_url)
+    # st.stop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # def ensure_logged_in():
 #     now = int(time.time())
@@ -98,55 +256,92 @@ def get_cookies_fast():
 #         return None
 
 
-def ensure_logged_in():
-    now = int(time.time())
+# def ensure_logged_in():
+#     now = int(time.time())
 
-    # 1️⃣ VALIDATE SESSION STATE FIRST (Fastest)
-    if st.session_state.get("auth"):
-        if st.session_state.get("expiry", 0) <= now:
-            st.session_state.clear() # Clear memory if expired
-        else:
-            return st.session_state # Still valid, keep going
+#     # 1️⃣ VALIDATE SESSION STATE FIRST (Fastest)
+#     if st.session_state.get("auth"):
+#         if st.session_state.get("expiry", 0) <= now:
+#             st.session_state.clear() 
+#         else:
+#             return st.session_state # Still valid, keep going
 
-    # 2️⃣ CHECK COOKIE
-    token = get_cookies_fast()
+#     # 2️⃣ CHECK COOKIE
+#     token = get_cookies_fast()
     
-    if not token:
-        st.switch_page(page_url.login_url)
-        st.stop()
+#     if not token:
+#         st.switch_page(page_url.login_url)
+#         st.stop()
 
-    try:
-        payload = decrypt_data(token=token)
+#     try:
+#         payload = decrypt_data(token=token)
         
-        # 3️⃣ CHECK EXPIRY
-        if payload["expiry"] <= now:
-            # TOKEN EXPIRED
-            hide_sidebar()
-            logout_logic_only() # Clear the bad cookie
-            st.error("Your session has expired. Please log in again.", icon="🚨")
-            if st.button("Go to Login Page", icon="🔐"):
-                st.switch_page(page_url.login_url)
-            st.stop()
-        else:
-            # TOKEN VALID -> Sync to Session State
-            st.session_state.update(payload)
-            # Optional: if you are on the login page, redirect to dashboard
-            # But usually, this function is called at the top of dashboard pages.
-            return payload
+#         # 3️⃣ CHECK EXPIRY
+#         if payload["expiry"] <= now:
+#             # TOKEN EXPIRED
+#             hide_sidebar()
+#             logout_logic_only() # Clear the bad cookie
+#             st.error("Your session has expired. Please log in again.", icon="🚨")
+#             if st.button("Go to Login Page", icon="🔐"):
+#                 st.switch_page(page_url.login_url)
+#             st.stop()
+#         else:
+#             # TOKEN VALID -> Sync to Session State
+#             st.session_state.update(payload)
+#             # Optional: if you are on the login page, redirect to dashboard
+#             # But usually, this function is called at the top of dashboard pages.
+#             print("Else part", payload)
+#             return payload
 
-    except Exception as e:
-        logout_logic_only()
-        st.session_state.clear()
-        st.switch_page(page_url.login_url)
-        st.stop()
+#     except Exception as e:
+#         logout_logic_only()
+#         st.session_state.clear()
+#         st.switch_page(page_url.login_url)
+#         st.stop()
+    
 
 
 
-def logout_logic_only():
-    """Wipes session and cookie without the full redirect."""
-    st.session_state.clear()
-    js_code = '<script>document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";</script>'
-    components.html(js_code, height=0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -145,7 +145,6 @@ def render_sidebar():
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
-        st.sidebar.page_link(page_url.client_communication, label="‎‎ ‎‎‎ ‎‎‎ ‎ Client Communication", icon="📅")
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
             st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
@@ -164,6 +163,7 @@ def render_sidebar():
             st.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
 
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
+            st.page_link(page_url.client_communication, label="‎‎ ‎‎‎ ‎‎‎ ‎ Client Communication", icon="📅")
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
@@ -223,6 +223,7 @@ def render_sidebar():
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
+            st.page_link(page_url.client_communication, label="‎‎ ‎‎‎ ‎‎‎ ‎ Client Communication", icon="📅")
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
@@ -250,6 +251,7 @@ def render_sidebar():
     if role == "BRO":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
+            st.page_link(page_url.client_communication, label="‎‎ ‎‎‎ ‎‎‎ ‎ Client Communication", icon="📅")
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")

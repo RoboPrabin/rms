@@ -31,16 +31,14 @@ def insert_client_comm(client_code, client_name, action_type, created_by,
         cur = conn.cursor()
 
         # Generate UUID for id
-        record_id = str(uuid.uuid4())
 
         insert_query = """
             INSERT INTO client_comm (
-                id, client_code, client_name, comm_date, comm_time, script, remarks, action_type, created_by
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                client_code, client_name, comm_date, comm_time, script, remarks, action_type, created_by
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cur.execute(insert_query, (
-            record_id,
             client_code,
             client_name,
             comm_date,
@@ -61,6 +59,27 @@ def insert_client_comm(client_code, client_name, action_type, created_by,
             conn.close()
 
 
+def get_client_comm_report_by_bro(rm_name):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT client_code, client_name, script, comm_date, comm_time,action_type, remarks, created_by FROM client_comm WHERE created_by = %s",
+        (rm_name,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+def get_all_client_comm_report():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT client_code, client_name, script, comm_date, comm_time,action_type, remarks, created_by FROM client_comm order by created_date_time desc")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
 
 
 
