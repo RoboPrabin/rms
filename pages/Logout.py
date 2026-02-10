@@ -7,30 +7,7 @@ import extra_streamlit_components as stx
 from utils import auth_utils
 from utils.security import decrypt_data
 
-# End session in DB
-st.info("Logging out. Please wait ...", icon="ℹ️")
-# user = auth_utils.ensure_logged_in()
-manager = stx.CookieManager(key="trishakti_auth_manager")
-
-token = manager.get("auth_token")
-sleep(0.4)
-payload = None
-if token:
-    payload = decrypt_data(token=token)
-
-db.end_session(username=payload['username'])
-# Delete cookie safely
-# controller = stx.CookieManager(key="trishakti_auth_manager")
-
-# Only delete if it exists
-cookies = manager.get_all()
-if "auth_token" in cookies:
-    manager.delete("auth_token")
-
-
-sleep(0.4)            
-st.session_state.clear()
-st.switch_page(page_url.login_url)
+auth_utils.logout_logic_only()
 st.stop()
 
 

@@ -221,9 +221,6 @@ def show_notification(message="hy"):
 class Dashboard:
 
     def __init__(self):
-        # helper.eliminate_top_padding("-18rem")
-        # user = app_state.ensure_authentication()
-
         user = auth_utils.ensure_logged_in()
         self.username= user['username']
         self.role= user['role']

@@ -22,6 +22,59 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def insert_client_comm(client_code, client_name, action_type, created_by,
+                       comm_date=None, comm_time=None, 
+                       script=None, remarks=None):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Generate UUID for id
+        record_id = str(uuid.uuid4())
+
+        insert_query = """
+            INSERT INTO client_comm (
+                id, client_code, client_name, comm_date, comm_time, script, remarks, action_type, created_by
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        cur.execute(insert_query, (
+            record_id,
+            client_code,
+            client_name,
+            comm_date,
+            comm_time,
+            script,
+            remarks,
+            action_type,
+            created_by
+        ))
+
+        conn.commit()
+
+        cur.close()
+    except Exception as e:
+        print("Error inserting record:", e)
+    finally:
+        if conn:
+            conn.close()
+
+
+
+
+
+def update_kyc_branch(client_code: str, new_branch: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE kyc SET clientbranch = %s WHERE clientmembercode = %s",
+        (new_branch, client_code)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
 
 def insert_client_remark(client_code, client_name, remarks, created_by):
     conn = get_connection()
@@ -2529,6 +2582,27 @@ def get_kyc():
     cur.close()
     conn.close()
     return row
+
+
+def get_kyc_with_rm():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            k.clientmembercode,
+            k.clientfullname,
+            k.clientbranch,
+            k.boid,
+            COALESCE(crm."rmName", 'N/A') AS rmName
+        FROM kyc k
+        LEFT JOIN client_rm_map crm 
+            ON k.clientmembercode = crm."clientCode"
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
 
 def get_isin_data():
     conn = get_connection()

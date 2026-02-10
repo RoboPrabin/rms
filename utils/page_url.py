@@ -14,6 +14,7 @@ demat_records_url = base_path + "DematRecords.py"
 client_limit_url = base_path + "ClientLimit.py" 
 client_remarks_url = base_path + "ClientProfile.py" 
 client_communication = base_path + "ClientCommunication.py" 
+kyc_modify = base_path + "KycModification.py" 
 
 
 cache_url = base_path + "Cache.py" 

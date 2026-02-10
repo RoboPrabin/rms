@@ -131,7 +131,7 @@ def render_sidebar():
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     if role == "ADMIN":
-        # Inside your dashboard
+        # # Inside your dashboard
         # if st.session_state.get("expiry"):
         #     # remaining = st.session_state.expiry - int(time.time())
         #     # st.sidebar.write(f"Session ends in: {remaining}s")
@@ -170,6 +170,7 @@ def render_sidebar():
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
+            st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
 
 
