@@ -47,12 +47,12 @@ def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/cl
 class ClientLimit:
     def __init__(self):
         # helper.eliminate_top_padding()
+        st.set_page_config(page_title="Client Limit", page_icon="💷", layout="wide")
         user = auth_utils.ensure_logged_in()
         self.username= user['username']
         self.role= user['role']
         self.branch = user['branch']
         st.session_state.active_menu = "business"
-        st.set_page_config(page_title="Client Limit", page_icon="💷", layout="wide")
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()

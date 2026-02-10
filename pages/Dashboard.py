@@ -217,11 +217,12 @@ def show_notification(message="hy"):
     
 # ---------------------------------------------------------
 # 🖥️ DASHBOARD CLASS
+user = auth_utils.ensure_logged_in()
+print("#Dashboard.")
 # ---------------------------------------------------------
 class Dashboard:
 
     def __init__(self):
-        user = auth_utils.ensure_logged_in()
         self.username= user['username']
         self.role= user['role']
         self.branch = user['branch']
