@@ -130,7 +130,7 @@ class LoginPage:
         
         # 2. Check if user is already logged in via fast headers
         # This prevents the "blank screen" and shows dashboard if cookie exists
-        self.check_already_logged_in()
+        # self.check_already_logged_in()
 
     def check_already_logged_in(self):
         """Redirects immediately if a valid fast token is found."""
@@ -189,12 +189,12 @@ class LoginPage:
         # Small delay to allow JS cookie injection to finish
         time.sleep(0.4) 
         
+        helper.show_message(message=f"{user}")
         if payload["role"] == "USER":
             st.switch_page(page_url.book_closure_url)
         else:
             st.switch_page(page_url.dashbord_url)
 
-        helper.show_message(message=f"{user}")
 
     def handle_failed_login(self, username):
         remaining = update_login_status(username, success=False)
