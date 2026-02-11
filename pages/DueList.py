@@ -9,6 +9,8 @@ from utils import auth_utils, helper
 from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey, get_account_code, get_ledger, get_rm_and_client_name
 from streamlit_autorefresh import st_autorefresh
+from pages.BasePage import BasePage
+
 
 # Engine
 intranet_engine = helper.get_holding_engine()
@@ -53,15 +55,16 @@ def load_due_list_data_bro(alias):
     return df
 
 # --- Main Class ---
-class DueList:
+class DueList(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config(page_title="Due List", page_icon="📋", layout="wide")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         activate_client_code_hotkey()
         navigation.render_sidebar()

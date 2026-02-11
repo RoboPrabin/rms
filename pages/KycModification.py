@@ -9,9 +9,12 @@ from db import db
 from utils import auth_utils, helper
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
-class KycModification:
+
+class KycModification(BasePage):
     def __init__(self):
+        super().__init__()
         # 1. Setup Page Config FIRST (Must be the first Streamlit command)
         st.set_page_config("Kyc Modification", page_icon="📚", layout='wide')
         
@@ -29,10 +32,10 @@ class KycModification:
             df['display_label'] = df['Client Code'].astype(str) + " - " + df['Client Name'] + " - " + df['Branch']
             st.session_state.kyc_data = df
 
-        user = auth_utils.ensure_logged_in()
-        self.username = user['username']
-        self.role = user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username = user['username']
+        # self.role = user['role']
+        # self.branch = user['branch']
         
         navigation.render_sidebar()
         st.header("📚 KYC Modification", anchor=False)

@@ -6,14 +6,16 @@ import streamlit_bridge.app_state as app_state
 from db import db
 from sqlalchemy import create_engine, text
 from utils import auth_utils, helper
+from pages.BasePage import BasePage
 
-class ClientRemarks:
+class ClientRemarks(BasePage):
     def __init__(self):
+        super.__init__()
         # helper.eliminate_top_padding()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         st.session_state.active_menu = "business"
         st.set_page_config(page_title="Client Remarks", page_icon="🖊️", layout="wide")
         # app_state.restore_state_from_query_params()

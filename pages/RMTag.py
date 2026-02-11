@@ -14,6 +14,7 @@ from utils import auth_utils, helper
 from sqlalchemy import create_engine
 from utils.custom_hotkey import activate_client_code_hotkey
 
+from pages.BasePage import BasePage
 
 
 
@@ -26,16 +27,17 @@ def get_all_kyc_info():
     rows = db.get_kyc()
     return rows
 
-class RMTag:
+class RMTag(BasePage):
     def __init__(self):
+        super().__init__()
         # helper.eliminate_top_padding()
         helper.eliminate_top_margin(margin_top="-4rem")
         st.session_state.active_menu = "rm"
         st.set_page_config(page_title="RM Tag", page_icon="🏷️", layout="wide")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
         st.title("🏷️ RM Tag", anchor=False)
         self.conn = db.get_connection()

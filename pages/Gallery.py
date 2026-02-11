@@ -15,9 +15,10 @@ from db import db
 from PIL import Image
 import os
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
 
-class Gallery:
+class Gallery(BasePage):
     THUMB_SIZE = (300, 300)  # Thumbnail size
     PHOTOS_PER_PAGE = 20
 
@@ -36,16 +37,17 @@ class Gallery:
     
 
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config("Gallery", page_icon="📸", layout='wide')
 
         activate_client_code_hotkey()
 
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         # Sidebar
         navigation.render_sidebar()

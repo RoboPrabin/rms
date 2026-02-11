@@ -3,18 +3,20 @@ import streamlit as st
 from streamlit_bridge.navigation import render_sidebar
 from db import db
 from utils import auth_utils
+from pages.BasePage import BasePage
 
-class Reports:
+class Reports(BasePage):
     def __init__(self):
+        super().__init__()
         if 'page_config_set' not in st.session_state:
             st.set_page_config(page_title="Reports", page_icon="📂", layout="wide")
             st.session_state.page_config_set = True
             
         st.session_state.active_menu = "utility"
-        user = auth_utils.ensure_logged_in()
-        self.username = user['username']
-        self.role = user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username = user['username']
+        # self.role = user['role']
+        # self.branch = user['branch']
         
         st.header("📂 Reports", anchor=False)
         render_sidebar()

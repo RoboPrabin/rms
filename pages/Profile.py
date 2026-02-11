@@ -9,17 +9,19 @@ from utils import helper
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
 
-class Profile:
+class Profile(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "utility"
         st.set_page_config(page_title=f"Profile",page_icon="💼",layout="wide")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         activate_client_code_hotkey()
         self.user =db.get_user_by_username(username=self.username)
         navigation.render_sidebar() 

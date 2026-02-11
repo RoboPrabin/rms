@@ -13,6 +13,9 @@ from utils import helper
 import requests
 from config import config
 from utils import auth_utils
+from pages.BasePage import BasePage
+
+
 # ---------------- CONFIG ----------------
 BASE_API = "https://dgtrade.trishakti.com.np:8080/bom/"
 LOGIN_API = BASE_API + "tp-data/authenticate"
@@ -62,13 +65,14 @@ def get_ledger(token, ac_code, date_from, date_to):
     return resp.json()
 
 
-class InterestCalculation:
+class InterestCalculation(BasePage):
     
     def __init__(self):
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        super().__init__()
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         st.session_state.active_menu = ""
         st.set_page_config(page_title="Interest Calculation", page_icon="🧩", layout="wide")

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from nepali_datetime import date as nepali_date
 
 from db import db
+from pages.BasePage import BasePage
 from utils import helper
 from utils.formatting import *
 from utils.custom_hotkey import activate_client_code_hotkey
@@ -21,7 +22,7 @@ from utils import auth_utils
 # ---------------------------------------------------------
 # 🔥 CACHED DATA LAYER (PURE FUNCTIONS ONLY)
 # ---------------------------------------------------------
-@st.cache_data(ttl=3600)
+# @st.cache_data(ttl=3600)
 def load_floorsheet_base(engine, selected_date):
     start_ts = f"{selected_date} 00:00:00"
     end_ts = f"{selected_date + timedelta(days=1)} 00:00:00"
@@ -73,7 +74,7 @@ def enrich_with_rm(floorsheet_df: pd.DataFrame, client_rm_map_df: pd.DataFrame) 
     return enriched_df
 
 
-@st.cache_data(ttl=3600)
+# @st.cache_data(ttl=3600)
 def load_rm_clients(engine, alias):
     """
     Load client list for BRO.
@@ -214,20 +215,21 @@ def show_notification(message="hy"):
         </div>
     """, unsafe_allow_html=True)
 
-    
+
+
 # ---------------------------------------------------------
 # 🖥️ DASHBOARD CLASS
-user = auth_utils.ensure_logged_in()
+
+
 # ---------------------------------------------------------
-class Dashboard:
+class Dashboard(BasePage):
     def __init__(self):
-        # self.username= "user['username']"
-        # self.role= "user['role']"
-        # self.branch = "user['branch']"
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
-        print("Dashboard", user)
+        super().__init__()
+        # self
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
+        # print("Dashboard", user)
         # self.branch = app_state.get_current_user_info()
         helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = ""

@@ -128,22 +128,6 @@ class LoginPage:
         # 1. Page config MUST be first
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
         helper.eliminate_top_margin("-4rem")
-        
-        # 2. Check if user is already logged in via fast headers
-        # This prevents the "blank screen" and shows dashboard if cookie exists
-        # self.check_already_logged_in()
-
-    # def check_already_logged_in(self):
-    #     """Redirects immediately if a valid fast token is found."""
-    #     token = auth_utils.get_cookies_fast()
-    #     if token:
-    #         try:
-    #             payload = decrypt_data(token=token)
-    #             if payload.get("auth") and payload.get("expiry", 0) > int(time.time()):
-    #                 st.session_state.update(payload)
-    #                 st.switch_page(page_url.dashbord_url)
-    #         except:
-    #             pass
 
     def handle_unregistered_user(self):
         st.error("You are not registered yet. Contact IT Department.", icon="❌")
@@ -165,30 +149,8 @@ class LoginPage:
 
         update_login_status(db_username, success=True)
         st.success("Login successful! Loding your resources. \nPlease wait...", icon="✅")
-        # col1, col2, col3 = st.columns(3)
-        # status_log = []
-        # status_placeholder = st.empty()
-
-        # messages = [
-        #     "🔐 Authenticating user...",
-        #     "✅ Authentication successful...",
-        #     "🚀 Redirecting to dashboard..."
-        # ]
-
-        # for msg in messages:
-        #     status_log.append(msg)
-
-        #     with status_placeholder:
-        #         with st.expander("📊 Login Status", expanded=True):
-        #             for line in status_log:
-        #                 st.write(line)
-
-        #     time.sleep(1.5)
-
-        # Final redirect
-        # time.sleep(2)
-                
-        # 1. Create the Payload
+        # expiry_time = int(time.time()) + 10
+       
         expiry_time = int(time.time()) + config.session_expiry_time 
         payload = {
             "auth": True,
@@ -197,24 +159,13 @@ class LoginPage:
             "branch": str(db_branch).upper(),
             "expiry": expiry_time
         }
-
-        # 2. Encrypt and Set Cookie Instantly (JavaScript)
         encrypted_token = security.encrypt_data(payload)
-        # auth_utils.set_cookie_instantly("auth_token", encrypted_token)      
-        auth_utils.set_login_session(token=encrypted_token, payload=payload)
-        time.sleep(0.3) 
-        
-        # 3. Update Session State (Immediate server-side access)
+        st.query_params.update({"sid": encrypted_token})
         st.session_state.update(payload)
-        
-        # 4. Create Session in DB
-        create_session(db_username, sid=encrypted_token)
-        
-        
-        # Small delay to allow JS cookie injection to finish
-        
-        helper.show_message(message=f"{user}", color='green')
+        st.session_state.sid = encrypted_token
 
+        create_session(db_username, sid=encrypted_token)
+        helper.show_message(message=f"{user}", color='green')
         if payload["role"] == "USER":
             st.switch_page(page_url.book_closure_url)
         else:
@@ -231,8 +182,8 @@ class LoginPage:
     def show_login_form(self):
         st.header("🔐 RMS Login", anchor=False)
         with st.form("login_form", clear_on_submit=False):
-            username_input = st.text_input("Username", value="admin", placeholder="Enter username").upper()
-            password_input = st.text_input("Password", value="Prabin@123", type="password", placeholder="Enter password")
+            username_input = st.text_input("Username",  placeholder="Enter username").upper()
+            password_input = st.text_input("Password",  type="password", placeholder="Enter password")
             submitted = st.form_submit_button("➜ Login")
 
             if submitted:

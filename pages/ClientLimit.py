@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, text
 from utils import auth_utils, helper
 from config.config import credentials_tms_for_collateral_only
 from api.tms import api_collateral
+from pages.BasePage import BasePage
 
 
 def get_client_list():
@@ -44,14 +45,15 @@ def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/cl
 
 
 
-class ClientLimit:
+class ClientLimit(BasePage):
     def __init__(self):
+        super.__init__()
         # helper.eliminate_top_padding()
         st.set_page_config(page_title="Client Limit", page_icon="💷", layout="wide")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         st.session_state.active_menu = "business"
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()

@@ -1,21 +1,23 @@
 from time import sleep
 import pandas as pd
 import streamlit as st
+from pages.BasePage import BasePage
 from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
 from db import db
 from sqlalchemy import create_engine, text
 from utils import auth_utils, helper
 
-class ActiveSession:
+class ActiveSession(BasePage):
     def __init__(self):
+        super().__init__()
         # helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         st.set_page_config(page_title="Active Session", page_icon="🕓", layout="wide")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         st.header("🕓 Active Sessions", anchor=False)
 
         render_sidebar()

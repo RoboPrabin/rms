@@ -8,18 +8,20 @@ from utils import auth_utils, helper
 from streamlit_bridge.navigation import render_sidebar
 import pandas as pd
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
 
 
-class CommunicationReport:
+class CommunicationReport(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "utility"
         st.set_page_config(page_title="Communication Report", layout="wide", page_icon="📢")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
 
         activate_client_code_hotkey()

@@ -1,3 +1,4 @@
+from pages.BasePage import BasePage
 import uuid
 from time import sleep
 from db import db
@@ -46,15 +47,17 @@ def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/cl
 
 
 
-class BroLimitManager:
+class BroLimitManager(BasePage):
     def __init__(self):
+        super().__init__()
+
         helper.eliminate_top_padding()
         st.session_state.active_menu = "rm"
         st.set_page_config(page_title="BRO Limit", layout='wide', page_icon="🧑‍🦱")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         activate_client_code_hotkey()
         helper.adjust_ui()

@@ -10,6 +10,7 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from utils import auth_utils, helper
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
 
 intranet_engine = helper.get_holding_engine()
@@ -86,18 +87,19 @@ def compute_pie_summary(df: pd.DataFrame):
     return df.groupby("branch")["amount"].sum().reset_index().rename(columns={"amount": "total"})
 
 
-class Floorsheet:
+class Floorsheet(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config(page_title="Floorsheet", page_icon="📄", layout="wide")
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
         today = datetime.today()
         activate_client_code_hotkey()

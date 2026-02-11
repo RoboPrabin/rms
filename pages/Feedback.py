@@ -3,16 +3,18 @@ from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
 from db import db
 from utils import auth_utils, helper
+from pages.BasePage import BasePage
 
 
-class Feedback:
+class Feedback(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.set_page_config(page_title="Feedback", page_icon="💬", layout="centered")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         render_sidebar()
 

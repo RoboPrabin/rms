@@ -14,7 +14,7 @@ def render_sidebar():
         st.session_state.active_menu = None
 
 
-    user = auth_utils.ensure_logged_in()
+    user = st.session_state
     username= user['username']
     role= user['role']
     branch = user['branch']

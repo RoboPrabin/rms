@@ -18,6 +18,7 @@ import streamlit_bridge.navigation as navigation
 from config import config
 from db import db
 import requests
+from pages.BasePage import BasePage
 
 
 # ---------------- API HELPERS ----------------
@@ -54,18 +55,19 @@ def get_kyc_details(ac_code, token):
 
 
 
-class TransactionMonitoring:
+class TransactionMonitoring(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "aml"
         activate_client_code_hotkey()
         st.set_page_config("AML - Transaction Monitoring", page_icon="🕵🏻", layout='wide')
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
         # DB
         self.holding_engine = helper.get_holding_engine()
