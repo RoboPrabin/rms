@@ -44,7 +44,6 @@ def render_sidebar():
         }
         </style>
         """, unsafe_allow_html=True)
-
     st.sidebar.markdown(
             f"""
         <style>

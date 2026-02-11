@@ -83,20 +83,21 @@ class Profile(BasePage):
                 value=self.user['email'],
                 disabled=not requested_change
             )
-            submitted = st.form_submit_button("Update Information", disabled=not requested_change)
+            submitted = st.form_submit_button("Update Information", disabled=not requested_change, icon="🔄️")
             if submitted:
-                db.change_user_info(
+                result = db.change_user_info(
                     username=self.username,
                     password=password,
                     phone=phone,
                     email=email,
                     citizenship=citizenship
                 )
-                st.success("Information updated successfully.")
-                st.balloons()
-                st.session_state.reset_toggle = True
-                sleep(0.8)
-                st.rerun()
+                if result:
+                    st.success("Information updated successfully.")
+                    st.balloons()
+                    st.session_state.reset_toggle = True
+                    sleep(2)
+                    st.rerun()
 
            
 

@@ -2829,7 +2829,7 @@ def change_user_info(username: str, password:str, phone: str, email: str, citize
             SET password = %s, phone = %s, email = %s, citizenship = %s
             WHERE username = %s;
             """,
-            (password.strip(), phone.strip(), email.strip(), citizenship.lower().strip() ,username.lower().strip())
+            (password.strip(), phone.strip(), email.lower().strip(), citizenship.lower().strip() ,username.upper().strip())
         )
         conn.commit()
         return True
