@@ -22,6 +22,27 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
+def get_tms_limit_report():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Run query
+    cur.execute("SELECT * FROM zlog_tms_limit")
+
+    # Fetch all rows
+    rows = cur.fetchall()
+
+    # Convert to DataFrame
+    df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
+
+    cur.close()
+    conn.close()
+
+    return df
+
+
+
 def insert_client_comm(client_code, client_name, action_type, created_by,
                        comm_date=None, comm_time=None, 
                        script=None, remarks=None):

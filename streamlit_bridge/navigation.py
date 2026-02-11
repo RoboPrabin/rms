@@ -3,7 +3,7 @@ import time
 import streamlit as st
 # from app_state import is_logged_in, current_user, logout_user
 import streamlit_bridge.app_state as app_state
-from utils import page_url
+from utils import auth_utils, page_url
 
 def render_sidebar():
     """
@@ -14,7 +14,7 @@ def render_sidebar():
         st.session_state.active_menu = None
 
 
-    user = app_state.ensure_authentication()
+    user = auth_utils.ensure_logged_in()
     username= user['username']
     role= user['role']
     branch = user['branch']
@@ -145,6 +145,7 @@ def render_sidebar():
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
+        st.sidebar.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
             st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
@@ -232,6 +233,7 @@ def render_sidebar():
 
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
+            st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
             
         with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):

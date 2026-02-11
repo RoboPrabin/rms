@@ -164,8 +164,30 @@ class LoginPage:
         db_branch = user[7]
 
         update_login_status(db_username, success=True)
-        st.success("Login successful! Loding you resources. Please wait...", icon="✅")
-        
+        st.success("Login successful! Loding your resources. \nPlease wait...", icon="✅")
+        # col1, col2, col3 = st.columns(3)
+        # status_log = []
+        # status_placeholder = st.empty()
+
+        # messages = [
+        #     "🔐 Authenticating user...",
+        #     "✅ Authentication successful...",
+        #     "🚀 Redirecting to dashboard..."
+        # ]
+
+        # for msg in messages:
+        #     status_log.append(msg)
+
+        #     with status_placeholder:
+        #         with st.expander("📊 Login Status", expanded=True):
+        #             for line in status_log:
+        #                 st.write(line)
+
+        #     time.sleep(1.5)
+
+        # Final redirect
+        # time.sleep(2)
+                
         # 1. Create the Payload
         expiry_time = int(time.time()) + config.session_expiry_time 
         payload = {
@@ -178,8 +200,9 @@ class LoginPage:
 
         # 2. Encrypt and Set Cookie Instantly (JavaScript)
         encrypted_token = security.encrypt_data(payload)
-        auth_utils.set_cookie_instantly("auth_token", encrypted_token)        
-        time.sleep(0.5) 
+        # auth_utils.set_cookie_instantly("auth_token", encrypted_token)      
+        auth_utils.set_login_session(token=encrypted_token, payload=payload)
+        time.sleep(0.3) 
         
         # 3. Update Session State (Immediate server-side access)
         st.session_state.update(payload)

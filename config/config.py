@@ -1,10 +1,10 @@
 from pathlib import Path
 import time
-# PROJECT_PATH = r"D:\Trishakti\Projects\RPA\track_stock_price"
+# PROJECT_PATH = r"D:\Trishakti\Projects\RPA\rms"
 # chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
 # GALLERY_PATH = r"D:\Trishakti_Gallery"
 
-PROJECT_PATH = r"E:\Trishakti\Projects\track_stock_price"
+PROJECT_PATH = r"E:\Trishakti\Projects\rms"
 chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
 GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
