@@ -47,7 +47,7 @@ def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/cl
 
 class ClientLimit(BasePage):
     def __init__(self):
-        super.__init__()
+        super().__init__()
         # helper.eliminate_top_padding()
         st.set_page_config(page_title="Client Limit", page_icon="💷", layout="wide")
         # user = auth_utils.ensure_logged_in()

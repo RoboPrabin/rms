@@ -18,7 +18,7 @@ pd.set_option("styler.render.max_elements", 374688)  # or set to a big number li
 class CostBenefit(BasePage):
 
     def __init__(self):
-        super.__init__()
+        super().__init__()
         # helper.eliminate_top_padding()
         helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = "business"

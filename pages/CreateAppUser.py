@@ -15,7 +15,7 @@ from pages.BasePage import BasePage
 
 class CreateAppUser(BasePage):
     def __init__(self):
-        super.__init__()
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         self.header = "Create App User"

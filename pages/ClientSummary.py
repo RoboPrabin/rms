@@ -9,7 +9,7 @@ from pages.BasePage import BasePage
 
 class BroSummaryPage(BasePage):
     def __init__(self):
-        super.__init__()
+        super().__init__()
         helper.eliminate_top_padding()
         st.set_page_config(page_title="Client Summary", layout='wide', page_icon="📃")
         # app_state.restore_state_from_query_params()

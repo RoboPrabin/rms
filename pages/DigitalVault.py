@@ -13,7 +13,7 @@ from pages.BasePage import BasePage
 
 class DigitalVault(BasePage):
     def __init__(self):
-        super.__init__()
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "utility"
         st.set_page_config("Digital Vault", page_icon="🔐", layout='wide')

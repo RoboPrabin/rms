@@ -10,7 +10,7 @@ from pages.BasePage import BasePage
 
 class ClientRemarks(BasePage):
     def __init__(self):
-        super.__init__()
+        super().__init__()
         # helper.eliminate_top_padding()
         # user = auth_utils.ensure_logged_in()
         # self.username= user['username']
