@@ -224,6 +224,7 @@ def show_notification(message="hy"):
 # ---------------------------------------------------------
 class Dashboard(BasePage):
     def __init__(self):
+        st.set_page_config("Dashboard", page_icon="🏠", layout="wide")
         super().__init__()
         # self
         # self.username= user['username']
@@ -233,7 +234,6 @@ class Dashboard(BasePage):
         # self.branch = app_state.get_current_user_info()
         helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = ""
-        st.set_page_config("Dashboard", page_icon="🏠", layout="wide")
 
         # --- Dates ---
         self.today_date = datetime.now().date()

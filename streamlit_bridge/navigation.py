@@ -13,7 +13,7 @@ def render_sidebar():
     if "active_menu" not in st.session_state:
         st.session_state.active_menu = None
 
-
+    
     user = st.session_state
     username= user['username']
     role= user['role']
@@ -131,15 +131,15 @@ def render_sidebar():
 
     if role == "ADMIN":
         # # Inside your dashboard
-        # if st.session_state.get("expiry"):
-        #     # remaining = st.session_state.expiry - int(time.time())
-        #     # st.sidebar.write(f"Session ends in: {remaining}s")
-        #     remaining = st.session_state.expiry - int(time.time())
+        if st.session_state.get("expiry"):
+            # remaining = st.session_state.expiry - int(time.time())
+            # st.sidebar.write(f"Session ends in: {remaining}s")
+            remaining = st.session_state.expiry - int(time.time())
 
-        #     if remaining > 0:
-        #         st.sidebar.write(f"Session ends in: {remaining}s")
-        #     else:
-        #         st.sidebar.write("Session expired ❌")
+            if remaining > 0:
+                st.sidebar.write(f"Session ends in: {remaining}s")
+            else:
+                st.sidebar.write("Session expired ❌")
 
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
