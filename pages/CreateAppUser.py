@@ -99,11 +99,11 @@ class CreateAppUser(BasePage):
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts, branch)
-                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts, :branch)
+                                    INSERT INTO app_user ( username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts, branch)
+                                    VALUES ( :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts, :branch)
                                 """),
                                 {
-                                    "id": user_id,
+                                    # "id": user_id,
                                     "username": username,
                                     "password": encrypted_pw,
                                     "full_name": full_name,
