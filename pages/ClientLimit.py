@@ -48,7 +48,6 @@ class ClientLimit(BasePage):
     def set_limit_threshold(self):
         col1, col2, col3 = st.columns(3)
         with col1:
-            # Note: Selectbox uses the cached list for performance
             client_options = get_client_list_cached(st.session_state.username)
             client_display = st.selectbox("Select Client", options=client_options, key="client_code_select")
             client_code = str(client_display).split("-")[0].strip() if client_display else None
@@ -56,22 +55,33 @@ class ClientLimit(BasePage):
             category = st.selectbox("Category", options=helper.default_category_list(), key="category_input")
         with col3:
             limit_amount = st.number_input("Trading Limit (Threshold)", min_value=0, step=1000, key="limit_amount_input")
-        
+
         if st.button("Set Limit Threshold", icon="✅"):
             if not client_code:
                 st.warning("Please select a client.", icon="⚠️")
                 return
-            
-            # 1. Update Database
-            client_limit_repo.update_client_limit(client_code, limit_amount, category)
-            
-            # 2. Update Local State Immediately (Lightning Speed)
-            refresh_client_data()
-            
-            # 3. User Feedback
-            st.toast(f"Limit for {client_code} updated!", icon="🚀")
-            sleep(0.6)
-            st.rerun()
+
+            # 1. Fetch bro limits
+            bro_limits_df = client_limit_repo.get_loggedin_bro_limits(bro_id=st.session_state.id)
+            total_limit = int(str(bro_limits_df['TOTAL LIMIT'].iloc[0]).replace(",", "") or 0)
+            # used_limit = int(str(bro_limits_df['USED LIMIT'].iloc[0]).replace(",", "") or 0)
+
+            # 2. Check if new limit exceeds available capacity
+            if limit_amount > total_limit:
+                remaining = total_limit
+                st.error(f"Insufficient BRO limit.", icon="⚠️")
+                # return
+            else:
+                # 3. Update Database
+                client_limit_repo.update_client_limit(client_code, limit_amount, category)
+
+                # 4. Refresh Local State
+                refresh_client_data()
+
+                # 5. User Feedback
+                st.toast(f"Limit for {client_code} updated!", icon="🚀")
+                sleep(0.6)
+                st.rerun()
 
         st.divider()
         self.my_limit_ui()
@@ -82,13 +92,12 @@ class ClientLimit(BasePage):
         st.subheader("🍁 My Clients Limit Details", anchor=False)
         # Pull directly from state
         df = st.session_state.my_clients_df
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width='stretch')
     
     def my_limit_ui(self):
         st.subheader("📊 My Current Limit ", anchor=False)
-        # Assuming this is small/fast, but can be state-cached too if needed
         df = client_limit_repo.get_loggedin_bro_limits(bro_id=st.session_state.id)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width='stretch')
 
     def render(self):
         action = st.radio("Select an action", ["Set Limit Threshold", "Set Limit on TMS"], horizontal=True, key="client_limit_action")
