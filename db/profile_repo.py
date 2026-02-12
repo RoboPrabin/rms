@@ -31,7 +31,7 @@ def generate_pin() -> str:
     # Ensure uniqueness
     while True:
         # Generate 5 random digits
-        random_digits = ''.join(random.choices("0123456789", k=6))
+        random_digits = ''.join(random.choices("0123456789", k=8))
         # Append first letter of username in uppercase
         new_pin = random_digits
 

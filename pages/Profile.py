@@ -43,9 +43,9 @@ class Profile(BasePage):
         if btn.button("Generate new PIN", icon="🔄️", disabled=not disclaimer):
             new_pin = profile_repo.generate_pin()
             if new_pin:
+                profile_repo.update_pin(username=st.session_state.username, new_pin=new_pin)
                 st.success(f"Your Login PIN is: {new_pin}")
                 st.info("Please note it down securely. It won't be shown again!", icon="⚠️")
-                profile_repo.update_pin(username=st.session_state.username, new_pin=new_pin)
                 btn.empty()
             else:
                 st.error("Failed to generate new PIN. Please try again later.", icon="❌")
