@@ -28,7 +28,7 @@ def get_tms_limit_report():
     cur = conn.cursor()
 
     # Run query
-    cur.execute("SELECT * FROM zlog_tms_limit")
+    cur.execute("SELECT * FROM zlog_tms_limit order by created_date_time desc")
 
     # Fetch all rows
     rows = cur.fetchall()
@@ -247,20 +247,7 @@ def update_limits(client_code, credit_limit, trading_limit, updated_by):
         conn.commit()
 
 
-def get_clients_by_rm(rm_name):
-    conn = get_connection()
-    query = sql.SQL("""
-        SELECT "clientCode", "clientName", category, credit_limit, trading_limit
-        FROM client_rm_map
-        WHERE "rmName" = %s
-    """)
-    
-    with conn.cursor() as cur:
-        cur.execute(query, (rm_name,))
-        rows = cur.fetchall()
-    
-    conn.close()
-    return rows
+
 
 def get_clients_by_rm_for_client_comm(rm_name):
     conn = get_connection()
@@ -1574,7 +1561,32 @@ def get_floorsheet_data():
             conn.close()
     return df
 
-
+def get_floorsheet_summary():
+    # We aggregate by Date, Branch, and Type to reduce data size significantly
+    query = """
+    SELECT 
+        DATE(uploaded_at) AS date,
+        branch,
+        transaction_type,
+        SUM(amount) AS total_amount
+    FROM floorsheet
+    GROUP BY DATE(uploaded_at), branch, transaction_type
+    ORDER BY date DESC;
+    """
+    conn = None
+    df = pd.DataFrame()
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
+    except Exception as e:
+        print("Error fetching floorsheet summary:", e)
+    finally:
+        if conn:
+            conn.close()
+    return df
 
 
 def get_today_floorsheet_range(from_selected_date, to_selected_date):
@@ -2600,6 +2612,15 @@ def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT username, role, password, status, citizenship, phone, email, branch FROM app_user WHERE username = %s", (username.upper(),))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+def get_user_by_username_for_login(username):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id,  username, role, password, status, citizenship, phone, email, branch FROM app_user WHERE username = %s", (username.upper(),))
     row = cur.fetchone()
     cur.close()
     conn.close()

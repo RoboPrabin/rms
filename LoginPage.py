@@ -7,13 +7,32 @@ from utils import auth_utils
 from config import config
 from utils.security import decrypt_data, encrypt_data
 from utils import page_url, security, helper
-from db.db import get_user_by_username, update_login_status, create_session
+from db.db import get_user_by_username_for_login, update_login_status, create_session
+from pages.BasePage import BasePage
 
-class LoginPage:
+def check_loggedin():
+    sid = st.query_params.get("sid") or st.session_state.get("sid")
+    if sid:
+        payload = decrypt_data(sid)
+        remaining = st.session_state.get("expiry", 0) - int(time.time())
+        if remaining <= 0:
+            st.query_params.clear()
+            st.session_state.clear()
+        else:
+            if payload["role"] == "USER":
+                st.switch_page(page_url.book_closure_url)
+            else:
+                st.switch_page(page_url.dashbord_url)
+
+class LoginPage(BasePage):
     def __init__(self):
+
+
         # 1. Page config MUST be first
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
         helper.eliminate_top_margin("-4rem")
+        check_loggedin()
+
 
     def handle_unregistered_user(self):
         st.error("You are not registered yet. Contact IT Department.", icon="❌")
@@ -29,28 +48,31 @@ class LoginPage:
         user is a TUPLE from SQL: 
         (0:username, 1:role, 2:password, 3:status, 4:citizenship, 5:phone, 6:email, 7:branch)
         """
-        db_username = user[0]
-        db_role = user[1]
-        db_branch = user[7]
+        db_id = user[0]
+        db_username = user[1]
+        db_role = user[2]
+        db_branch = user[8]
 
         update_login_status(db_username, success=True)
-        st.success("Login successful! Loding your resources. \nPlease wait...", icon="✅")
-        expiry_time = int(time.time()) + 60
+        # expiry_time = int(time.time()) + 60
        
-        # expiry_time = int(time.time()) + config.session_expiry_time 
+        expiry_time = int(time.time()) + config.session_expiry_time 
         payload = {
             "auth": True,
             "username": str(db_username).upper(),
             "role": str(db_role).upper(),
             "branch": str(db_branch).upper(),
-            "expiry": expiry_time
+            "expiry": expiry_time,
+            'id': db_id
         }
         encrypted_token = security.encrypt_data(payload)
         # st.query_params.update({"sid": encrypted_token})
         st.query_params["sid"] = encrypted_token
+        time.sleep(0.2)
         st.session_state.update(payload)
         st.session_state.sid = encrypted_token
 
+        st.success("Login successful! Loding your resources. \nPlease wait...", icon="✅")
         create_session(db_username, sid=encrypted_token)
         helper.show_message(message=f"{user}", color='green')
         if payload["role"] == "USER":
@@ -78,15 +100,13 @@ class LoginPage:
                     st.warning("Please enter both username and password.")
                     return
                 
-                user = get_user_by_username(username_input)
-                
+                user = get_user_by_username_for_login(username_input)
                 if user is None:
                     self.handle_unregistered_user()
                 else:
-                    # Column Mapping for Tuple: 0:user, 1:role, 2:pass, 3:status
-                    db_password = user[2]
-                    db_status = user[3]
-                    db_role = user[1]
+                    db_password = user[3]
+                    db_status = user[4]
+                    db_role = user[2]
 
                     if db_role is None:
                         self.handle_role_not_assigned()

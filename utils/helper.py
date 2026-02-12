@@ -177,12 +177,24 @@ def get_employee_types():
 def get_work_locations():
     return  [
             "BANEPA",
+            "BUTWAL",
             "HETAUDA",
             "KATHMANDU",
             "LALITPUR",
             "MAHENDRANAGAR",
             "POKHARA",
         ]
+
+def get_branch_code_mapping():
+    return  {
+            "BNP":"BANEPA",
+            "BTL":"BUTWAL",
+            "HTD":"HETAUDA",
+            "KTM":"KATHMANDU",
+            "LTP":"LALITPUR",
+            "MHN":"MAHENDRANAGAR",
+            "PKR":"POKHARA",
+    }
 
 def eliminate_top_padding(padding_top: str = "0rem"):
     st.markdown(

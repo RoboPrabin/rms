@@ -1,186 +1,101 @@
 from time import sleep
 import pandas as pd
 import streamlit as st
-from streamlit_bridge.navigation import render_sidebar
-import streamlit_bridge.app_state as app_state
-from db import db
-from sqlalchemy import create_engine, text
-from utils import auth_utils, helper
-from config.config import credentials_tms_for_collateral_only
-from api.tms import api_collateral
+from db import client_limit_repo
 from pages.BasePage import BasePage
+from streamlit_bridge.navigation import render_sidebar
+from utils import helper
+from utils.custom_hotkey import activate_client_code_hotkey
 
+@st.cache_data(ttl=300)
+def get_client_list_cached(rm_name):
+    """Cached list for the dropdown only"""
+    rows = client_limit_repo.get_clients_by_rm(rm_name=rm_name)
+    df = pd.DataFrame(rows, columns=['BRO','Client Code','Client Name','Category', 'Credit Limit', 'Trading Limit'])
+    df.sort_values(by='Client Name', inplace=True)
+    df['display'] = df['Client Code'] + " - " + df['Client Name']
+    return df['display']
 
-def get_client_list():
-    rows = db.get_table_rm_child_map_for_client_limit()
-    df = pd.DataFrame(rows, columns=['BRO','BROFullName','Client Name', 'Client Code', 'Category'])
-    return df
-
-
-
-
-
-cookies, session_id = db.get_tms_session()
-
-def get_headers(referer:str ='https://tms48.nepsetms.com.np/tms/member/search/client-search',):
-    return {
-        'accept': 'application/json, text/plain, */*',
-        'accept-language': 'en-US,en;q=0.9',
-        'content-type': 'application/json',
-        'host-session-id': session_id,
-        'origin': 'https://tms48.nepsetms.com.np',
-        'priority': 'u=1, i',
-        'referer': referer,
-        'request-owner': credentials_tms_for_collateral_only['server_id'],
-        'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-        'x-xsrf-token': cookies['XSRF-TOKEN'],
-
-    }
-
-
+def refresh_client_data():
+    """Fetches fresh data and updates session state immediately"""
+    rows = client_limit_repo.get_clients_by_rm(rm_name=st.session_state.username)
+    df = pd.DataFrame(rows, columns=['BRO','Client Code','Client Name','Category', 'Credit Limit', 'Trading Limit (Threshold)'])
+    
+    # Pre-formatting for display
+    df.sort_values(by='Client Name', inplace=True)
+    df_display = df.drop(columns=['BRO', 'Credit Limit']).copy()
+    df_display['Trading Limit (Threshold)'] = df_display['Trading Limit (Threshold)'].apply(lambda x: f"{x:,}" if x is not None else 0)
+    df_display.reset_index(inplace=True, drop=True)
+    df_display.index += 1
+    
+    st.session_state.my_clients_df = df_display
 
 class ClientLimit(BasePage):
     def __init__(self):
+        helper.eliminate_top_margin("-8rem")
+        st.set_page_config(page_title="Client Limit Setup", layout='wide', page_icon="🧑‍🦱")
         super().__init__()
-        # helper.eliminate_top_padding()
-        st.set_page_config(page_title="Client Limit", page_icon="💷", layout="wide")
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
-        st.session_state.active_menu = "business"
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        # app_state.enforce_authentication()
-        # app_state.sync_local_storage_to_session()
-        # self.username, self.role, self.branch = app_state.get_current_user_info()
-        st.header("💷 Client Limit", anchor=False)
-
+        st.session_state.active_menu = "rm"
+        activate_client_code_hotkey()
+        helper.adjust_ui()
         render_sidebar()
+        st.header("Client Limit Setup 🧑‍🦱", anchor=False)
+        
+        # Initialize data in state if not present
+        if 'my_clients_df' not in st.session_state:
+            refresh_client_data()
 
-
-    def reports(self):
-        pass
-    
-
-    def tms_api(self, client_code, limit_amount):
-        result = api_collateral.load_collateral_for_specific_client(headers=get_headers(), cookies=cookies, amount=limit_amount, 
-            client_code=client_code, loaded_by=self.username.upper())
-        if result == None:
-            st.error(f"Something went wrong, contat IT Depart.", icon="🚨")
-            return
-        if result.lower() == "success":
-            st.success(f"Client '{client_code}' with amount {limit_amount} updated successfully.", icon="✅")
-        else:
-            st.error(f"Something went wrong: {result}")
-    
-    def show_set_limit_ui(self, client):
-        with st.expander(f"Set Limit on TMS: {client.upper()}", expanded=True):
-            client_code = str(client).split("-")[0].strip()
-            has_from_db = False
-            category_from_db = db.get_category_client_rm_map(client_code=client_code)
-            if category_from_db == None:
-                set_category = helper.default_category_list()
-            else:
-                set_category = category_from_db
-                has_from_db = True
-
-            selected_category = st.selectbox("Category", set_category)
-
-
-            if not has_from_db:
-                if st.button("Update category", icon="🗂️"):
-                    result = db.update_category_client_rm_map(client_code=client_code, new_category=selected_category)
-                    if result == 1:
-                        st.success(f"Category updated successfully.", icon="✅")
-                        # limit_amount = st.number_input("Credit For Sale Limit")
-                        # if st.button("Update Limit", icon="💷"):
-                        #     self.tms_api(client_code=client_code, limit_amount=limit_amount)
-            # elif has_from_db:
-            #     limit_amount = st.number_input("Credit For Sale Limit")
-            #     if st.button("Update Limit", icon="💷"):
-            #         # HIT TMS API FOR CFS
-            #         self.tms_api(client_code=client_code, limit_amount=limit_amount)
-    
-    def limiter(self):
-        if 'client_map' not in st.session_state:
-            st.session_state.client_map = get_client_list()
-
-        df = st.session_state.client_map
-
-        # =====================
-        # BRO DROPDOWN
-        # =====================
-        bro_map = (
-            df[['BRO', 'BROFullName']]
-            .drop_duplicates()
-            .assign(display=lambda x: x['BRO'] + " - " + x['BROFullName'])
-        )
-
-        col1, col2 = st.columns(2)
-
+    def set_limit_threshold(self):
+        col1, col2, col3 = st.columns(3)
         with col1:
-            selected_bro = st.selectbox(
-                "BRO",
-                bro_map['BRO'],
-                format_func=lambda bro: bro_map.loc[
-                    bro_map['BRO'] == bro, 'display'
-                ].values[0]
-            )
-
-        # =====================
-        # FILTER CLIENTS BY BRO
-        # =====================
-        filtered_df = df[df['BRO'] == selected_bro]
-
-
-
-        filtered_df = filtered_df.copy()
-
-        filtered_df = filtered_df.sort_values(
-            by="Client Name",
-            ascending=True
-        )
-
-        filtered_df['Display'] = (
-            filtered_df['Client Code'].astype(str)
-            + " - "
-            + filtered_df['Client Name']
-        )
-
-        options = filtered_df['Display'].tolist()
-
-
-        st.badge(
-            f"Total Mapped Clients: {len(filtered_df):,.0f}",
-            color="green"
-        )
-
-        # =====================
-        # CLIENT DROPDOWN
-        # =====================
+            # Note: Selectbox uses the cached list for performance
+            client_options = get_client_list_cached(st.session_state.username)
+            client_display = st.selectbox("Select Client", options=client_options, key="client_code_select")
+            client_code = str(client_display).split("-")[0].strip() if client_display else None
         with col2:
-            selected_client = st.selectbox("Select Client", options)
+            category = st.selectbox("Category", options=helper.default_category_list(), key="category_input")
+        with col3:
+            limit_amount = st.number_input("Trading Limit (Threshold)", min_value=0, step=1000, key="limit_amount_input")
+        
+        if st.button("Set Limit Threshold", icon="✅"):
+            if not client_code:
+                st.warning("Please select a client.", icon="⚠️")
+                return
+            
+            # 1. Update Database
+            client_limit_repo.update_client_limit(client_code, limit_amount, category)
+            
+            # 2. Update Local State Immediately (Lightning Speed)
+            refresh_client_data()
+            
+            # 3. User Feedback
+            st.toast(f"Limit for {client_code} updated!", icon="🚀")
+            sleep(0.6)
+            st.rerun()
 
-        if selected_client != "None":
-            self.show_set_limit_ui(client=selected_client)
+        st.divider()
+        self.my_limit_ui()
+        st.divider()
+        self.show_my_clients_limits()
 
+    def show_my_clients_limits(self):
+        st.subheader("🍁 My Clients Limit Details", anchor=False)
+        # Pull directly from state
+        df = st.session_state.my_clients_df
+        st.dataframe(df, use_container_width=True)
+    
+    def my_limit_ui(self):
+        st.subheader("📊 My Current Limit ", anchor=False)
+        # Assuming this is small/fast, but can be state-cached too if needed
+        df = client_limit_repo.get_loggedin_bro_limits(bro_id=st.session_state.id)
+        st.dataframe(df, use_container_width=True)
 
-    def render_page(self):
-        mode = st.radio("Mode", ['Limiter', 'Reports'], horizontal=True)
-        if mode == 'Limiter':
-            self.limiter()
-        elif mode == 'Reports':
-            self.reports()
-
-
+    def render(self):
+        action = st.radio("Select an action", ["Set Limit Threshold", "Set Limit on TMS"], horizontal=True, key="client_limit_action")
+        if action == "Set Limit Threshold":
+            self.set_limit_threshold()
+        elif action == "Set Limit on TMS":
+            st.info("This feature is coming soon! Stay tuned. 🚀", icon="⏳")
 
 if __name__ == "__main__":
-    ClientLimit().render_page()
+    ClientLimit().render()
