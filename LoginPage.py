@@ -7,7 +7,7 @@ from utils import auth_utils
 from config import config
 from utils.security import decrypt_data, encrypt_data
 from utils import page_url, security, helper
-from db.db import get_user_by_username_for_login, update_login_status, create_session
+from db.db import get_user_by_username_for_login, update_login_status, create_session, get_user_by_pin_for_login, update_login_status_by_pin
 from pages.BasePage import BasePage
 
 def check_loggedin():
@@ -43,7 +43,7 @@ class LoginPage(BasePage):
     def handle_blocked_user(self):
         st.error("Your account is blocked! ❌")
 
-    def handle_successful_login(self, user):
+    def handle_successful_login(self, user, gateway=None):
         """
         user is a TUPLE from SQL: 
         (0:username, 1:role, 2:password, 3:status, 4:citizenship, 5:phone, 6:email, 7:branch)
@@ -74,7 +74,11 @@ class LoginPage(BasePage):
 
         st.success("Login successful! Loding your resources. \nPlease wait...", icon="✅")
         create_session(db_username, sid=encrypted_token)
-        helper.show_message(message=f"{user}", color='green')
+        if gateway == "pin":
+            helper.show_message(message=f"{user}", color='cyan')
+        else:
+            helper.show_message(message=f"{user}", color='green')
+
         if payload["role"] == "USER":
             st.switch_page(page_url.book_closure_url)
         else:
@@ -87,12 +91,18 @@ class LoginPage(BasePage):
             st.error("Account blocked. Contact admin.", icon="❌")
         else:
             st.warning(f"Invalid credentials! {remaining} attempts remaining.", icon="⚠️")
+    def handle_failed_login_by_pin(self, pin):
+        remaining = update_login_status_by_pin(pin, success=False)
+        if remaining <= 0:
+            st.error("Account blocked. Contact admin.", icon="❌")
+        else:
+            st.warning(f"Invalid credentials! {remaining} attempts remaining.", icon="⚠️")
 
-    def show_login_form(self):
-        st.header("🔐 RMS Login", anchor=False)
+
+    def login_up_ui(self):
         with st.form("login_form", clear_on_submit=False):
-            username_input = st.text_input("Username",  placeholder="Enter username").upper()
-            password_input = st.text_input("Password",  type="password", placeholder="Enter password")
+            username_input = st.text_input("Username",  placeholder="Enter username", icon="🔒").upper()
+            password_input = st.text_input("Password",  type="password", placeholder="Enter password", icon="🔑")
             submitted = st.form_submit_button("➜ Login")
 
             if submitted:
@@ -116,6 +126,48 @@ class LoginPage(BasePage):
                         self.handle_successful_login(user)
                     else:
                         self.handle_failed_login(username_input)
+
+    def login_pin_ui(self):
+        pin_pass = st.text_input("Enter your PIN", key="pin_input", icon="🔐")
+
+        if pin_pass:  # Only validate if something is entered
+            # Check if numeric
+            if not pin_pass.isdigit():
+                st.error("PIN must be numeric.", icon="❌")
+                st.stop()
+
+            # Check length
+            elif len(pin_pass) != 6:
+                st.error("Invalid PIN length.", icon="❌")
+                st.stop()
+            user = get_user_by_pin_for_login(pin_pass)
+            if user is None:
+                self.handle_unregistered_user()
+            else:
+                db_pin = user[3]
+                db_status = user[4]
+                db_role = user[2]
+
+                if db_role is None:
+                    self.handle_role_not_assigned()
+                elif db_status == "BLOCKED":
+                    self.handle_blocked_user()
+                elif pin_pass == db_pin:
+                    self.handle_successful_login(user, gateway="pin")
+                else:
+                    self.handle_failed_login_by_pin(pin_pass)
+           
+    def show_login_form(self):
+        st.header("🔐 RMS Login", anchor=False)
+        tabs = st.tabs(["Username & Password", "PIN"], default="PIN")
+        with tabs[0]:
+            st.markdown("Please enter your username and password to access the RMS.")
+            self.login_up_ui()
+        with tabs[1]:
+            st.markdown("Please enter your secure PIN to access the RMS.")
+            self.login_pin_ui()
+
+
 
     def render_page(self):
         self.show_login_form()

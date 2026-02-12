@@ -33,13 +33,13 @@ def refresh_client_data():
 class ClientLimit(BasePage):
     def __init__(self):
         helper.eliminate_top_margin("-8rem")
-        st.set_page_config(page_title="Client Limit Setup", layout='wide', page_icon="🧑‍🦱")
+        st.set_page_config(page_title="Client Limit Setup", layout='wide', page_icon="🧮")
         super().__init__()
         st.session_state.active_menu = "rm"
         activate_client_code_hotkey()
         helper.adjust_ui()
         render_sidebar()
-        st.header("Client Limit Setup 🧑‍🦱", anchor=False)
+        st.header("🧮 Client Limit Manager", anchor=False)
         
         # Initialize data in state if not present
         if 'my_clients_df' not in st.session_state:

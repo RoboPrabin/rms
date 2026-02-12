@@ -226,12 +226,6 @@ class Dashboard(BasePage):
     def __init__(self):
         st.set_page_config("Dashboard", page_icon="🏠", layout="wide")
         super().__init__()
-        # self
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
-        # print("Dashboard", user)
-        # self.branch = app_state.get_current_user_info()
         helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = ""
 

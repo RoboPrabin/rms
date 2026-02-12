@@ -2626,6 +2626,15 @@ def get_user_by_username_for_login(username):
     conn.close()
     return row
 
+def get_user_by_pin_for_login(pin):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id,  username, role, pin, status, citizenship, phone, email, branch FROM app_user WHERE pin = %s", (pin,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
 def get_all_app_user():
     conn = get_connection()
     cur = conn.cursor()
@@ -3063,6 +3072,51 @@ def update_login_status(username: str, success: bool) -> int:
                         WHERE username = %s
                         RETURNING failed_attempts
                     """, (now, now, username))
+                    row = cur.fetchone()
+                    if row:
+                        remaining = MAX_ATTEMPTS - row["failed_attempts"]
+                        remaining = max(remaining, 0)
+    finally:
+        conn.close()
+    return remaining
+
+def update_login_status_by_pin(pin: str, success: bool) -> int:
+    """
+    Update login status for a user.
+    Returns remaining attempts if failed login.
+    """
+    MAX_ATTEMPTS = 3
+    now = datetime.now()
+    conn = get_connection()
+    remaining = 0
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                if success:
+                    cur.execute("""
+                        UPDATE app_user
+                        SET failed_attempts = 0,
+                            last_failed_at = NULL,
+                            status = 'ACTIVE'
+                        WHERE pin = %s
+                    """, (pin,))
+                else:
+                    # increment failed attempts
+                    cur.execute("""
+                        UPDATE app_user
+                        SET failed_attempts = failed_attempts + 1,
+                            last_failed_at = %s,
+                            status = CASE
+                                WHEN failed_attempts + 1 >= 3 THEN 'BLOCKED'
+                                ELSE status
+                            END,
+                            blocked_at = CASE
+                                WHEN failed_attempts + 1 >= 3 THEN %s
+                                ELSE blocked_at
+                            END
+                        WHERE pin = %s
+                        RETURNING failed_attempts
+                    """, (now, now, pin))
                     row = cur.fetchone()
                     if row:
                         remaining = MAX_ATTEMPTS - row["failed_attempts"]

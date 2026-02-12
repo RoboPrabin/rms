@@ -19,6 +19,7 @@ class BasePage:
         self.role = st.session_state.get("role")
         self.branch = st.session_state.get("branch")
         self.sid = st.session_state.get("sid")
+        self.id = st.session_state.get("id")
         self.validate_user_context()
 
     def validate_user_context(self):
