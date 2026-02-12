@@ -1,7 +1,7 @@
 import pandas as pd
 from db.db import get_connection
 
-table_name = "bro_limit_test"
+table_name = "bro_limit"
 def get_bros():
     conn = get_connection()
     cur = conn.cursor()

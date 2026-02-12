@@ -3,7 +3,7 @@ from db.db import get_connection
 from psycopg2 import sql
 
 
-table_name = "bro_limit_test"
+table_name = "bro_limit"
 def get_clients_by_rm(rm_name):
     conn = get_connection()
     query = sql.SQL("""
