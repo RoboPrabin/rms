@@ -1,5 +1,6 @@
-import asyncio
 import os
+os.system('')
+import asyncio
 import time
 import datetime
 import streamlit as st

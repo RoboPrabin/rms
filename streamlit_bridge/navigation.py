@@ -260,7 +260,7 @@ def render_sidebar():
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
-            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Remarks", icon="🖊️")
+            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
@@ -314,6 +314,7 @@ def render_sidebar():
     if role == "VIEWER":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
+        st.sidebar.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
 
         st.sidebar.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
         st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
