@@ -8,6 +8,10 @@ PROJECT_PATH = r"E:\Trishakti\Projects\rms"
 chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
 GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
+
+login_animation_path = PROJECT_PATH + r"\assets\anim\login.json"
+otp_animation_path = PROJECT_PATH + r"\assets\anim\otp.json"
+
 # Set expiry for 8 hours from now (60 sec * 60 min * 8)
 # session_expiry_time = int(time.time()) + (3600 * 8)
 # session_expiry_time = 30

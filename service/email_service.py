@@ -56,7 +56,7 @@ DISPLAY_NAME = "RMS - Trishakti"
 SMTP_SERVER = "mail.trishakti.com.np"
 SMTP_PORT = 587  # Using 587 as per your previous requirement for TLS
 
-def send_email(to_email: str, subject: str, username: str, otp_code: str):
+def send_email(to_email: str, subject: str, username: str, otp_code: str, minutes:any):
     """
     Sends a beautifully formatted HTML OTP email.
     """
@@ -127,7 +127,7 @@ def send_email(to_email: str, subject: str, username: str, otp_code: str):
                 
                 <div class="otp-box">
                     <div class="otp-code">{otp_code}</div>
-                    <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Valid for 2 minutes only</p>
+                    <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Valid for {minutes} minutes only</p>
                 </div>
                 
                 <p>If you did not attempt to log in, please contact the IT Department immediately or change your password.</p>

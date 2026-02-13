@@ -4,7 +4,7 @@ from db.db import get_connection
 from service.email_service import send_email
 
 # ---------- Config ----------
-OTP_EXPIRY_MINUTES = 2
+OTP_EXPIRY_MINUTES = 4
 MAX_ATTEMPTS = 3
 
 def get_otp_expiry(username: str) -> datetime:
@@ -57,7 +57,7 @@ async def create_user_otp(username: str, user_email: str) -> str:
     subject = "RMS OTP Code"
     # body = f"Hello {username},\n\nYour OTP for login is: {otp}\nIt will expire in {OTP_EXPIRY_MINUTES} minutes.\n\nRMS - Trishakti"
     # send_email(user_email, subject, body)
-    send_email(to_email=user_email, subject=subject, username=username, otp_code=otp)
+    send_email(to_email=user_email, subject=subject, username=username, otp_code=otp, minutes=OTP_EXPIRY_MINUTES)
 
     return otp
 

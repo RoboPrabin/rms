@@ -4,11 +4,11 @@ import time
 from datetime import datetime
 from utils import helper, page_url
 from service.otp_service import create_user_otp, verify_user_otp, get_otp_expiry
-
+from assets.lottie_anim import show_otp_animation
 class OTPPage:
     def __init__(self):
         st.set_page_config(page_title="OTP Verification", layout="centered", page_icon="🔑")
-        helper.eliminate_top_margin()
+        helper.eliminate_top_margin("-4rem")
 
         if "username" not in st.session_state:
             st.error("Session invalid.")
@@ -54,11 +54,13 @@ class OTPPage:
     def display(self):
         st.subheader("OTP Verification", anchor=False)
         # Wrap the email in backticks
-        st.info(f"Verify the code sent to `{st.session_state.email}`")
+        st.info(f"Verify the code sent to {st.session_state.email}", icon="ℹ️")
+        # st.info(f"Verify the code sent to `{st.session_state.email}`", icon="ℹ️")
 
         # The actual Input Form
         with st.form("otp_form"):
-            otp = st.text_input("6-digit Code", max_chars=6, placeholder="000000")
+            show_otp_animation()
+            otp = st.text_input("Enter 6-digit Code", max_chars=6, placeholder="000000").strip()
             submit = st.form_submit_button("Verify OTP", icon="🛡️")
             
             if submit:
