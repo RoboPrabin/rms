@@ -159,7 +159,7 @@ class DueList(BasePage):
             )
 
             df_filtered = df[
-                (df["clientCode"].astype(str).str.contains(filter_value, case=False, na=False)) &
+                (df["clientCode"].astype(str).str.contains(filter_value, case=False, na=False, regex=False)) &
                 (df["uploaded_at_dt"].notna()) &
                 (df["uploaded_at_dt"] >= cutoff_date)
             ]
