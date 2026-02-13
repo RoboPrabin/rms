@@ -1,3 +1,4 @@
+from utils.security import decrypt_data
 import streamlit as st
 import asyncio
 import time
@@ -54,8 +55,8 @@ class OTPPage:
     def display(self):
         st.subheader("OTP Verification", anchor=False)
         # Wrap the email in backticks
-        st.info(f"Verify the code sent to {st.session_state.email}", icon="ℹ️")
-        # st.info(f"Verify the code sent to `{st.session_state.email}`", icon="ℹ️")
+        # st.info(f"Verify the code sent to {st.session_state.email}", icon="ℹ️")
+        st.info(f"Verify the code sent to : `{st.session_state.email}`", icon="ℹ️")
 
         # The actual Input Form
         with st.form("otp_form"):
@@ -66,7 +67,7 @@ class OTPPage:
             if submit:
                 if verify_user_otp(st.session_state.username, otp):
                     st.success("OTP verified successfully!", icon="✅")
-                    time.sleep(1)
+                    time.sleep(0.5)
                     st.switch_page(page_url.dashbord_url)
                 else:
                     st.error("Invalid or Expired OTP")

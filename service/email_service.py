@@ -1,53 +1,9 @@
-# import smtplib
-# from email.mime.text import MIMEText
-# from email.mime.multipart import MIMEMultipart
-# from typing import Optional
-
-# # ---------- Config ----------
-# SENDER_EMAIL = "support@trishakti.com.np"
-# SENDER_PASSWORD = "Support.Trishakti@123"   
-# DISPLAY_NAME = "RMS - Trishakti"
-# SMTP_SERVER = "mail.trishakti.com.np"
-# SMTP_PORT = 465  # SSL port
-# # SMTP_PORT = 587  # SSL port
-
-# # ---------- Email Sending Function ----------
-# def send_email(to_email: str, subject: str, body: str, html: Optional[bool] = False):
-#     """
-#     Send an email to a user.
-#     :param to_email: Recipient email
-#     :param subject: Email subject
-#     :param body: Email body
-#     :param html: True if body is HTML
-#     """
-#     # Create message container
-#     msg = MIMEMultipart()
-#     msg['From'] = f"{DISPLAY_NAME} <{SENDER_EMAIL}>"
-#     msg['To'] = to_email
-#     msg['Subject'] = subject
-
-#     # Attach body
-#     if html:
-#         msg.attach(MIMEText(body, 'html'))
-#     else:
-#         msg.attach(MIMEText(body, 'plain'))
-
-#     # Send email using SMTP SSL
-#     try:
-#         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
-#             server.login(SENDER_EMAIL, SENDER_PASSWORD)
-#             server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
-#     except Exception as e:
-#         print(f"Failed to send email to {to_email}: {str(e)}")
-#         raise
-
-
-
-
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
+
+# <p style="margin:0; font-size:14px;">Risk Management System (RMS)</p>
 
 # ---------- Config ----------
 SENDER_EMAIL = "support@trishakti.com.np"
@@ -119,7 +75,7 @@ def send_email(to_email: str, subject: str, username: str, otp_code: str, minute
         <div class="container">
             <div class="header">
                 <h2 style="margin:0;">Trishakti Securities Limited</h2>
-                <p style="margin:0; font-size:14px;">Risk Management System (RMS)</p>
+                <p style="margin:0; font-size:14px;">R.M.S.</p>
             </div>
             <div class="content">
                 <p>Hello <strong>{username}</strong>,</p>

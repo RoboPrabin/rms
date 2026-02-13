@@ -17,11 +17,13 @@ from db.db import (
     update_login_status_by_pin
 )
 from pages.BasePage import BasePage
-
-
 class LoginPage(BasePage):
     def __init__(self):
-        helper.eliminate_top_margin("-4rem")
+        helper.eliminate_top_margin("-6rem")
+
+        if 'sid' in st.query_params:
+            st.query_params.clear()
+        
         # 1. Page config MUST be first
         st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
 
@@ -85,6 +87,12 @@ class LoginPage(BasePage):
                 # Step 2: Sending OTP
                 status.update(label="Sending OTP...", state="running")
                 st.write("✅ OTP is being sent to your registered email. Please wait...")
+
+                if gateway == "pin":
+                    helper.show_message(f"{db_username, db_role ,db_branch, db_email}", color='cyan')
+                else:
+                    helper.show_message(f"{db_username, db_role ,db_branch, db_email}", color='green')
+
 
                 try:
                     asyncio.run(create_user_otp(db_username, db_email))
