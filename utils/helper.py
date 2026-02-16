@@ -23,6 +23,14 @@ from typing import Final
 import nepali_datetime
 from typing import Tuple
 
+def get_last_thursday():
+    today = datetime.now().date()
+    days_to_thursday = (today.weekday() - 3) % 7
+    last_thursday = today - timedelta(days=days_to_thursday)
+    return last_thursday.strftime("%Y-%m-%d")
+
+
+
 
 # def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:
 #     """

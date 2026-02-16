@@ -23,6 +23,84 @@ def get_connection():
     )
 
 
+def insert_to_dpm3_bulk(df: pd.DataFrame):
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    # 1. Define the query WITHOUT the "VALUES" part (execute_values handles that)
+    insert_query = """
+        INSERT INTO dpm3 (
+            "CLIENT CODE", 
+            "CLIENT NAME", 
+            "SCRIPT", 
+            "FREE BALANCE", 
+            "CLOSING PRICE", 
+            "FREE SHARE VALUATION", 
+            "BRANCH"
+        ) VALUES %s
+    """
+
+    # 2. Convert DataFrame rows into a list of tuples
+    # Ensure the order here matches the column order in the INSERT statement above
+    data_to_insert = [
+        (
+            row['CLIENT CODE'],
+            row['CLIENT NAME'],
+            row['SCRIPT'],
+            row['QUANTITY'], 
+            row['RATE'],     
+            row['AMOUNT'],   
+            row['BRANCH']
+        ) 
+        for row in df.to_dict('records')
+    ]
+
+    try:
+        # 3. Use execute_values for high-speed insertion
+        execute_values(cur, insert_query, data_to_insert)
+        
+        conn.commit()
+        print(f"Bulk insert successful: {len(df)} rows added to dpm3.")
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Bulk insert failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_floorsheet_from_date(target_date):
+    """
+    Fetch all rows from floorsheet where uploaded_at::date >= target_date
+    target_date: string 'YYYY-MM-DD' or date object
+    """
+    if isinstance(target_date, datetime):
+        target_date = target_date.date()
+    if isinstance(target_date, str):
+        target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+
+    query = """
+        SELECT clientcode, clientname, symbol, quantity, rate, amount, transaction_type, branch, uploaded_at
+        FROM floorsheet
+        WHERE uploaded_at::date >= %s
+        AND transaction_type = 'Buy'
+        ORDER BY uploaded_at DESC;
+    """
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, (target_date,))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return rows  # list of dicts (DictCursor)
+    except Exception as e:
+        print("Error:", e)
+        return []
+    
+
 def get_tms_limit_report():
     conn = get_connection()
     cur = conn.cursor()
@@ -2368,40 +2446,73 @@ def insert_holiday(holiday_date, holiday_description, created_by):
         return False
 
 
-def get_last_sunday():
-    today = datetime.today()
-    # Monday=0 ... Sunday=6
-    if today.weekday() == 6:  
-        # Today is Sunday → return today
-        return today.date()
+# def get_last_sunday():
+#     today = datetime.today()
+#     # Monday=0 ... Sunday=6
+#     if today.weekday() == 6:  
+#         # Today is Sunday → return today
+#         return today.date()
 
-    # Otherwise compute last Sunday
+#     # Otherwise compute last Sunday
+#     days_since_sunday = (today.weekday() + 1) % 7
+#     last_sunday = today - timedelta(days=days_since_sunday)
+#     return last_sunday.date()
+
+
+# def is_sunday_file_uploaded():
+#     sunday_date = get_last_sunday()
+#     print(sunday_date)
+#     query = """
+#         SELECT 1
+#         FROM dpm3
+#         WHERE (uploaded_at::timestamp)::date = %s
+#         LIMIT 1;
+#     """
+
+#     try:
+#         conn = get_connection()
+#         cur = conn.cursor()
+#         cur.execute(query, (sunday_date,))
+#         result = cur.fetchone()
+#         cur.close()
+#         conn.close()
+#         return result is not None
+#     except Exception as e:
+#         print("DB Error:", e)
+#         return False
+
+
+def is_this_week_file_uploaded():
+    today = datetime.now().date()
     days_since_sunday = (today.weekday() + 1) % 7
-    last_sunday = today - timedelta(days=days_since_sunday)
-    return last_sunday.date()
-
-
-def is_sunday_file_uploaded():
-    sunday_date = get_last_sunday()
+    week_start = today - timedelta(days=days_since_sunday)
+    week_end   = week_start + timedelta(days=5)
+    
     query = """
-        SELECT 1
+        SELECT uploaded_at::timestamp::date AS upload_date
         FROM dpm3
-        WHERE (uploaded_at::timestamp)::date = %s
+        WHERE uploaded_at::timestamp::date 
+              BETWEEN %s AND %s
         LIMIT 1;
     """
-
+    
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(query, (sunday_date,))
+        cur.execute(query, (week_start, week_end))
         result = cur.fetchone()
         cur.close()
         conn.close()
-        return result is not None
+        
+        if result:
+            return True, result[0]
+        return False, None
+        
     except Exception as e:
         print("DB Error:", e)
-        return False
-
+        return False, None
+    
+    
 def get_holidays():
     query = """
         SELECT holiday_date 
@@ -2490,7 +2601,7 @@ def get_table_average_price():
 def get_table_rm_child_map():
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("""SELECT "rmName", "clientName" from client_rm_map""")
+    cur.execute("""SELECT "rmName", "clientCode" from client_rm_map""")
     row = cur.fetchall()
     cur.close()
     conn.close()

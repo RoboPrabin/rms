@@ -20,39 +20,19 @@ class CostBenefit(BasePage):
     def __init__(self):
         super().__init__()
         # helper.eliminate_top_padding()
-        helper.eliminate_top_margin(margin_top="-8rem")
+        helper.eliminate_top_margin(margin_top="-12rem")
         st.session_state.active_menu = "business"
         st.set_page_config("Cost Benefit", page_icon="🌱", layout="wide")
-
         # --- Dates ---
         self.today_date = datetime.now().date()
         self.today_np_date = nepali_date.today()
-
-        # --- Auth ---
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
         activate_client_code_hotkey()
         navigation.render_sidebar()
-
         # --- DB ---
         self.engine = helper.get_holding_engine()
-
         # --- Date selection ---
         yesterday = self.today_date
         st.title("🌱 Cost Benefit", anchor=False)
-        # self.selected_date = st.date_input(
-        #     "Select Business date",
-        #     value=yesterday,
-        #     width=400
-        # )
-        # self.week_day = self.selected_date.strftime("%A")
-        # if 'cbr' not in st.session_state:
-        #     st.session_state['cbr'] = db.get_cost_benefit_data()
         
 
     def render_page(self):
@@ -312,24 +292,22 @@ class CostBenefit(BasePage):
         st.info(f"Cost benefit report has been generated on {formatted_date}", icon="📢")
         st.markdown("<br>", unsafe_allow_html=True)
         # file_path = r"D:\Project-2025\JV\MHN DEMAT_TMS 208_83.xlsx"# full path to your file
-        file_path = db.get_cbr_filename()
-        file_name = f"Cost_Benefit_Report_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
-        
-        # Open file in binary mode
-        with open(file_path, "rb") as f:
-            file_bytes = f.read()
-        
-        # Streamlit download button
-        st.download_button(
-            label="Download Excel File",
-            data=file_bytes,
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        # option = st.radio("Select option", ['Download Report', 'View Report'], horizontal=True)
-        # if option == "Download Report":
-        # else:
-            # pass
+        with st.spinner("Loading Cost Benefit report. Please wait...", show_time=True):
+            file_path = db.get_cbr_filename()
+            file_name = f"Cost_Benefit_Report_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+            
+            # Open file in binary mode
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            
+            # Streamlit download button
+            st.download_button(
+                label="Download Excel File",
+                data=file_bytes,
+                file_name=file_name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+     
 
 
 if __name__ == "__main__":

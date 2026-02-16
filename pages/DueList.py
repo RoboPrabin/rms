@@ -109,7 +109,8 @@ class DueList(BasePage):
 
 
     def render_page(self):
-        self.load_data()
+        with st.spinner("Loading due list data. Please wait...", show_time=True):
+            self.load_data()
         df: pd.DataFrame = st.session_state["due_list_data"]
         st.title("📋 Due List", anchor=False)
 
