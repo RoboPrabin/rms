@@ -15,7 +15,8 @@ otp_animation_path = PROJECT_PATH + r"\assets\anim\otp.json"
 # Set expiry for 8 hours from now (60 sec * 60 min * 8)
 # session_expiry_time = int(time.time()) + (3600 * 8)
 # session_expiry_time = 30
-session_expiry_time = 28800   #8 hours
+# session_expiry_time = 28800   #8 hours
+session_expiry_time = 18000   # 5 hours
 # session_expiry_time = int(time.time()) + 20
 
 # ---------------- CONFIG ----------------

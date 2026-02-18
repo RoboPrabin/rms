@@ -131,52 +131,23 @@ class LoginPage(BasePage):
             st.warning(f"Invalid credentials! {remaining} attempts remaining.", icon="⚠️")
 
     def login_up_ui(self):
-        # with st.form("login_form", clear_on_submit=False):
+        with st.form("login_form", clear_on_submit=False):
             # show_login_animation()
-        username_input = st.text_input("Username", placeholder="Enter username", icon="🌐").upper().strip()
-        password_input = st.text_input("Password", type="password", placeholder="Enter password", icon="🗝️").strip()
-        submitted = st.button(" ➜ Login ")
-        # submitted = st.form_submit_button(" ➜ Login ")
+            username_input = st.text_input("Username", placeholder="Enter username", icon="🌐").upper().strip()
+            password_input = st.text_input("Password", type="password", placeholder="Enter password", icon="🗝️").strip()
+            # submitted = st.button(" ➜ Login ")
+            submitted = st.form_submit_button(" ➜ Login ")
 
-        if submitted:
-            if not username_input or not password_input:
-                st.warning("Please enter both username and password.")
-                return
-            
-            user = get_user_by_username_for_login(username_input)
-            if user is None:
-                self.handle_unregistered_user()
-            else:
-                db_password = user[3]
-                db_status = user[4]
-                db_role = user[2]
-
-                if db_role is None:
-                    self.handle_role_not_assigned()
-                elif db_status == "BLOCKED":
-                    self.handle_blocked_user()
-                elif password_input == db_password:
-                    self.handle_successful_login(user)
-                else:
-                    self.handle_failed_login(username_input)
-
-    def login_pin_ui(self):
-        # with st.form("pin_form", clear_on_submit=True):
-        # show_login_animation()
-        pin_pass = st.text_input("Enter your secure PIN", type='password', icon="🔐")
-        pin_submitted = st.button("Unlock 🔓")
-        # pin_submitted = st.form_submit_button("Unlock 🔓")
-
-        if pin_submitted:
-            if not pin_pass.isdigit():
-                st.error("PIN must be numeric.", icon="❌")
-            elif len(pin_pass) != 8:
-                st.error("PIN length not matched.", icon="❌")
-            else:
-                user = get_user_by_pin_for_login(pin_pass)
+            if submitted:
+                if not username_input or not password_input:
+                    st.warning("Please enter both username and password.")
+                    return
+                
+                user = get_user_by_username_for_login(username_input)
                 if user is None:
                     self.handle_unregistered_user()
                 else:
+                    db_password = user[3]
                     db_status = user[4]
                     db_role = user[2]
 
@@ -184,10 +155,39 @@ class LoginPage(BasePage):
                         self.handle_role_not_assigned()
                     elif db_status == "BLOCKED":
                         self.handle_blocked_user()
-                    elif pin_pass == user[3]:
-                        self.handle_successful_login(user, gateway="pin")
+                    elif password_input == db_password:
+                        self.handle_successful_login(user)
                     else:
-                        self.handle_failed_login_by_pin(pin_pass)
+                        self.handle_failed_login(username_input)
+
+    def login_pin_ui(self):
+        with st.form("pin_form", clear_on_submit=True):
+            # show_login_animation()
+            pin_pass = st.text_input("Enter your secure PIN", type='password', icon="🔐")
+            # pin_submitted = st.button("Unlock 🔓")
+            pin_submitted = st.form_submit_button("Unlock 🔓")
+
+            if pin_submitted:
+                if not pin_pass.isdigit():
+                    st.error("PIN must be numeric.", icon="❌")
+                elif len(pin_pass) != 8:
+                    st.error("PIN length not matched.", icon="❌")
+                else:
+                    user = get_user_by_pin_for_login(pin_pass)
+                    if user is None:
+                        self.handle_unregistered_user()
+                    else:
+                        db_status = user[4]
+                        db_role = user[2]
+
+                        if db_role is None:
+                            self.handle_role_not_assigned()
+                        elif db_status == "BLOCKED":
+                            self.handle_blocked_user()
+                        elif pin_pass == user[3]:
+                            self.handle_successful_login(user, gateway="pin")
+                        else:
+                            self.handle_failed_login_by_pin(pin_pass)
 
     def show_title(self):
         st.markdown("""
@@ -231,11 +231,11 @@ class LoginPage(BasePage):
             show_login_animation()
         with col2:
             self.show_title()
-            with st.container(border=True):
-                self.show_login_form()
+            # with st.container(border=True):
+            self.show_login_form()
             st.markdown(
                 '<div style="width: 100%; text-align: center; margin-top: 0px; font-size: 14px; color: #555;">'
-                '© Trishakti Securities Limited. All rights reserved.</div>',
+                '© 2026 Trishakti Securities Limited. All rights reserved.</div>',
                 unsafe_allow_html=True
             )
 
