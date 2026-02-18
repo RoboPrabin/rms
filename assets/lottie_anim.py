@@ -23,7 +23,7 @@ def show_login_animation():
         speed=1,          # Normal speed
         loop=True,        # Infinite loop
         quality="high",   # High-quality rendering
-        height=120        # Adjust height as needed
+        height=420        # Adjust height as needed
     )
 
 

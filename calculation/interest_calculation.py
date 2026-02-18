@@ -209,7 +209,7 @@ def calculate(df):
     
     
     # refine_ageing(filepath=output_filename)
-    format_excel_file(excel_filepath=output_filename)
+    # format_excel_file(excel_filepath=output_filename)
     return output_df
 
 

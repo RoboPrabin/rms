@@ -26,7 +26,7 @@ class LoginPage(BasePage):
             st.query_params.clear()
         
         # 1. Page config MUST be first
-        st.set_page_config(page_title="Login", layout="wide", page_icon="🔐")
+        st.set_page_config(page_title="Login", layout="centered", page_icon="🔐")
 
         # Initialize session state only if it doesn't exist.
         if "has_sent_otp" not in st.session_state:
@@ -131,52 +131,22 @@ class LoginPage(BasePage):
             st.warning(f"Invalid credentials! {remaining} attempts remaining.", icon="⚠️")
 
     def login_up_ui(self):
-        # with st.form("login_form", clear_on_submit=False):
-            # show_login_animation()
-        username_input = st.text_input("Username", placeholder="Enter username", icon="🌐").upper().strip()
-        password_input = st.text_input("Password", type="password", placeholder="Enter password", icon="🗝️").strip()
-        submitted = st.button(" ➜ Login ")
-        # submitted = st.form_submit_button(" ➜ Login ")
+        with st.form("login_form", clear_on_submit=False):
+            show_login_animation()
+            username_input = st.text_input("Username", placeholder="Enter username", icon="🔒").upper().strip()
+            password_input = st.text_input("Password", type="password", placeholder="Enter password", icon="🔑").strip()
+            submitted = st.form_submit_button(" ➜ Login ")
 
-        if submitted:
-            if not username_input or not password_input:
-                st.warning("Please enter both username and password.")
-                return
-            
-            user = get_user_by_username_for_login(username_input)
-            if user is None:
-                self.handle_unregistered_user()
-            else:
-                db_password = user[3]
-                db_status = user[4]
-                db_role = user[2]
-
-                if db_role is None:
-                    self.handle_role_not_assigned()
-                elif db_status == "BLOCKED":
-                    self.handle_blocked_user()
-                elif password_input == db_password:
-                    self.handle_successful_login(user)
-                else:
-                    self.handle_failed_login(username_input)
-
-    def login_pin_ui(self):
-        # with st.form("pin_form", clear_on_submit=True):
-        # show_login_animation()
-        pin_pass = st.text_input("Enter your secure PIN", type='password', icon="🔐")
-        pin_submitted = st.button("Unlock 🔓")
-        # pin_submitted = st.form_submit_button("Unlock 🔓")
-
-        if pin_submitted:
-            if not pin_pass.isdigit():
-                st.error("PIN must be numeric.", icon="❌")
-            elif len(pin_pass) != 8:
-                st.error("PIN length not matched.", icon="❌")
-            else:
-                user = get_user_by_pin_for_login(pin_pass)
+            if submitted:
+                if not username_input or not password_input:
+                    st.warning("Please enter both username and password.")
+                    return
+                
+                user = get_user_by_username_for_login(username_input)
                 if user is None:
                     self.handle_unregistered_user()
                 else:
+                    db_password = user[3]
                     db_status = user[4]
                     db_role = user[2]
 
@@ -184,12 +154,55 @@ class LoginPage(BasePage):
                         self.handle_role_not_assigned()
                     elif db_status == "BLOCKED":
                         self.handle_blocked_user()
-                    elif pin_pass == user[3]:
-                        self.handle_successful_login(user, gateway="pin")
+                    elif password_input == db_password:
+                        self.handle_successful_login(user)
                     else:
-                        self.handle_failed_login_by_pin(pin_pass)
+                        self.handle_failed_login(username_input)
 
-    def show_title(self):
+    def login_pin_ui(self):
+        with st.form("pin_form", clear_on_submit=True):
+            show_login_animation()
+            pin_pass = st.text_input("Enter your secure PIN", type='password', icon="🔐")
+            pin_submitted = st.form_submit_button("Unlock 🔓")
+
+            if pin_submitted:
+                if not pin_pass.isdigit():
+                    st.error("PIN must be numeric.", icon="❌")
+                elif len(pin_pass) != 8:
+                    st.error("PIN length not matched.", icon="❌")
+                else:
+                    user = get_user_by_pin_for_login(pin_pass)
+                    if user is None:
+                        self.handle_unregistered_user()
+                    else:
+                        db_status = user[4]
+                        db_role = user[2]
+
+                        if db_role is None:
+                            self.handle_role_not_assigned()
+                        elif db_status == "BLOCKED":
+                            self.handle_blocked_user()
+                        elif pin_pass == user[3]:
+                            self.handle_successful_login(user, gateway="pin")
+                        else:
+                            self.handle_failed_login_by_pin(pin_pass)
+           
+    # def show_login_form(self):
+    #     col1, col2, col3 = st.columns([1, 2, 1])
+    #     with col2:
+    #         st.header("🔐 RMS Login", anchor=False)
+    #         tabs = st.tabs(["PIN Access", "Username & Password"], width=600)
+            
+    #         with tabs[0]:
+    #             st.markdown("Enter your secure PIN to access the RMS.")
+    #             self.login_pin_ui()
+    #         with tabs[1]:
+    #             st.markdown("Enter your username and password to access the RMS.")
+    #             self.login_up_ui()
+
+
+    def show_login_form(self):
+        # CSS to lock the width and center the box
         st.markdown("""
             <style>
             /* 1. Create a fixed-width 'Card' for the login */
@@ -204,40 +217,58 @@ class LoginPage(BasePage):
             }
             </style>
         """, unsafe_allow_html=True)
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        st.header("🔐 RMS Login", anchor=False)
 
-    def show_login_form(self):
+        # Wrap the entire form in the 'login-card' div
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
         
+        st.header("🔐 RMS Login", anchor=False)
         
         tabs = st.tabs(["PIN Access", "Username & Password"])
         
         with tabs[0]:
-            # st.markdown("Enter your secure PIN to access the RMS.")
+            st.markdown("Enter your secure PIN to access the RMS.")
             self.login_pin_ui()
             
         with tabs[1]:
-            # st.markdown("Enter your username and password to access the RMS.")
+            st.markdown("Enter your username and password to access the RMS.")
             self.login_up_ui()
             
         st.markdown('</div>', unsafe_allow_html=True)
 
 
+    # def show_login_form(self):
+    #     # We use a 3-column layout to center the entire block on the screen
+    #     # [Left Spacer, Animation Column, Form Column, Right Spacer]
+    #     # Adjust [1, 1, 2, 1] to [0.5, 1, 2, 0.5] if you want it wider
+    #     col_anim, _, col_form, _ = st.columns([3, 1, 3, 1])
+
+    #     with col_anim:
+    #         # This keeps the animation vertically aligned with the form header
+    #         st.write("##") # Add a small spacer to push the animation down slightly
+    #         show_login_animation()
+
+    #     with col_form:
+    #         st.header("🔐 RMS Login", anchor=False)
+            
+    #         # Using a container with a border makes the form look like a distinct card
+    #         tabs = st.tabs(["PIN Access", "Username & Password"])
+            
+    #         with tabs[0]:
+    #             st.caption("Enter your secure PIN to access the RMS.")
+    #             self.login_pin_ui()
+                
+    #         with tabs[1]:
+    #             st.caption("Enter credentials to access the RMS.")
+    #             self.login_up_ui()
+
+
     def render_page(self):
-        st.markdown("<br>", unsafe_allow_html=True) 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("<br>", unsafe_allow_html=True) 
-            show_login_animation()
-        with col2:
-            self.show_title()
-            with st.container(border=True):
-                self.show_login_form()
-            st.markdown(
-                '<div style="width: 100%; text-align: center; margin-top: 0px; font-size: 14px; color: #555;">'
-                '© Trishakti Securities Limited. All rights reserved.</div>',
-                unsafe_allow_html=True
-            )
+        self.show_login_form()
+        st.markdown(
+            '<div style="width: 100%; text-align: center; margin-top: 0px; font-size: 14px; color: #555;">'
+            '© Trishakti Securities Limited. All rights reserved.</div>',
+            unsafe_allow_html=True
+        )
 
 
 if __name__ == "__main__":

@@ -237,7 +237,8 @@ class DPM3(BasePage):
 
 
     def render_latest_holdings_mode(self):
-        df_grouped,df_uploaded  = self.get_dpm3_data()
+        with st.spinner("Loading latest holdings. Please wait...", show_time=True):
+            df_grouped,df_uploaded  = self.get_dpm3_data()
         
         st.badge(f"Total rows: {len(df_grouped):,}", color="green")
         selection = st.dataframe(
