@@ -42,8 +42,13 @@ class ClientCommunication(BasePage):
         Loaded once per user session.
         """
         if "clients_df" not in st.session_state:
-            rows = db.get_clients_by_rm_for_client_comm(rm_name='SAJAN')
+            if self.role == 'BRO':
+                rows = db.get_clients_by_rm_for_client_comm(rm_name=self.username)
+            else:
+                rows = db.get_clients_for_client_comm()
+
             df = pd.DataFrame(rows, columns=['Client Code', 'Client Name'])
+            df['Client Name'] = df['Client Name'].str.upper()
             df['display'] = df['Client Code'] + " - " + df['Client Name']
             df.sort_values(by="Client Name", inplace=True)
             st.session_state.clients_df = df
@@ -237,7 +242,7 @@ class ClientCommunication(BasePage):
         with col1:
             filter_type = st.selectbox(
                 "Filter By",
-                options=['None', 'Date', 'Client Code', 'Client Name', 'Action Type']
+                options=['None', 'Date', 'Created By' ,'Client Code', 'Client Name', 'Action Type']
             )
 
         filtered_df = df.copy()
@@ -277,6 +282,16 @@ class ClientCommunication(BasePage):
                 )
             filtered_df = filtered_df[
                 filtered_df['Action Type'] == action_type
+            ]
+        
+        elif filter_type == 'Created By':
+            with col2:
+                created_by = st.selectbox(
+                    "Created By",
+                    options=sorted(filtered_df['Created By'].unique())
+                )
+            filtered_df = filtered_df[
+                filtered_df['Created By'] == created_by
             ]
 
         # -------------------------

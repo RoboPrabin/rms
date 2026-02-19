@@ -20,7 +20,7 @@ class CostBenefit(BasePage):
     def __init__(self):
         super().__init__()
         # helper.eliminate_top_padding()
-        helper.eliminate_top_margin(margin_top="-12rem")
+        helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = "business"
         st.set_page_config("Cost Benefit", page_icon="🌱", layout="wide")
         # --- Dates ---

@@ -137,18 +137,17 @@ def render_sidebar():
             remaining = st.session_state.expiry - int(time.time())
 
             if remaining > 0:
-                st.sidebar.write(f"Session ends in: {remaining}s")
+                st.sidebar.write(f"Session expires in: {remaining}s")
             else:
                 st.sidebar.write("Session expired ❌")
 
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
-        st.sidebar.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
-            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
             st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
@@ -167,6 +166,7 @@ def render_sidebar():
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
             st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
             st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit Manager", icon="🧮")
+            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
 
@@ -207,9 +207,9 @@ def render_sidebar():
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
 
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
+            st.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
             st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
-
             st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
             st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
             st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")

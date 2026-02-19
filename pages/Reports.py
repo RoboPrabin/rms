@@ -111,7 +111,7 @@ class Reports(BasePage):
             st.set_page_config(page_title="Reports", page_icon="📂", layout="wide")
             st.session_state.page_config_set = True
             
-        st.session_state.active_menu = ""        
+        st.session_state.active_menu = "business"        
         st.header("📂 Reports", anchor=False)
         render_sidebar()
 

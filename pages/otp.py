@@ -68,7 +68,10 @@ class OTPPage:
                 if verify_user_otp(st.session_state.username, otp):
                     st.success("OTP verified successfully!", icon="✅")
                     time.sleep(0.5)
-                    st.switch_page(page_url.dashbord_url)
+                    if st.session_state.role == "USER":
+                        st.switch_page(page_url.book_closure_url)
+                    else:
+                        st.switch_page(page_url.dashbord_url)
                 else:
                     st.error("Invalid or Expired OTP")
 

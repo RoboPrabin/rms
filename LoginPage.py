@@ -83,6 +83,7 @@ class LoginPage(BasePage):
                 st.session_state.update(payload)
                 st.session_state.sid = encrypted_token
                 st.session_state.email = db_email
+                st.session_state.role = db_role
                 time.sleep(0.5)
 
                 # Step 2: Sending OTP
@@ -129,14 +130,13 @@ class LoginPage(BasePage):
             st.error("Account blocked. Contact admin.", icon="❌")
         else:
             st.warning(f"Invalid credentials! {remaining} attempts remaining.", icon="⚠️")
-
+    
     def login_up_ui(self):
+        time.sleep(0.5)
         with st.form("login_form", clear_on_submit=False):
-            # show_login_animation()
             username_input = st.text_input("Username", placeholder="Enter username", icon="🌐").upper().strip()
             password_input = st.text_input("Password", type="password", placeholder="Enter password", icon="🗝️").strip()
-            # submitted = st.button(" ➜ Login ")
-            submitted = st.form_submit_button(" ➜ Login ")
+            submitted = st.form_submit_button(" ➜ Login ", key="login_form")
 
             if submitted:
                 if not username_input or not password_input:
@@ -161,10 +161,9 @@ class LoginPage(BasePage):
                         self.handle_failed_login(username_input)
 
     def login_pin_ui(self):
+        time.sleep(0.5)
         with st.form("pin_form", clear_on_submit=True):
-            # show_login_animation()
             pin_pass = st.text_input("Enter your secure PIN", type='password', icon="🔐")
-            # pin_submitted = st.button("Unlock 🔓")
             pin_submitted = st.form_submit_button("Unlock 🔓")
 
             if pin_submitted:
@@ -208,14 +207,10 @@ class LoginPage(BasePage):
         st.header("🔐 RMS Login", anchor=False)
 
     def show_login_form(self):
-        
-        
         tabs = st.tabs(["PIN Access", "Username & Password"])
-        
         with tabs[0]:
             # st.markdown("Enter your secure PIN to access the RMS.")
             self.login_pin_ui()
-            
         with tabs[1]:
             # st.markdown("Enter your username and password to access the RMS.")
             self.login_up_ui()
@@ -231,7 +226,7 @@ class LoginPage(BasePage):
             show_login_animation()
         with col2:
             self.show_title()
-            # with st.container(border=True):
+            # time.sleep(0.5)
             self.show_login_form()
             st.markdown(
                 '<div style="width: 100%; text-align: center; margin-top: 0px; font-size: 14px; color: #555;">'

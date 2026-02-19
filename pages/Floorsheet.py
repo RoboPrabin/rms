@@ -93,13 +93,6 @@ class Floorsheet(BasePage):
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config(page_title="Floorsheet", page_icon="📄", layout="wide")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
         navigation.render_sidebar()
         today = datetime.today()
         activate_client_code_hotkey()
@@ -395,7 +388,6 @@ class Floorsheet(BasePage):
                     # st.markdown("---")
                     # st.subheader("➤ Summary Totals", anchor=False)
                     # st.dataframe(formatted_df, width='stretch', hide_index=True)
-
             # --- Piechart ---
             elif view_mode == "Branch Piechart":
                 st.subheader("Branch Turnover Contribution", anchor=False)
@@ -404,6 +396,7 @@ class Floorsheet(BasePage):
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No 'branch' column found in data.")
+            
             elif view_mode == "BRO Summary":
                 st.subheader("👨🏻‍🦱 BRO Summary", anchor=False)
                 if display_df.empty:
