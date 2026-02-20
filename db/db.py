@@ -1000,7 +1000,7 @@ def delete_unverified_transaction(description):
             cur.execute(
                 """
                 UPDATE unverified_trans
-                SET status = 'DELETED'
+                SET status = 'VERIFIED'
                 WHERE description = %s;
                 """,
                 (description,)

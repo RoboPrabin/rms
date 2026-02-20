@@ -21,7 +21,8 @@ def get_renew_values():
         "ALL": 1700,
         "BO OPEN": 200,
         "LIFETIME BO": 1000,
-        "LIFETIME MEROSHARE": 500
+        "LIFETIME MEROSHARE": 500,
+        "FREE":0
     }
 
 class DematRecords(BasePage):
@@ -138,8 +139,8 @@ class DematRecords(BasePage):
                 # Payment Amount
                 try:
                     payment_amount_decimal = Decimal(st.session_state.payment_amount)
-                    if payment_amount_decimal <= 0:
-                        errors.append("Payment Amount must be greater than 0")
+                    if payment_amount_decimal < 0:
+                        errors.append("Payment Amount must be 0 or greater than 0")
                 except (InvalidOperation, TypeError):
                     errors.append("Payment Amount must be a valid number")
 
