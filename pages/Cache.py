@@ -11,7 +11,7 @@ from utils import helper
 
 # helper.eliminate_top_padding()
 st.session_state.active_menu = "utility"
-user = auth_utils.ensure_logged_in()
+user = st.session_state
 username= user['username']
 role= user['role']
 branch = user['branch']

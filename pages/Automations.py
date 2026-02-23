@@ -17,10 +17,12 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
 from db import db
+from pages.BasePage import BasePage
 
 
-class Automation:
+class Automation(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         activate_client_code_hotkey()

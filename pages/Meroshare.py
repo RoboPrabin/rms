@@ -7,17 +7,19 @@ import sqlalchemy
 from config import config
 from utils import auth_utils, helper
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
-class Meroshare:
+class Meroshare(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         
         st.set_page_config(page_title="Meroshare", layout="wide", page_icon="📝")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         activate_client_code_hotkey()
         helper.adjust_ui()

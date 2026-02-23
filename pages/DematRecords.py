@@ -10,6 +10,7 @@ from db import db
 from sqlalchemy import create_engine, text
 from utils import auth_utils, helper
 from decimal import Decimal, InvalidOperation
+from pages.BasePage import BasePage
 
 
 
@@ -23,15 +24,16 @@ def get_renew_values():
         "LIFETIME MEROSHARE": 500
     }
 
-class DematRecords:
+class DematRecords(BasePage):
     def __init__(self):
+        super().__init__()
         # helper.eliminate_top_padding()
         st.session_state.active_menu = "kyc"
         st.set_page_config(page_title="Demat Records", page_icon="🧾", layout="wide")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         st.header("🧾 Demat Records", anchor=False)
 
         render_sidebar()

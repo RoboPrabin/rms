@@ -9,8 +9,12 @@ import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from config import config
 from utils.custom_hotkey import activate_client_code_hotkey
-class RMPerformance:
+from pages.BasePage import BasePage
+
+
+class RMPerformance(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "rm"
 
@@ -22,10 +26,10 @@ class RMPerformance:
         self.today_np_date = nepali_date.today()
         today_np = nepali_date.today()
         activate_client_code_hotkey()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
 
         # DB Connection

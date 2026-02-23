@@ -13,8 +13,11 @@ import streamlit_bridge.navigation as navigation
 from config import config
 from utils.custom_hotkey import activate_client_code_hotkey
 from db import db
-class Uarf:
+from pages.BasePage import BasePage
+
+class Uarf(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "utility"
         st.set_page_config("UARF", page_icon="🪪", layout='wide')
@@ -26,10 +29,10 @@ class Uarf:
 
 
         activate_client_code_hotkey()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
 
         # DB Connection

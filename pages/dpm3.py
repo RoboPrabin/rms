@@ -12,6 +12,7 @@ import streamlit_bridge.navigation as navigation
 from nepali_datetime import date as nepali_date
 from utils.custom_hotkey import activate_client_code_hotkey
 from utils import auth_utils, helper
+from pages.BasePage import BasePage
 
 pd.set_option("styler.render.max_elements", 1579383)
 
@@ -29,8 +30,9 @@ def get_today_due_list():
     target_date = datetime.now().date()
     return db.get_due_list_for_dpm3(target_date)
 
-class DPM3:
+class DPM3(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config("DPM3", page_icon="📦", layout='wide')
@@ -40,10 +42,10 @@ class DPM3:
         self.today_np_date = nepali_date.today()
         activate_client_code_hotkey()
 
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
 
         # DB Connection

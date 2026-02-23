@@ -9,9 +9,12 @@ from db import db
 from utils import auth_utils, helper
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
-class KycModification:
+
+class KycModification(BasePage):
     def __init__(self):
+        super().__init__()
         # 1. Setup Page Config FIRST (Must be the first Streamlit command)
         st.set_page_config("Kyc Modification", page_icon="📚", layout='wide')
         
@@ -24,15 +27,16 @@ class KycModification:
             raw_data = db.get_kyc_with_rm()
             # Pre-process DataFrame once and store it
             df = pd.DataFrame(raw_data, columns=['Client Code', 'Client Name', 'Branch', 'BOID', 'BRO'])
+            df.sort_values(by='Client Name', inplace=True)
             df['Branch'] = df['Branch'].str.upper()
             # Pre-calculate the selectbox label string to avoid doing it during every render
             df['display_label'] = df['Client Code'].astype(str) + " - " + df['Client Name'] + " - " + df['Branch']
             st.session_state.kyc_data = df
 
-        user = auth_utils.ensure_logged_in()
-        self.username = user['username']
-        self.role = user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username = user['username']
+        # self.role = user['role']
+        # self.branch = user['branch']
         
         navigation.render_sidebar()
         st.header("📚 KYC Modification", anchor=False)
@@ -48,6 +52,7 @@ class KycModification:
         branch_counts = df['Branch'].value_counts().to_dict()
         container = st.container(border=True)
         with container:
+            st.badge(f"Total Clients: {len(df):,.0f}", color='green')
             # Render badges in a scrolling or wrapped row using columns
             if branch_counts:
                 cols = st.columns(len(branch_counts))
@@ -55,22 +60,51 @@ class KycModification:
                     with cols[i]:
                         st.metric(label=branch, value=f"{count:,.0f}")
         
-        # st.divider()
 
-        # 3. Data Table
-        df.sort_values(by="BRO", inplace=True)
-        df.reset_index(inplace=True, drop=True)
-        df.index = df.index + 1
-        
-        st.badge(f"Total Clients: {len(df):,.0f}", color='green')
-        st.dataframe(
-            df.drop(columns=['display_label']), 
-            use_container_width=True,
-            column_config={
-                "BOID": st.column_config.TextColumn("BOID"), # Prevents commas in ID numbers
-                "Client Code": st.column_config.TextColumn("Client Code")
-            }
+        # Calculate branch counts with In-DP / Out-DP split
+        df['DP Type'] = df['BOID'].apply(lambda x: 'IN' if str(x).startswith('13011400') else 'OUT')
+
+        branch_dp_counts = (
+            df.groupby(['Branch', 'DP Type'])
+            .size()
+            .unstack(fill_value=0)
+            .to_dict('index')
         )
+
+        container = st.container(border=True)
+        with container:
+            col1, spacr, col2 = st.columns([1, 0.1, 6])
+            with col1:
+                st.badge(f"Total IN-DP: {len(df[df['DP Type'] == 'IN']):,.0f}", color='green')
+            with col2:
+                st.badge(f"Total OUT-DP: {len(df[df['DP Type'] == 'OUT']):,.0f}", color='red')
+            if branch_dp_counts:
+                cols = st.columns(len(branch_dp_counts))
+                for i, (branch, counts) in enumerate(branch_dp_counts.items()):
+                    with cols[i]:
+                        in_dp = counts.get('IN', 0)
+                        out_dp = counts.get('OUT', 0)
+                        st.metric(label=f"{branch} (IN)", value=f"{in_dp:,}")
+                        st.metric(label=f"{branch} (OUT)", value=f"{out_dp:,}")
+
+
+        if st.toggle("Show Reference"):
+            st.divider()
+
+            # 3. Data Table
+            df.sort_values(by="BRO", inplace=True)
+            df.reset_index(inplace=True, drop=True)
+            df.index = df.index + 1
+            
+            # st.badge(f"Total Clients: {len(df):,.0f}", color='green')
+            st.dataframe(
+                df.drop(columns=['display_label']), 
+                width='stretch',
+                column_config={
+                    "BOID": st.column_config.TextColumn("BOID"), # Prevents commas in ID numbers
+                    "Client Code": st.column_config.TextColumn("Client Code")
+                }
+            )
 
 
     def update_kyc(self):

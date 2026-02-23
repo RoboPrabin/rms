@@ -3,7 +3,7 @@ import time
 import streamlit as st
 # from app_state import is_logged_in, current_user, logout_user
 import streamlit_bridge.app_state as app_state
-from utils import page_url
+from utils import auth_utils, page_url
 
 def render_sidebar():
     """
@@ -13,8 +13,8 @@ def render_sidebar():
     if "active_menu" not in st.session_state:
         st.session_state.active_menu = None
 
-
-    user = app_state.ensure_authentication()
+    
+    user = st.session_state
     username= user['username']
     role= user['role']
     branch = user['branch']
@@ -44,7 +44,6 @@ def render_sidebar():
         }
         </style>
         """, unsafe_allow_html=True)
-
     st.sidebar.markdown(
             f"""
         <style>
@@ -132,20 +131,21 @@ def render_sidebar():
 
     if role == "ADMIN":
         # # Inside your dashboard
-        # if st.session_state.get("expiry"):
-        #     # remaining = st.session_state.expiry - int(time.time())
-        #     # st.sidebar.write(f"Session ends in: {remaining}s")
-        #     remaining = st.session_state.expiry - int(time.time())
+        if st.session_state.get("expiry"):
+            # remaining = st.session_state.expiry - int(time.time())
+            # st.sidebar.write(f"Session ends in: {remaining}s")
+            remaining = st.session_state.expiry - int(time.time())
 
-        #     if remaining > 0:
-        #         st.sidebar.write(f"Session ends in: {remaining}s")
-        #     else:
-        #         st.sidebar.write("Session expired ❌")
+            if remaining > 0:
+                st.sidebar.write(f"Session ends in: {remaining}s")
+            else:
+                st.sidebar.write("Session expired ❌")
 
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
-        st.sidebar.page_link(page_url.client_communication, label="‎‎ ‎‎‎ ‎‎‎ ‎ Client Communication", icon="📅")
+        st.sidebar.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
+        
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
             st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
@@ -164,10 +164,11 @@ def render_sidebar():
             st.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
 
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
-            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
+            st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
+            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit Manager", icon="🧮")
+            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit", icon="🧑")
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
             st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
@@ -223,14 +224,16 @@ def render_sidebar():
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
-            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
+            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit Manager", icon="🧮")
+            st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
+            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit", icon="🧑")
 
 
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
+            st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
             
         with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
@@ -250,10 +253,11 @@ def render_sidebar():
     if role == "BRO":
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
         with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
-            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
+            st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
+            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit Manager", icon="🧮")
+            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ Client Limit", icon="🧑")
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Remarks", icon="🖊️")

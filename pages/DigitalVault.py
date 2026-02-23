@@ -8,10 +8,12 @@ import streamlit_bridge.navigation as navigation
 from config import config
 from sqlalchemy import create_engine, text
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
 
-class DigitalVault:
+class DigitalVault(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "utility"
         st.set_page_config("Digital Vault", page_icon="🔐", layout='wide')
@@ -20,10 +22,10 @@ class DigitalVault:
 
         self.today_np_date = nepali_date.today()
         today_np = nepali_date.today()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
 
         # DB Connection

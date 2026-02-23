@@ -12,6 +12,9 @@ import streamlit_bridge.navigation as navigation
 from config import config
 from pandas.io.formats.style import Styler
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
+
+
 # ---------- Reusable helpers ----------
 
 SUMMARY_COLS = [
@@ -90,17 +93,18 @@ def get_city_code(full_name: str) -> str:
 
 
 # ---------- App ----------
-class Uarf:
+class Uarf(BasePage):
     def __init__(self):
+        super().__init__()
         # helper.eliminate_top_padding(padding_top="-90rem")
         helper.eliminate_top_margin("-8rem")
         st.session_state.active_menu = "rm"
         st.set_page_config("Live RM Performance", page_icon="🟢", layout="wide")
 
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")

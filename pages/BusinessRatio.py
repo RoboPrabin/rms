@@ -10,7 +10,7 @@ import streamlit_bridge.navigation as navigation
 from utils.formatting import *
 from datetime import date, timedelta
 from utils.custom_hotkey import activate_client_code_hotkey
-
+from pages.BasePage import BasePage
 intranet_engine = helper.get_holding_engine()
 
 # @st.cache_data(ttl=1600)
@@ -69,8 +69,10 @@ def compute_branch_summary(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-class BusinessRatio:
+class BusinessRatio(BasePage):
     def __init__(self):
+        super().__init__()
+
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config("Business Ratio", page_icon="⚖️", layout='wide')
@@ -78,10 +80,10 @@ class BusinessRatio:
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         activate_client_code_hotkey()
         st.title("⚖️ Ratio of Due Amount with Business Turnover", anchor=False)
         # Sidebar

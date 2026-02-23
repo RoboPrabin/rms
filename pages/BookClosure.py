@@ -14,20 +14,23 @@ from utils.custom_hotkey import activate_client_code_hotkey
 import psycopg2
 from datetime import datetime, timedelta
 import pandas as pd
+from pages.BasePage import BasePage
 
 
-class BookClosure:
+class BookClosure(BasePage):
     def __init__(self):
+        super().__init__()
+
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         st.set_page_config("Book Closure", page_icon="📫", layout='wide')
         activate_client_code_hotkey()
         st.header("📫 Book Closure", anchor=False)
 
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         render_sidebar()
         helper.adjust_ui()
 

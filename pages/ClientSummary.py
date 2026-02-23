@@ -5,17 +5,19 @@ from config import config
 from utils import helper
 from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
+from pages.BasePage import BasePage
 
-class BroSummaryPage:
+class BroSummaryPage(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.set_page_config(page_title="Client Summary", layout='wide', page_icon="📃")
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
         app_state.enforce_authentication()
-        app_state.sync_local_storage_to_session()
-        self.username, self.role =app_state.get_current_user_info()
+        # app_state.sync_local_storage_to_session()
+        # self.username, self.role =app_state.get_current_user_info()
         helper.adjust_ui()
         render_sidebar()
 

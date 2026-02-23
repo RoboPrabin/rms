@@ -7,6 +7,7 @@ from db import db
 from nepali_datetime import date as nepali_date
 import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
+from pages.BasePage import BasePage
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_top_brokers_cached(start_date, end_date):
@@ -21,8 +22,10 @@ def fetch_and_process_data(start_date: date, end_date: date) -> pd.DataFrame:
     return df
 
 
-class BusinessTurnover:
+class BusinessTurnover(BasePage):
     def __init__(self):
+        super().__init__()
+
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         activate_client_code_hotkey()
@@ -35,10 +38,10 @@ class BusinessTurnover:
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
         st.header("🅱️ Business Turnover", anchor=False)
 

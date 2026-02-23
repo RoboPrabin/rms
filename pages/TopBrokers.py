@@ -7,9 +7,11 @@ from utils import auth_utils, helper
 from streamlit_bridge.navigation import render_sidebar
 import streamlit_bridge.app_state as app_state
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
-class TopBrokers:
+class TopBrokers(BasePage):
     def __init__(self):
+        super().__init__()
         # helper.eliminate_top_padding()
         helper.eliminate_top_margin(margin_top="-10rem")
         st.session_state.active_menu = "business"
@@ -17,10 +19,11 @@ class TopBrokers:
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+       
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         activate_client_code_hotkey()
         helper.adjust_ui()

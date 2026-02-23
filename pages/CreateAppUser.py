@@ -10,18 +10,20 @@ from sqlalchemy import create_engine, text
 from utils import helper 
 from streamlit_bridge.navigation import render_sidebar
 from utils.custom_hotkey import activate_client_code_hotkey
+from pages.BasePage import BasePage
 
 
-class CreateAppUser:
+class CreateAppUser(BasePage):
     def __init__(self):
+        super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         self.header = "Create App User"
         st.set_page_config(page_title=self.header, layout="wide", page_icon="➕")
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
 
         activate_client_code_hotkey()
 
@@ -97,11 +99,11 @@ class CreateAppUser:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
-                                    INSERT INTO app_user (id, username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts, branch)
-                                    VALUES (:id, :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts, :branch)
+                                    INSERT INTO app_user ( username, password, full_name, citizenship ,email, role, phone, onboarded_by, created_at, created_by, status, alias, failed_attempts, branch)
+                                    VALUES ( :username, :password,:full_name, :citizenship ,:email, :role, :phone, :onboarded_by, :created_at, :created_by, :status, :alias, :failed_attempts, :branch)
                                 """),
                                 {
-                                    "id": user_id,
+                                    # "id": user_id,
                                     "username": username,
                                     "password": encrypted_pw,
                                     "full_name": full_name,

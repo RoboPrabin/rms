@@ -22,6 +22,27 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+
+def get_tms_limit_report():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Run query
+    cur.execute("SELECT * FROM zlog_tms_limit order by created_date_time desc")
+
+    # Fetch all rows
+    rows = cur.fetchall()
+
+    # Convert to DataFrame
+    df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
+
+    cur.close()
+    conn.close()
+
+    return df
+
+
+
 def insert_client_comm(client_code, client_name, action_type, created_by,
                        comm_date=None, comm_time=None, 
                        script=None, remarks=None):
@@ -31,16 +52,14 @@ def insert_client_comm(client_code, client_name, action_type, created_by,
         cur = conn.cursor()
 
         # Generate UUID for id
-        record_id = str(uuid.uuid4())
 
         insert_query = """
             INSERT INTO client_comm (
-                id, client_code, client_name, comm_date, comm_time, script, remarks, action_type, created_by
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                client_code, client_name, comm_date, comm_time, script, remarks, action_type, created_by
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cur.execute(insert_query, (
-            record_id,
             client_code,
             client_name,
             comm_date,
@@ -61,6 +80,27 @@ def insert_client_comm(client_code, client_name, action_type, created_by,
             conn.close()
 
 
+def get_client_comm_report_by_bro(rm_name):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT client_code, client_name, script, comm_date, comm_time,action_type, remarks, created_by FROM client_comm WHERE created_by = %s",
+        (rm_name,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+def get_all_client_comm_report():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT client_code, client_name, script, comm_date, comm_time,action_type, remarks, created_by FROM client_comm order by created_date_time desc")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
 
 
 
@@ -207,20 +247,7 @@ def update_limits(client_code, credit_limit, trading_limit, updated_by):
         conn.commit()
 
 
-def get_clients_by_rm(rm_name):
-    conn = get_connection()
-    query = sql.SQL("""
-        SELECT "clientCode", "clientName", category, credit_limit, trading_limit
-        FROM client_rm_map
-        WHERE "rmName" = %s
-    """)
-    
-    with conn.cursor() as cur:
-        cur.execute(query, (rm_name,))
-        rows = cur.fetchall()
-    
-    conn.close()
-    return rows
+
 
 def get_clients_by_rm_for_client_comm(rm_name):
     conn = get_connection()
@@ -1534,7 +1561,32 @@ def get_floorsheet_data():
             conn.close()
     return df
 
-
+def get_floorsheet_summary():
+    # We aggregate by Date, Branch, and Type to reduce data size significantly
+    query = """
+    SELECT 
+        DATE(uploaded_at) AS date,
+        branch,
+        transaction_type,
+        SUM(amount) AS total_amount
+    FROM floorsheet
+    GROUP BY DATE(uploaded_at), branch, transaction_type
+    ORDER BY date DESC;
+    """
+    conn = None
+    df = pd.DataFrame()
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            df = pd.DataFrame(rows, columns=[desc.name for desc in cur.description])
+    except Exception as e:
+        print("Error fetching floorsheet summary:", e)
+    finally:
+        if conn:
+            conn.close()
+    return df
 
 
 def get_today_floorsheet_range(from_selected_date, to_selected_date):
@@ -2565,6 +2617,24 @@ def get_user_by_username(username):
     conn.close()
     return row
 
+def get_user_by_username_for_login(username):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id,  username, role, password, status, citizenship, phone, email, branch FROM app_user WHERE username = %s", (username.upper(),))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+def get_user_by_pin_for_login(pin):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id,  username, role, pin, status, citizenship, phone, email, branch FROM app_user WHERE pin = %s", (pin,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
 def get_all_app_user():
     conn = get_connection()
     cur = conn.cursor()
@@ -2789,7 +2859,7 @@ def change_user_info(username: str, password:str, phone: str, email: str, citize
             SET password = %s, phone = %s, email = %s, citizenship = %s
             WHERE username = %s;
             """,
-            (password.strip(), phone.strip(), email.strip(), citizenship.lower().strip() ,username.lower().strip())
+            (password.strip(), phone.strip(), email.lower().strip(), citizenship.lower().strip() ,username.upper().strip())
         )
         conn.commit()
         return True
@@ -3002,6 +3072,51 @@ def update_login_status(username: str, success: bool) -> int:
                         WHERE username = %s
                         RETURNING failed_attempts
                     """, (now, now, username))
+                    row = cur.fetchone()
+                    if row:
+                        remaining = MAX_ATTEMPTS - row["failed_attempts"]
+                        remaining = max(remaining, 0)
+    finally:
+        conn.close()
+    return remaining
+
+def update_login_status_by_pin(pin: str, success: bool) -> int:
+    """
+    Update login status for a user.
+    Returns remaining attempts if failed login.
+    """
+    MAX_ATTEMPTS = 3
+    now = datetime.now()
+    conn = get_connection()
+    remaining = 0
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                if success:
+                    cur.execute("""
+                        UPDATE app_user
+                        SET failed_attempts = 0,
+                            last_failed_at = NULL,
+                            status = 'ACTIVE'
+                        WHERE pin = %s
+                    """, (pin,))
+                else:
+                    # increment failed attempts
+                    cur.execute("""
+                        UPDATE app_user
+                        SET failed_attempts = failed_attempts + 1,
+                            last_failed_at = %s,
+                            status = CASE
+                                WHEN failed_attempts + 1 >= 3 THEN 'BLOCKED'
+                                ELSE status
+                            END,
+                            blocked_at = CASE
+                                WHEN failed_attempts + 1 >= 3 THEN %s
+                                ELSE blocked_at
+                            END
+                        WHERE pin = %s
+                        RETURNING failed_attempts
+                    """, (now, now, pin))
                     row = cur.fetchone()
                     if row:
                         remaining = MAX_ATTEMPTS - row["failed_attempts"]
