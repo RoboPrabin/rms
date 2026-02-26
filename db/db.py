@@ -751,63 +751,142 @@ def insert_demat_record(
 #             # Convert DictRow to regular dict
 #             return [dict(row) for row in rows]
         
+# def fetch_demat_records_df():
+#     """
+#     Fetch all records from demat_records and return as a Pandas DataFrame
+#     """
+#     query = "SELECT * FROM demat_records WHERE status = 'ACTIVE' ORDER BY created_at DESC;"
+
+#     with get_connection() as conn:
+#         with conn.cursor() as cursor:
+#             cursor.execute(query)
+#             rows = cursor.fetchall()
+#             if not rows:
+#                 return pd.DataFrame()  # empty DataFrame if no records
+
+#             # Convert list of DictRow to DataFrame
+#             df = pd.DataFrame([dict(row) for row in rows])
+#             return df  
+
+
+# def fetch_demat_records_with_branch_df():
+#     """
+#     Fetch all demat_records and add a 'Branch' column by joining with app_user on open_by=username
+#     Returns a DataFrame ready for display
+#     """
+#     # Fetch records
+#     df_records = fetch_demat_records_df()
+#     if df_records.empty:
+#         return df_records  # return empty if nothing in DB
+
+#     # Fetch app_user table
+#     query = "SELECT username, branch FROM app_user;"
+#     with get_connection() as conn:
+#         with conn.cursor() as cursor:
+#             cursor.execute(query)
+#             rows = cursor.fetchall()
+#             if not rows:
+#                 df_users = pd.DataFrame(columns=["username", "branch"])
+#             else:
+#                 df_users = pd.DataFrame([dict(r) for r in rows])
+
+#     # Merge branch info on open_by -> username
+#     df = df_records.merge(
+#         df_users,
+#         how="left",
+#         left_on="open_by",
+#         right_on="username"
+#     )
+
+#     # Add branch column
+#     df.rename(columns={"branch": "Branch"}, inplace=True)
+
+#     # Drop helper username column (optional)
+#     df.drop(columns=["username"], inplace=True, errors="ignore")
+#         # Reorder columns: put Branch first
+#     cols = df.columns.tolist()
+#     if "Branch" in cols:
+#         cols.insert(0, cols.pop(cols.index("Branch")))
+#         df = df[cols]
+#     return df
+
 def fetch_demat_records_df():
     """
-    Fetch all records from demat_records and return as a Pandas DataFrame
+    Fetch all ACTIVE records from demat_records
     """
-    query = "SELECT * FROM demat_records WHERE status = 'ACTIVE' ORDER BY created_at DESC;"
+    query = """
+        SELECT *
+        FROM demat_records
+        WHERE status = 'ACTIVE'
+        ORDER BY created_at DESC;
+    """
 
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(query)
             rows = cursor.fetchall()
-            if not rows:
-                return pd.DataFrame()  # empty DataFrame if no records
 
-            # Convert list of DictRow to DataFrame
-            df = pd.DataFrame([dict(row) for row in rows])
-            return df  
+            if not rows:
+                return pd.DataFrame()
+
+            return pd.DataFrame([dict(row) for row in rows])
 
 
 def fetch_demat_records_with_branch_df():
     """
-    Fetch all demat_records and add a 'Branch' column by joining with app_user on open_by=username
-    Returns a DataFrame ready for display
+    Fetch ACTIVE demat_records and attach Branch
+    based on updated_by -> app_user.username
     """
-    # Fetch records
-    df_records = fetch_demat_records_df()
-    if df_records.empty:
-        return df_records  # return empty if nothing in DB
 
-    # Fetch app_user table
-    query = "SELECT username, branch FROM app_user;"
+    # 1️⃣ Fetch demat records
+    query_records = """
+        SELECT *
+        FROM demat_records
+        WHERE status = 'ACTIVE'
+        ORDER BY created_at DESC;
+    """
+
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query_records)
             rows = cursor.fetchall()
+
+            if not rows:
+                return pd.DataFrame()
+
+            df_records = pd.DataFrame([dict(row) for row in rows])
+
+    # 2️⃣ Fetch username + branch from app_user
+    query_users = "SELECT username, branch FROM app_user;"
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query_users)
+            rows = cursor.fetchall()
+
             if not rows:
                 df_users = pd.DataFrame(columns=["username", "branch"])
             else:
                 df_users = pd.DataFrame([dict(r) for r in rows])
 
-    # Merge branch info on open_by -> username
+    # 3️⃣ Merge using updated_by instead of open_by
     df = df_records.merge(
         df_users,
         how="left",
-        left_on="open_by",
+        left_on="updated_by",   # ✅ changed here
         right_on="username"
     )
 
-    # Add branch column
+    # 4️⃣ Rename and clean
     df.rename(columns={"branch": "Branch"}, inplace=True)
-
-    # Drop helper username column (optional)
     df.drop(columns=["username"], inplace=True, errors="ignore")
-        # Reorder columns: put Branch first
-    cols = df.columns.tolist()
-    if "Branch" in cols:
+
+    # 5️⃣ Move Branch to first column
+    if "Branch" in df.columns:
+        cols = df.columns.tolist()
         cols.insert(0, cols.pop(cols.index("Branch")))
         df = df[cols]
+
     return df
 
 def save_transactions_to_db(transactions, created_by):

@@ -16,7 +16,9 @@ client_remarks_url = base_path + "ClientProfile.py"
 client_communication = base_path + "ClientCommunication.py" 
 kyc_modify = base_path + "KycModification.py" 
 reports_url = base_path + "Reports.py" 
-otp_url = base_path + "otp.py" 
+# otp_url = base_path + "otp.py" 
+pledge_url = base_path + "Pledge.py"
+broker_insider = base_path + "BrokerInsider.py"
 
 
 cache_url = base_path + "Cache.py" 

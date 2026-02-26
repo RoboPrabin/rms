@@ -144,7 +144,9 @@ def render_sidebar():
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
         st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
-        st.sidebar.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
+        st.sidebar.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")       
+        st.sidebar.page_link(page_url.broker_insider, label="‎‎ ‎‎‎ ‎‎‎ ‎ Broker Insider", icon="🛅")       
+        st.sidebar.page_link(page_url.pledge_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Pledge", icon="🛅")       
         
         with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
             st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")

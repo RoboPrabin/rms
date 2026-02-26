@@ -13,12 +13,16 @@ from decimal import Decimal, InvalidOperation
 from pages.BasePage import BasePage
 
 
+
+
+
 def get_renew_values():
     return {
         "ALL": 1700,
         "BO OPEN": 200,
         "LIFETIME BO": 1000,
-        "LIFETIME MEROSHARE": 500
+        "LIFETIME MEROSHARE": 500,
+        "FREE":0
     }
 
 class DematRecords(BasePage):
@@ -175,49 +179,35 @@ class DematRecords(BasePage):
 
     def view_records(self):
         df = db.fetch_demat_records_with_branch_df()
-
         # Kathmandu sees everything, others see only their branch
-        if self.branch.upper() != "KATHMANDU":
-            df = df[df["Branch"].str.upper() == self.branch]
+        if self.branch != "KATHMANDU":
+            df = df[df["Branch"] == self.branch]
+        
 
         if df.empty:
-            st.warning("Records not found.", icon="⚠️")
+            st.warning(f"Records not found.", icon="⚠️")
             st.stop()
-
-        # ---------- Filters ----------
+            
+        # print(df.columns)
+        # Filter
         branches = ["All"] + df["Branch"].dropna().unique().tolist()
         created_at = ["All"] + df["created_at_bs"].dropna().unique().tolist()
-        updated_by_list = ["All"] + df["updated_by"].dropna().unique().tolist()
-
-        col1, col2, col3 = st.columns(3)
-
+        col1, col2 = st.columns(2)
         with col1:
             filter_by_branch = st.selectbox("Filter by Branch", branches)
-
         with col2:
             filter_by_created_at = st.selectbox("Filter by Created Date", created_at)
 
-        with col3:
-            filter_by_updated_by = st.selectbox("Filter by Updated By", updated_by_list)
-
-        # ---------- Apply Filters ----------
         if filter_by_branch != "All":
             df = df[df["Branch"] == filter_by_branch]
 
-        if filter_by_created_at != "All":
-            df = df[df["created_at_bs"] == filter_by_created_at]
-
-        if filter_by_updated_by != "All":
-            df = df[df["updated_by"] == filter_by_updated_by]
-
-        # ---------- Clean Columns ----------
-        df.drop(columns=['id', 'created_at', 'updated_at'], inplace=True, errors="ignore")
+        df.drop(columns=['id', 'created_at', 'updated_at', 'updated_by'], inplace=True, errors="ignore")
         df = df.rename(columns=helper.camel_to_title)
         df.index = df.index + 1
 
         st.badge(f"Total: {len(df)}", color='green')
 
-        # ---------- Dataframe ----------
+        # ---------- Dataframe with selection ----------
         st.dataframe(
             df,
             selection_mode='single-row',
@@ -226,13 +216,18 @@ class DematRecords(BasePage):
             on_select='rerun'
         )
 
-        # ---------- Row Selection ----------
+        # Get the selected row index from session_state
+        # selected_indices = st.session_state.get("demat_record", {}).get("selected_rows", [])
+
         selection = st.session_state.get("demat_record", {}).get("selection", {})
         selected_rows = selection.get("rows", [])
 
         if selected_rows:
             selected_index = selected_rows[0]
+
+            # Fetch raw row (zero-based index)
             selected_row = df.iloc[selected_index].to_dict()
+
             self.edit_record_dialog(selected_row)
 
 

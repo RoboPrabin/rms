@@ -302,7 +302,7 @@ class LoginPage(BasePage):
 
         # Clear the status UI and move to OTP page
         # status_placeholder.empty()
-        st.switch_page(page_url.otp_url)
+        st.switch_page(page_url.dashbord_url)
         st.stop()
 
     def handle_failed_login(self, username):
