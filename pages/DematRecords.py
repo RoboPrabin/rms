@@ -432,15 +432,25 @@ class DematRecords(BasePage):
     #                 st.rerun()
 
 
+
     def file_upload(self):
         REQUIRED_COLUMNS = ["BOID", "NAME", "TSL", "AMOUNT", "GATEWAY", "RENEW TYPE", "OPEN BY", "BRO"]
-        self.download_template()
+        GATEWAY_ALLOWED = ['CASH', 'QR', 'A/C DEBIT']
+        RENEW_TYPE_ALLOWED = ['BO OPEN', 'LIFETIME BO', 'ALL', 'LIFETIME MEROSHARE', 'FREE']
+
+        def is_renew_type_valid(cell_value: str) -> bool:
+            # Split by comma, strip spaces
+            values = [v.strip() for v in cell_value.split(',')]
+            # Check all values are in allowed list
+            return all(v in RENEW_TYPE_ALLOWED for v in values)
         
+        self.download_template()
+
         if 'uploader_reset' not in st.session_state:
             st.session_state.uploader_reset = 0
-        
+
         key = f"demat_uploader_{st.session_state.uploader_reset}"
-        
+
         with st.spinner("Loading data...", show_time=True):
             uploaded_file = st.file_uploader(
                 "Upload Filled Template",
@@ -448,35 +458,43 @@ class DematRecords(BasePage):
                 key=key
             )
             st.divider()
+
             if uploaded_file:
                 df = pd.read_excel(uploaded_file)
                 st.write("Preview of Uploaded Data:")
                 df.index = df.index + 1
                 df['BRANCH'] = self.branch
-                
-                # --- Step 1: Check that required columns exist exactly ---
+
+                # --- Step 1: Required columns check ---
                 missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
                 if missing_cols:
                     st.error(f"The following required columns are missing: {', '.join(missing_cols)}")
                     st.stop()
-                
-               # Step 1: Select required columns
-                df_required = df[REQUIRED_COLUMNS]
 
-                # Step 2: Normalize all cells to string and strip whitespace
-                # Also convert NaN to empty string
-                df_required = df_required.fillna("").astype(str).apply(lambda x: x.str.strip())
-
-                # Step 3: Check for empty cells
-                empty_cells = df_required == ""  # now empty cells (including NaN) are correctly caught
+                # --- Step 2: Required cells check ---
+                df_required = df[REQUIRED_COLUMNS].fillna("").astype(str).apply(lambda x: x.str.strip())
+                empty_cells = df_required == ""
                 rows_with_missing = empty_cells.any(axis=1)
-
                 if rows_with_missing.any():
-                    st.error(f"Found {rows_with_missing.sum()} rows with empty required fields. Please fill them before submitting.")
+                    st.error(f"Found {rows_with_missing.sum()} rows with empty required fields. Please fill them.")
                     st.dataframe(df[rows_with_missing])
                     st.stop()
-                                
-                # --- Step 3: Optional BS date validation ---
+
+                # --- Step 3: GATEWAY validation ---
+                gateway_invalid = ~df_required['GATEWAY'].isin(GATEWAY_ALLOWED)
+                if gateway_invalid.any():
+                    st.error(f"Found {gateway_invalid.sum()} rows with invalid GATEWAY. Allowed: {GATEWAY_ALLOWED}")
+                    st.dataframe(df[gateway_invalid])
+                    st.stop()
+
+                # --- Step 4: RENEW TYPE validation ---
+                renew_invalid = ~df_required['RENEW TYPE'].apply(is_renew_type_valid)
+                if renew_invalid.any():
+                    st.error(f"Found {renew_invalid.sum()} rows with invalid RENEW TYPE values. Allowed: {RENEW_TYPE_ALLOWED}")
+                    st.dataframe(df[renew_invalid])
+                    st.stop()
+
+                # --- Step 5: Optional BS date validation ---
                 if 'DATE' in df.columns:
                     df['is_valid_bs'] = df['DATE'].apply(helper.is_valid_bs_date)
                     invalid_count = (~df['is_valid_bs']).sum()
@@ -484,21 +502,21 @@ class DematRecords(BasePage):
                         st.error(f"Found {invalid_count} invalid BS dates. Please correct them before submitting.")
                         st.dataframe(df[df['is_valid_bs'] == False])
                         st.stop()
-                
-                # --- Step 4: Allow user to edit if needed ---
+
+                # --- Step 6: Data editor to allow user corrections ---
                 df = st.data_editor(df, num_rows="dynamic", hide_index=False)
-                
-                # --- Step 5: Submit button ---
+
+                # --- Step 7: Submit button ---
                 if st.button("ᯓ➤ Submit"):
                     inserted_count, skipped_count = db.dump_demat_records(df, self.username)
-                    
+
                     if inserted_count == 0 and skipped_count == 0:
                         st.error("Something went wrong. Please contact IT.")
                         st.stop()
                     else:
                         st.success(f"Data import completed! Inserted: {inserted_count}")
                         st.warning(f"Skipped (BOID exists): {skipped_count}")
-                    
+
                     # Reset uploader
                     st.session_state.uploader_reset += 1
                     sleep(2.5)
