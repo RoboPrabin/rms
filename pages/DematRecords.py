@@ -205,7 +205,7 @@ class DematRecords(BasePage):
         df = df.rename(columns=helper.camel_to_title)
         df.index = df.index + 1
 
-        st.badge(f"Total: {len(df)}", color='green')
+        st.badge(f"Total: {len(df):,.2f}", color='green')
 
         # ---------- Dataframe with selection ----------
         st.dataframe(
@@ -393,45 +393,6 @@ class DematRecords(BasePage):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-    # def file_upload(self):
-    #     self.download_template()
-        
-    #     # Use dynamic key to allow reset
-    #     if 'uploader_reset' not in st.session_state:
-    #         st.session_state.uploader_reset = 0
-        
-    #     key = f"demat_uploader_{st.session_state.uploader_reset}"
-        
-    #     with st.spinner("Loading data...", show_time=True):
-    #         uploaded_file = st.file_uploader(
-    #             "Upload Filled Template",
-    #             type=".xlsx",
-    #             key=key
-    #         )
-            
-    #         if uploaded_file:
-    #             df = pd.read_excel(uploaded_file)
-    #             st.write("Preview of Uploaded Data:")
-    #             df.index = df.index + 1
-    #             df['BRANCH'] = self.branch
-    #             st.data_editor(df)
-                
-    #             if st.button("ᯓ➤ Submit"):
-    #                 inserted_count, skipped_count = db.dump_demat_records(df, self.username)
-                    
-    #                 if inserted_count == 0 and skipped_count == 0:
-    #                     st.error("Something went wrong. Please contact IT.")
-    #                     st.stop()
-    #                 else:
-    #                     st.success(f"Data import completed! Inserted: {inserted_count}")
-    #                     st.warning(f"Skipped (BOID exists): {skipped_count}")
-                    
-    #                 # Reset → clears uploader
-    #                 st.session_state.uploader_reset += 1
-    #                 sleep(2.5)
-    #                 st.rerun()
-
-
 
     def file_upload(self):
         REQUIRED_COLUMNS = ["BOID", "NAME", "TSL", "AMOUNT", "GATEWAY", "RENEW TYPE", "OPEN BY", "BRO"]
@@ -457,9 +418,9 @@ class DematRecords(BasePage):
                 type=".xlsx",
                 key=key
             )
-            st.divider()
 
             if uploaded_file:
+                st.divider()
                 df = pd.read_excel(uploaded_file)
                 st.write("Preview of Uploaded Data:")
                 df.index = df.index + 1
@@ -493,6 +454,36 @@ class DematRecords(BasePage):
                     st.error(f"Found {renew_invalid.sum()} rows with invalid RENEW TYPE values. Allowed: {RENEW_TYPE_ALLOWED}")
                     st.dataframe(df[renew_invalid])
                     st.stop()
+
+                # --- Step 5: OPEN BY validation ---
+                def validate_open_by(df_open_by):
+                    """
+                    Checks if all OPEN BY usernames exist in app_user table
+                    """
+                    conn = db.get_connection()  # your psycopg2 connection
+                    try:
+                        with conn.cursor() as cur:
+                            # fetch all usernames
+                            cur.execute("SELECT username FROM app_user")
+                            valid_users = {row[0] for row in cur.fetchall()}
+
+                        # Strip spaces in OPEN BY
+                        df_open_by_clean = df_open_by.fillna("").astype(str).str.strip()
+
+                        # Find invalid rows
+                        invalid_open_by = ~df_open_by_clean.isin(valid_users)
+                        return invalid_open_by
+
+                    finally:
+                        conn.close()
+
+                # Usage:
+                open_by_invalid = validate_open_by(df_required['OPEN BY'])
+                if open_by_invalid.any():
+                    st.error(f"Found {open_by_invalid.sum()} rows where 'OPEN BY' username is not registered in RMS. Please contact IT.")
+                    st.dataframe(df[open_by_invalid])
+                    st.stop()
+                    
 
                 # --- Step 5: Optional BS date validation ---
                 if 'DATE' in df.columns:
