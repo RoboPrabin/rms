@@ -1,18 +1,18 @@
-# from streamlit_searchbox import st_searchbox
-# from datetime import date, timedelta
-# import pandas as pd
-# import streamlit as st
-# from time import sleep
-# from sqlalchemy import create_engine
-# from datetime import datetime
-# from utils.helper import get_holding_engine
-# from db import db
-# import streamlit_bridge.app_state as app_state
-# import streamlit_bridge.navigation as navigation
-# from nepali_datetime import date as nepali_date
-# from utils.custom_hotkey import activate_client_code_hotkey
-# from utils import auth_utils, helper
-# from pages.BasePage import BasePage
+from streamlit_searchbox import st_searchbox
+from datetime import date, timedelta
+import pandas as pd
+import streamlit as st
+from time import sleep
+from sqlalchemy import create_engine
+from datetime import datetime
+from utils.helper import get_holding_engine
+from db import db
+import streamlit_bridge.app_state as app_state
+import streamlit_bridge.navigation as navigation
+from nepali_datetime import date as nepali_date
+from utils.custom_hotkey import activate_client_code_hotkey
+from utils import auth_utils, helper
+from pages.BasePage import BasePage
 
 # pd.set_option("styler.render.max_elements", 1579383)
 
@@ -31,17 +31,17 @@
 #     return db.get_due_list_for_dpm3(target_date)
 
 # class DPM3(BasePage):
-#     def __init__(self):
-#         super().__init__()
-#         helper.eliminate_top_margin("-10rem")
-#         st.session_state.active_menu = "business"
-#         st.set_page_config("DPM3", page_icon="📦", layout='wide')
-#         # Dates
-#         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
-#         self.today_np_date = nepali_date.today()
-#         activate_client_code_hotkey()
-#         navigation.render_sidebar()
-#         st.header("📦 DPM3", anchor=False)
+    # def __init__(self):
+    #     super().__init__()
+    #     helper.eliminate_top_margin("-10rem")
+    #     st.session_state.active_menu = "business"
+    #     st.set_page_config("DPM3", page_icon="📦", layout='wide')
+    #     # Dates
+    #     self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
+    #     self.today_np_date = nepali_date.today()
+    #     activate_client_code_hotkey()
+    #     navigation.render_sidebar()
+    #     st.header("📦 DPM3", anchor=False)
 
 
 #     def dump_data_to_db(self, df):
@@ -330,19 +330,19 @@
 
 
 
-from streamlit_searchbox import st_searchbox
-from datetime import date, timedelta
-import pandas as pd
-import streamlit as st
-from time import sleep
-from sqlalchemy import create_engine
-from datetime import datetime
-from utils.helper import get_holding_engine
-from db import db
-from nepali_datetime import date as nepali_date
-from utils import  helper
+# from streamlit_searchbox import st_searchbox
+# from datetime import date, timedelta
+# import pandas as pd
+# import streamlit as st
+# from time import sleep
+# from sqlalchemy import create_engine
+# from datetime import datetime
+# from utils.helper import get_holding_engine
+# from db import db
+# from nepali_datetime import date as nepali_date
+# from utils import  helper
 
-pd.set_option("styler.render.max_elements", 1579383)
+# pd.set_option("styler.render.max_elements", 1579383)
 
 
 
@@ -358,7 +358,7 @@ def get_today_due_list():
     target_date = datetime.now().date()
     return db.get_due_list_for_dpm3(target_date)
 
-class DPM3():
+class DPM3(BasePage):
     def __init__(self):
         super().__init__()
         helper.eliminate_top_margin("-10rem")
@@ -367,7 +367,10 @@ class DPM3():
         # Dates
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
+        activate_client_code_hotkey()
+        navigation.render_sidebar()
         st.header("📦 DPM3", anchor=False)
+
 
 
     def dump_data_to_db(self, df):
@@ -653,88 +656,88 @@ class DPM3():
         with st.spinner("Loading detailed holdings. Please wait...", show_time=True):
             _, df_uploaded = self.get_dpm3_data()
 
-        desired_cols = [
-            "BRO",
-            "SCRIPT",
-            "CLIENT CODE",
-            "CLIENT NAME",
-            "BRANCH",
-            "FREE BALANCE",
-            "CLOSING PRICE",
-            "FREE SHARE VALUATION",
-            "PLEDGE SHARE VALUATION",
-            "TOTAL VALUATION",
-            "PLEDGE BALANCE",
-            "CURRENT BALANCE",
-            "STATUS",
-            "uploaded_at",
-            "BOID",
-            "ISIN",
-        ]
+            desired_cols = [
+                "BRO",
+                "SCRIPT",
+                "CLIENT CODE",
+                "CLIENT NAME",
+                "BRANCH",
+                "FREE BALANCE",
+                "CLOSING PRICE",
+                "FREE SHARE VALUATION",
+                "PLEDGE SHARE VALUATION",
+                "TOTAL VALUATION",
+                "PLEDGE BALANCE",
+                "CURRENT BALANCE",
+                "STATUS",
+                "uploaded_at",
+                "BOID",
+                "ISIN",
+            ]
 
-        df_all = df_uploaded.copy()
-        for col in desired_cols:
-            if col not in df_all.columns:
-                df_all[col] = ""
+            df_all = df_uploaded.copy()
+            for col in desired_cols:
+                if col not in df_all.columns:
+                    df_all[col] = ""
 
-        df_all = df_all[desired_cols]
-        # df_all.drop(columns=["uploaded_at", "BOID", "ISIN"], inplace=True)
-        df_all.drop(columns=["uploaded_at", "ISIN", "STATUS", "BOID"], inplace=True)
-        with st.expander("Filters", expanded=True):
-            col1, col2 = st.columns(2)
+            df_all = df_all[desired_cols]
+            # df_all.drop(columns=["uploaded_at", "BOID", "ISIN"], inplace=True)
+            df_all.drop(columns=["uploaded_at", "ISIN", "STATUS", "BOID"], inplace=True)
+            with st.expander("Filters", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    filter_field = st.selectbox(
+                        "Filter by",
+                        ["SCRIPT", "BRANCH", "BRO", "CLIENT CODE", "CLIENT NAME"],
+                        index=0,
+                    )
+
+                options = (
+                    df_all[filter_field]
+                    .dropna()
+                    .astype(str)
+                    .map(lambda x: x.strip())
+                    .loc[lambda s: s != ""]
+                    .unique()
+                    .tolist()
+                )
+                options = sorted(options)
+                with col2:
+                    selected_values = st.multiselect(
+                        f"Select {filter_field}",
+                        options=options,
+                    )
+
+            filtered = df_all
+            if selected_values:
+                filtered = filtered[filtered[filter_field].astype(str).str.strip().isin(selected_values)]
+            col1, col2, col3 = st.columns(3)
             with col1:
-                filter_field = st.selectbox(
-                    "Filter by",
-                    ["SCRIPT", "BRANCH", "BRO", "CLIENT CODE", "CLIENT NAME"],
-                    index=0,
-                )
-
-            options = (
-                df_all[filter_field]
-                .dropna()
-                .astype(str)
-                .map(lambda x: x.strip())
-                .loc[lambda s: s != ""]
-                .unique()
-                .tolist()
-            )
-            options = sorted(options)
+                st.badge(f"Total rows: {len(filtered):,}", color="green")
             with col2:
-                selected_values = st.multiselect(
-                    f"Select {filter_field}",
-                    options=options,
-                )
+                st.badge(f"Total Free Balance: {filtered['FREE BALANCE'].sum():,.2f}", color="blue")
+            with col3:
+                st.badge(f"Total Valuation: {filtered['TOTAL VALUATION'].sum():,.2f}", color="yellow")
 
-        filtered = df_all
-        if selected_values:
-            filtered = filtered[filtered[filter_field].astype(str).str.strip().isin(selected_values)]
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.badge(f"Total rows: {len(filtered):,}", color="green")
-        with col2:
-            st.badge(f"Total Free Balance: {filtered['FREE BALANCE'].sum():,.2f}", color="blue")
-        with col3:
-            st.badge(f"Total Valuation: {filtered['TOTAL VALUATION'].sum():,.2f}", color="yellow")
-
+            
+            # Avoid Pandas Styler for very large tables (Streamlit will error if it exceeds max_elements).
+            max_elements = int(pd.get_option("styler.render.max_elements"))
+            if filtered.size <= max_elements:
+                numeric_cols = filtered.select_dtypes(include="number").columns
+                # st.data_editor doesn't support Pandas Styler; show formatted values via df copy.
+                view_df = filtered.copy()
+                for col in numeric_cols:
+                    view_df[col] = view_df[col].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
+                view_df.sort_values(by="CLIENT NAME", inplace=True)
+                view_df.reset_index(drop=True, inplace=True)
+                view_df.index = view_df.index + 1
+                st.data_editor(view_df, width='stretch', disabled=True)
+            else:
+                filtered.sort_values(by="CLIENT NAME", inplace=True)
+                filtered.reset_index(drop=True, inplace=True)
+                filtered.index = filtered.index + 1
+                st.data_editor(filtered, width='stretch', disabled=True)
         
-        # Avoid Pandas Styler for very large tables (Streamlit will error if it exceeds max_elements).
-        max_elements = int(pd.get_option("styler.render.max_elements"))
-        if filtered.size <= max_elements:
-            numeric_cols = filtered.select_dtypes(include="number").columns
-            # st.data_editor doesn't support Pandas Styler; show formatted values via df copy.
-            view_df = filtered.copy()
-            for col in numeric_cols:
-                view_df[col] = view_df[col].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
-            view_df.sort_values(by="CLIENT NAME", inplace=True)
-            view_df.reset_index(drop=True, inplace=True)
-            view_df.index = view_df.index + 1
-            st.data_editor(view_df, width='stretch', disabled=True)
-        else:
-            filtered.sort_values(by="CLIENT NAME", inplace=True)
-            filtered.reset_index(drop=True, inplace=True)
-            filtered.index = filtered.index + 1
-            st.data_editor(filtered, width='stretch', disabled=True)
-    
     
     # def get_thursday_buy_floorsheet(self):   
     #     rows = db.get_floorsheet_from_date(helper.get_last_thursday())

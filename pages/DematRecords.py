@@ -480,7 +480,7 @@ class DematRecords(BasePage):
                 # Usage:
                 open_by_invalid = validate_open_by(df_required['OPEN BY'])
                 if open_by_invalid.any():
-                    st.error(f"Found {open_by_invalid.sum()} rows where 'OPEN BY' username is not registered in RMS. Please contact IT.")
+                    st.error(f"Found {open_by_invalid.sum()} rows where 'OPEN BY' username is not registered in RMS. Please contact IT (9848094698).")
                     st.dataframe(df[open_by_invalid])
                     st.stop()
                     
