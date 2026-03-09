@@ -23,20 +23,17 @@ from pages.BasePage import BasePage
 class Automation(BasePage):
     def __init__(self):
         super().__init__()
-        helper.eliminate_top_padding()
+        helper.eliminate_top_margin()
         st.session_state.active_menu = "user"
         activate_client_code_hotkey()
-
-
         st.set_page_config("Automations", page_icon="⚡", layout='wide')
-
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
 
-        user = auth_utils.ensure_logged_in()
-        self.username= user['username']
-        self.role= user['role']
-        self.branch = user['branch']
+        # user = auth_utils.ensure_logged_in()
+        # self.username= user['username']
+        # self.role= user['role']
+        # self.branch = user['branch']
         navigation.render_sidebar()
 
         # DB

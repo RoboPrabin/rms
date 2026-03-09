@@ -32,45 +32,39 @@ def get_connection():
         password="admin"
     )
 
-filepath = "output_new_clients.xlsx"
-df = pd.read_excel(filepath)
+import pandas as pd
+from datetime import datetime
+import nepali_datetime
 
-# Normalize to uppercase before sending to DB
-df["company"] = df["company"].where(pd.notnull(df["company"]), None)
-df["occupation"] = df["occupation"].where(pd.notnull(df["occupation"]), None)
+def convert_ad_to_bs(ad_date: str) -> str:
+    try:
+        ad_dt = datetime.strptime(ad_date, "%Y-%m-%d")
+        bs_date = nepali_datetime.date.from_datetime_date(ad_dt.date())
+        return bs_date.strftime("%Y-%m-%d")
+    except Exception as e:
+        return ""
 
-# Uppercase non-null values
-df["company"] = df["company"].apply(lambda x: x.upper() if x is not None else None)
-df["occupation"] = df["occupation"].apply(lambda x: x.upper() if x is not None else None)
-conn = get_connection()
-cur = conn.cursor()
+def update_created_at_bs():
+    conn = get_connection()
+    try:
+        # Load the relevant columns
+        df = pd.read_sql("SELECT id, created_at FROM demat_records", conn)
 
-# 1. Create a temporary staging table
-cur.execute("""
-    CREATE TEMP TABLE tmp_updates (
-        client_code TEXT,
-        occupation TEXT,
-        company TEXT
-    )
-""")
+        # Convert to BS
+        df["created_at_bs"] = df["created_at"].apply(lambda x: convert_ad_to_bs(x.strftime("%Y-%m-%d")) if pd.notnull(x) else "")
 
-# 2. Bulk insert data into temp table
-rows = df[["client_code", "occupation", "company"]].values.tolist()
-psycopg2.extras.execute_values(
-    cur,
-    "INSERT INTO tmp_updates (client_code, occupation, company) VALUES %s",
-    rows
-)
+        # Update the database in batch
+        with conn.cursor() as cur:
+            for index, row in df.iterrows():
+                cur.execute("""
+                    UPDATE demat_records
+                    SET created_at_bs = %s
+                    WHERE id = %s
+                """, (row["created_at_bs"], row["id"]))
+        conn.commit()
+        print(f"Updated {len(df)} rows successfully.")
+    finally:
+        conn.close()
 
-# 3. Single bulk update using join
-cur.execute("""
-    UPDATE transaction_monitor t
-    SET occupation = u.occupation,
-        company = u.company
-    FROM tmp_updates u
-    WHERE t.client_code = u.client_code
-""")
-
-conn.commit()
-cur.close()
-conn.close()
+if __name__ == "__main__":
+    update_created_at_bs()

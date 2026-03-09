@@ -23,6 +23,23 @@ from typing import Final
 import nepali_datetime
 from typing import Tuple
 
+
+
+
+def is_valid_bs_date(bs_date: str) -> bool:
+    """
+    Validate BS date format YYYY-MM-DD and check if it's a real BS date
+    """
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(bs_date)):
+        return False
+    try:
+        year, month, day = map(int, bs_date.split('-'))
+        nepali_datetime.date(year, month, day)
+        return True
+    except ValueError:
+        return False
+    
+
 def get_last_thursday():
     today = datetime.now().date()
     days_to_thursday = (today.weekday() - 3) % 7
@@ -155,6 +172,7 @@ def validate_email(email: str) -> bool:
     # Basic RFC 5322 compliant regex for email validation
     pattern = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
     return re.match(pattern, email) is not None
+
 
 
 def convert_ad_to_bs(ad_date: str) -> str:

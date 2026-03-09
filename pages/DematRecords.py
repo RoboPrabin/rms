@@ -393,10 +393,49 @@ class DematRecords(BasePage):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
+    # def file_upload(self):
+    #     self.download_template()
+        
+    #     # Use dynamic key to allow reset
+    #     if 'uploader_reset' not in st.session_state:
+    #         st.session_state.uploader_reset = 0
+        
+    #     key = f"demat_uploader_{st.session_state.uploader_reset}"
+        
+    #     with st.spinner("Loading data...", show_time=True):
+    #         uploaded_file = st.file_uploader(
+    #             "Upload Filled Template",
+    #             type=".xlsx",
+    #             key=key
+    #         )
+            
+    #         if uploaded_file:
+    #             df = pd.read_excel(uploaded_file)
+    #             st.write("Preview of Uploaded Data:")
+    #             df.index = df.index + 1
+    #             df['BRANCH'] = self.branch
+    #             st.data_editor(df)
+                
+    #             if st.button("ᯓ➤ Submit"):
+    #                 inserted_count, skipped_count = db.dump_demat_records(df, self.username)
+                    
+    #                 if inserted_count == 0 and skipped_count == 0:
+    #                     st.error("Something went wrong. Please contact IT.")
+    #                     st.stop()
+    #                 else:
+    #                     st.success(f"Data import completed! Inserted: {inserted_count}")
+    #                     st.warning(f"Skipped (BOID exists): {skipped_count}")
+                    
+    #                 # Reset → clears uploader
+    #                 st.session_state.uploader_reset += 1
+    #                 sleep(2.5)
+    #                 st.rerun()
+
+
     def file_upload(self):
+        REQUIRED_COLUMNS = ["BOID", "NAME", "TSL", "AMOUNT", "GATEWAY", "RENEW TYPE", "OPEN BY", "BRO"]
         self.download_template()
         
-        # Use dynamic key to allow reset
         if 'uploader_reset' not in st.session_state:
             st.session_state.uploader_reset = 0
         
@@ -408,14 +447,48 @@ class DematRecords(BasePage):
                 type=".xlsx",
                 key=key
             )
-            
+            st.divider()
             if uploaded_file:
                 df = pd.read_excel(uploaded_file)
                 st.write("Preview of Uploaded Data:")
                 df.index = df.index + 1
                 df['BRANCH'] = self.branch
-                st.dataframe(df)
                 
+                # --- Step 1: Check that required columns exist exactly ---
+                missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+                if missing_cols:
+                    st.error(f"The following required columns are missing: {', '.join(missing_cols)}")
+                    st.stop()
+                
+               # Step 1: Select required columns
+                df_required = df[REQUIRED_COLUMNS]
+
+                # Step 2: Normalize all cells to string and strip whitespace
+                # Also convert NaN to empty string
+                df_required = df_required.fillna("").astype(str).apply(lambda x: x.str.strip())
+
+                # Step 3: Check for empty cells
+                empty_cells = df_required == ""  # now empty cells (including NaN) are correctly caught
+                rows_with_missing = empty_cells.any(axis=1)
+
+                if rows_with_missing.any():
+                    st.error(f"Found {rows_with_missing.sum()} rows with empty required fields. Please fill them before submitting.")
+                    st.dataframe(df[rows_with_missing])
+                    st.stop()
+                                
+                # --- Step 3: Optional BS date validation ---
+                if 'DATE' in df.columns:
+                    df['is_valid_bs'] = df['DATE'].apply(helper.is_valid_bs_date)
+                    invalid_count = (~df['is_valid_bs']).sum()
+                    if invalid_count > 0:
+                        st.error(f"Found {invalid_count} invalid BS dates. Please correct them before submitting.")
+                        st.dataframe(df[df['is_valid_bs'] == False])
+                        st.stop()
+                
+                # --- Step 4: Allow user to edit if needed ---
+                df = st.data_editor(df, num_rows="dynamic", hide_index=False)
+                
+                # --- Step 5: Submit button ---
                 if st.button("ᯓ➤ Submit"):
                     inserted_count, skipped_count = db.dump_demat_records(df, self.username)
                     
@@ -426,7 +499,7 @@ class DematRecords(BasePage):
                         st.success(f"Data import completed! Inserted: {inserted_count}")
                         st.warning(f"Skipped (BOID exists): {skipped_count}")
                     
-                    # Reset → clears uploader
+                    # Reset uploader
                     st.session_state.uploader_reset += 1
                     sleep(2.5)
                     st.rerun()
