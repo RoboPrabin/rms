@@ -19,6 +19,20 @@ def get_clients_by_rm(rm_name):
     conn.close()
     return rows
 
+def get_all_clients():
+    conn = get_connection()
+    query = sql.SQL("""
+        SELECT "rmName","clientCode", "clientName", category, credit_limit, trading_limit
+        FROM client_rm_map
+    """)
+    
+    with conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+    
+    conn.close()
+    return rows
+
 
 
 def get_loggedin_bro_limits(bro_id: str):
@@ -48,7 +62,7 @@ def get_loggedin_bro_limits(bro_id: str):
     return df
     
 
-def update_client_limit(client_code: str, limit_amount: int, categrory: str):
+def update_client_limit(client_code: str, limit_amount: int, category: str, updated_by: str):
     conn = get_connection()
     cur = conn.cursor()
 
@@ -60,9 +74,10 @@ def update_client_limit(client_code: str, limit_amount: int, categrory: str):
         UPDATE client_rm_map
         SET trading_limit = %s,
             updated_at = CURRENT_TIMESTAMP,
-            category = %s
+            category = %s,
+            updated_by = %s
         WHERE UPPER("clientCode") = %s;
-    """, (limit_amount, categrory, client_code))
+    """, (limit_amount, category, updated_by, client_code))
 
     conn.commit()
     cur.close()

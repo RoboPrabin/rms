@@ -1,8 +1,30 @@
+import requests
 from utils.helper import read_cookies_from_file
 from ui.login_tms import login_tms 
 from config.config import session_management_path_tms_cookies, session_management_path_tms_session_id_path, credentials_tms
 import pickle
+from utils import helper
 
+def refresh_token():
+    while True:
+        response = requests.post('https://tms48.nepsetms.com.np/tmsapi/authApi/authenticate/refresh', 
+                                
+                                cookies=get_cookie(), headers=get_headers())
+        if response.status_code == 200:
+            new_cookies = response.cookies.get_dict()
+            helper.show_message("🔄️ Token refreshed successfully ")
+            with open(session_management_path_tms_cookies, "wb") as f:
+                pickle.dump(new_cookies, f)
+            helper.show_message(f"Cookies saved to {session_management_path_tms_cookies}.")
+            break
+        else:
+            helper.show_message(f"Failed to get refresh token: {response.status_code}", "red")
+            helper.show_message(f"Response Text: {response.text}", "red")
+            helper.show_message(f"Logging TMS ...", "yellow")
+            login_tms()
+            return
+        
+        
 
 def load_cookies():
     has_domain = False

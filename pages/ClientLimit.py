@@ -16,6 +16,15 @@ def get_client_list_cached(rm_name):
     df['display'] = df['Client Code'] + " - " + df['Client Name']
     return df['display']
 
+@st.cache_data(ttl=300)
+def get_client_list_cached_admin():
+    """Cached list for the dropdown only"""
+    rows = client_limit_repo.get_all_clients()
+    df = pd.DataFrame(rows, columns=['BRO','Client Code','Client Name','Category', 'Credit Limit', 'Trading Limit'])
+    df.sort_values(by='Client Name', inplace=True)
+    df['display'] = df['Client Code'] + " - " + df['Client Name']
+    return df['display']
+
 def refresh_client_data():
     """Fetches fresh data and updates session state immediately"""
     rows = client_limit_repo.get_clients_by_rm(rm_name=st.session_state.username)
@@ -48,7 +57,10 @@ class ClientLimit(BasePage):
     def set_limit_threshold(self):
         col1, col2, col3 = st.columns(3)
         with col1:
-            client_options = get_client_list_cached(st.session_state.username)
+            if st.session_state.role == "ADMIN":
+                client_options = get_client_list_cached_admin()
+            else:
+                client_options = get_client_list_cached(st.session_state.username)
             client_display = st.selectbox("Select Client", options=client_options, key="client_code_select")
             client_code = str(client_display).split("-")[0].strip() if client_display else None
         with col2:
@@ -73,11 +85,9 @@ class ClientLimit(BasePage):
                 # return
             else:
                 # 3. Update Database
-                client_limit_repo.update_client_limit(client_code, limit_amount, category)
-
+                client_limit_repo.update_client_limit(client_code, limit_amount, category, st.session_state.username)
                 # 4. Refresh Local State
                 refresh_client_data()
-
                 # 5. User Feedback
                 st.toast(f"Limit for {client_code} updated!", icon="🚀")
                 sleep(0.6)

@@ -22,6 +22,46 @@ def get_connection():
         cursor_factory=psycopg2.extras.DictCursor
     )
 
+def fetch_clients_category():
+    query = """SELECT "clientName", "clientCode", category, credit_limit FROM client_rm_map WHERE category IS NOT NULL"""
+    
+    try:
+        # Establish connection
+        conn = get_connection()
+        
+        with conn.cursor() as cur:
+            cur.execute(query)
+            # Fetch all rows as a list of DictRow objects
+            results = cur.fetchall()
+            return results
+           
+                
+        conn.close()
+        
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+
+def fetch_trade_book_test():
+    query = """SELECT "clientName", "clientMemberCode" ,"buy/sell", "sellAmount" 
+FROM trade_book 
+WHERE "buy/sell" = 'SELL' OR "buy/sell" = 'BOTH';"""
+    
+    try:
+        # Establish connection
+        conn = get_connection()
+        
+        with conn.cursor() as cur:
+            cur.execute(query)
+            # Fetch all rows as a list of DictRow objects
+            results = cur.fetchall()
+            return results
+           
+                
+        conn.close()
+        
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+
 
 def insert_to_dpm3_bulk(df: pd.DataFrame):
     conn = get_connection()

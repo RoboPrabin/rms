@@ -1,239 +1,106 @@
+import random
+from re import S
+from time import sleep
+import pandas as pd
 import requests
-from utils import helper
-# from .shared_api_tms import get_headers, get_cookie
-from ui.login_tms import login_tms
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-from .api_refresh_token import refresh_token_collateral
+
+from api.tms.shared_api_tms import get_cookie, get_headers, refresh_token
 from utils.helper import show_message
 
-# Setup retry-enabled session
-session = requests.Session()
-retries = Retry(
-    total=5,
-    backoff_factor=5,
-    status_forcelist=[500, 502, 503, 504],
-    allowed_methods=["GET", "POST"],
-)
-adapter = HTTPAdapter(max_retries=retries)
-session.mount("http://", adapter)
-session.mount("https://", adapter)
 
 
-def get_client_server_id(headers, cookies, client_code: str):
-    count = 0
+def get_tms_server_id(client_code):
     while True:
-        print("Trying to get server_id ...... ")
-        response = session.get(
-            f"https://tms48.nepsetms.com.np/tmsapi/orderbook/search-all-client/{client_code}",
-            headers=headers,
+        show_message(f"Fetching TMS server id for {client_code}")
+        cookies = get_cookie()
+        headers = get_headers()
+        response = requests.get(
+            f'https://tms48.nepsetms.com.np/tmsapi/orderbook/search-all-client/{client_code}',
             cookies=cookies,
+            headers=headers,
         )
-
-        data = response.json() if response.status_code == 200 else []
-
         if response.status_code == 200:
-            if len(data) >= 1:
-                client_server_id = data[0].get("id", 0)
-                # Always return a tuple
-                return client_server_id, cookies, headers
-            else:
-                # No client found
-                return 0, cookies, headers
-
-        elif response.status_code == 401:
-            show_message(f"Unauthorized, refreshing token...")
-            cookies, headers = refresh_token_collateral(cookies=cookies, headers=headers)
-            count += 1
-
+            return response.json()[0]['id']
         else:
-            show_message(f"Error {response.status_code}: {response.text}")
-            return 0, cookies, headers
+            refresh_token()
 
-        if count >= 3:
-            break
+def get_collateral_info(server_id:int):
+    while True:
+        show_message(f"Fetching Collateral Info.")
+        cookies = get_cookie()
+        headers = get_headers()
 
-
-def load_collateral_for_specific_client(
-    headers,
-    cookies,
-    amount: int,
-    client_code: str,
-    loaded_by:str,
-) -> str:
-    try:
-        client_server_id, cook, head = get_client_server_id(headers=headers, cookies=cookies, client_code=client_code)
-    except Exception:
-        return
-    show_message(f"Server id : {client_server_id}", color='green')
-    if client_server_id != 0:
-        # print(topup_amount, non_cash_collateral)
-        if client_server_id is not None:
-            json_data = {
-                "cashCollateralAmount": 0,
-                "chequeCollateralAmount": 0,
-                "chequeDate": None,
-                "chequeNo": None,
-                # 'clientGroupId': 101,
-                "clientGroupId": None,
-                "clientDealerMasterId": client_server_id,
-                "collateralExpiryDate": None,
-                "collateralMultiplicationFactor": 1,
-                "collateralUtilized": 0,
-                "creditForSale": amount,
-                "fundTransferAmount": 0,
-                "nonCashCollateralAmount": 0,
-                "remarks": "RMS Collateral loaded by ".upper() + loaded_by,
-                "topUpAmount": 0,
-            }
-
-            response = session.post(
-                "https://tms48.nepsetms.com.np/tmsapi/clientApi/rms-limit-setup/non-cash-collateral",
-                headers=head,
-                json=json_data,
-                cookies=cook,
-            )
-
-            if response.status_code == 200:
-                # show_message(
-                #     "Collateral added successfully :: Server Response -> "
-                #     + response.json()["message"],
-                #     "green",
-                # )
-                return response.json()["message"]
-            else:
-                # login_tms()
-                show_message(f"Load Collateral function. {response.text} | {response.status_code}", color='red')
+        response = requests.get(
+            f'https://tms48.nepsetms.com.np/tmsapi/clientApi/rms-limit-setup/{server_id}',
+            cookies=cookies,
+            headers=headers,
+        )
+        if response.status_code == 200:
+            response_data = response.json()
+            return response_data['clientGroupId'], response_data['collateralUtilized'], response_data['creditForSale'], response_data['fundTransferAmount'], response_data['nonCashCollateralAmount'], response_data['topUpAmount']
         else:
-            return None
-    else:
-        show_message(f"Client code {client_code} not found", "red")
-        return "Invalid Client Code"
+            refresh_token()
+
+def update_multiplication_factor(df, index, server_id, client_group_id, 
+            collateral_utilized, credit_for_sale, 
+            fund_transfer_amount, non_cash_collateral_amount, 
+            topup_amount):
+    while True:
+        show_message(f"Updating TMS Multiplication Factor")
+        cookies = get_cookie()
+        headers = get_headers()
 
 
+        json_data = {
+            'cashCollateralAmount': 0,
+            'chequeCollateralAmount': 0,
+            'chequeDate': None,
+            'chequeNo': None,
+            'clientGroupId': client_group_id,
+            'clientDealerMasterId': server_id,
+            'collateralExpiryDate': None,
+            'collateralMultiplicationFactor': 2,
+            'collateralUtilized': collateral_utilized,
+            'creditForSale': credit_for_sale,
+            'fundTransferAmount': fund_transfer_amount,
+            'nonCashCollateralAmount': non_cash_collateral_amount,
+            'remarks': 'UMESH IT LOAD_COLLATERAL AS 0',
+            'topUpAmount': topup_amount,
+        }
+
+        response = requests.post(
+            'https://tms48.nepsetms.com.np/tmsapi/clientApi/rms-limit-setup/non-cash-collateral',
+            cookies=cookies,
+            headers=headers,
+            json=json_data,
+        )
+        if response.status_code == 200:
+            success_message = response.json()['message'].upper()
+            df.loc[index, 'STATUS'] = success_message
+            show_message(success_message,'green')
+            print("*"*70)
+            print("\n")
+            return
+        else:
+            refresh_token()
 
 
+def start_processing(filepath):
+    df = pd.read_excel(filepath)
+    total = len(df)
+    for index, row in df.iterrows():
+        client_code = str(row['clientcode']).strip()
+        status = str(row['STATUS'])
+        if status == "GIVE 2X":
+            show_message(f"[{index+1}/{total}] Processing {client_code}")
+            server_id = get_tms_server_id(client_code=client_code)
+            client_group_id, collateral_utilized, credit_for_sale, fund_transfer_amount, non_cash_collateral_amount, topup_amount = get_collateral_info(server_id=server_id)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# import requests
-# from utils import helper
-# # from .shared_api_tms import get_headers, get_cookie
-# from ui.login_tms import login_tms
-# from requests.adapters import HTTPAdapter
-# from urllib3.util.retry import Retry
-# from .api_refresh_token import refresh_token
-# from utils.helper import show_message
-# # Setup retry-enabled session
-# session = requests.Session()
-# retries = Retry(
-#     total=5,
-#     backoff_factor=5,
-#     status_forcelist=[500, 502, 503, 504],
-#     allowed_methods=["GET", "POST"],
-# )
-# adapter = HTTPAdapter(max_retries=retries)
-# session.mount("http://", adapter)
-# session.mount("https://", adapter)
-
-
-# def get_client_server_id(headers, cookies, client_code: str):
-#     while True:
-#         response = session.get(
-#             f"https://tms48.nepsetms.com.np/tmsapi/orderbook/search-all-client/{client_code}",
-#             headers=headers,
-#             cookies=cookies,
-#         )
-#         if response.status_code == 200:
-#             # print(response.json())
-#             if len(response.json()) >= 1:
-
-#                 client_server_id = response.json()[0].get("id", 0)
-#                 # show_message(f"Client code :: {client_code}  ->  Client Server ID :: {client_server_id}", 'magenta')
-#                 return client_server_id
-#             elif len(response.json()) > 1:
-#                 client_server_id = response.json()[0].get("id", 0)
-#                 return client_server_id
-#             else:
-#                 return 0
-#         elif response.status_code == 401:
-#             show_message(f"get_client_server_id {response.status_code}")
-#             login_tms()
-#         else:
-#             show_message(f"get_client_server_id {response.status_code}")
-#             show_message(f"{response.text}")
-#             login_tms()
-
-
-
-# def load_collateral_for_specific_client(
-#     headers,
-#     cookies,
-#     topup_amount: int,
-#     client_code: str,
-#     loaded_by:str,
-# ) -> str:
-#     while True:
-#         client_server_id = get_client_server_id(headers=headers, cookies=cookies, client_code=client_code)
-#         if client_server_id != 0:
-#             # print(topup_amount, non_cash_collateral)
-#             if client_server_id is not None:
-#                 json_data = {
-#                     "cashCollateralAmount": 0,
-#                     "chequeCollateralAmount": 0,
-#                     "chequeDate": None,
-#                     "chequeNo": None,
-#                     # 'clientGroupId': 101,
-#                     "clientGroupId": None,
-#                     "clientDealerMasterId": client_server_id,
-#                     "collateralExpiryDate": None,
-#                     "collateralMultiplicationFactor": 1,
-#                     "collateralUtilized": 0,
-#                     "creditForSale": 0,
-#                     "fundTransferAmount": 0,
-#                     "nonCashCollateralAmount": 0,
-#                     "remarks": "RMS Collateral loaded by ".upper() + loaded_by,
-#                     "topUpAmount": topup_amount,
-#                 }
-
-#                 response = session.post(
-#                     "https://tms48.nepsetms.com.np/tmsapi/clientApi/rms-limit-setup/non-cash-collateral",
-#                     headers=headers(),
-#                     json=json_data,
-#                     cookies=cookies(),
-#                 )
-
-#                 if response.status_code == 200:
-#                     show_message(
-#                         "Collateral added successfully :: Server Response -> "
-#                         + response.json()["message"],
-#                         "green",
-#                     )
-#                     return response.json()["message"]
-#                 else:
-#                     login_tms()
-#             else:
-#                 return None
-#         else:
-#             show_message(f"Client code {client_code} not found", "red")
-#             return "Invalid Client Code"
+            update_multiplication_factor(df=df,index=index, server_id=server_id, client_group_id=client_group_id, collateral_utilized=collateral_utilized, credit_for_sale=credit_for_sale,
+            fund_transfer_amount=fund_transfer_amount, non_cash_collateral_amount=non_cash_collateral_amount, topup_amount=topup_amount)
+            sleep(random.randint(1,2))
+    df.drop(columns=['debtoraccountnumber', 'creditoraccountnumber', 'batchid', 'referenceno', 'fundtransferdirection'], inplace=True)
+    df.to_excel(filepath, index=False)
+if __name__ == "__main__":
+    start_processing()
+            
