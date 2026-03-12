@@ -425,7 +425,7 @@ class DematRecords(BasePage):
                 st.write("Preview of Uploaded Data:")
                 df.index = df.index + 1
                 df['BRANCH'] = self.branch
-
+                df['OPEN BY'] = df['OPEN BY'].str.upper().str.strip()
                 # --- Step 1: Required columns check ---
                 missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
                 if missing_cols:

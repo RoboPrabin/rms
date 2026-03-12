@@ -13,7 +13,7 @@ class LiveUpdater:
     # def get_connection(self):
     #     return psycopg2.connect(
     #         host="localhost",
-    #         database="client_holdings",
+    #         database="rms",
     #         user="postgres",
     #         password="admin"
     #     )
@@ -22,7 +22,7 @@ class LiveUpdater:
     def get_all_scripts(self):
         conn = db.get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT DISTINCT script FROM client_holdings;")
+        cur.execute("SELECT DISTINCT script FROM rms;")
         scripts = [row[0] for row in cur.fetchall()]
         cur.close()
         conn.close()

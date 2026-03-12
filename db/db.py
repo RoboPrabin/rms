@@ -16,7 +16,7 @@ def get_connection():
     return psycopg2.connect(
         host="172.17.26.6",
         # host="localhost",
-        dbname="client_holdings",
+        dbname="rms",
         user="postgres",
         password="admin",
         cursor_factory=psycopg2.extras.DictCursor
@@ -1000,14 +1000,14 @@ def save_transactions_to_db(transactions, created_by):
                 existing_desc.add(description)
 
         conn.commit()
-        print(f"{len(transactions) - len(skipped)} transactions saved to DB successfully.")
-        if skipped:
-            print(f"{len(skipped)} transactions skipped due to duplicate descriptions.")
+        # print(f"{len(transactions) - len(skipped)} transactions saved to DB successfully.")
+        # if skipped:
+        #     print(f"{len(skipped)} transactions skipped due to duplicate descriptions.")
         return skipped
 
     except Exception as e:
         conn.rollback()
-        print("Error saving transactions:", e)
+        # print("Error saving transactions:", e)
         raise
     finally:
         conn.close()

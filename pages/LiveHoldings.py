@@ -175,7 +175,7 @@ class Dashboard(BasePage):
 
         role = _self.role
         if role in helper.get_hero_role():
-            st.download_button("📥 Download XLSX", data=output, file_name="client_holdings_TSL.xlsx", width='content')
+            st.download_button("📥 Download XLSX", data=output, file_name="rms_TSL.xlsx", width='content')
 
     def show_search_box(_self):
         # ---------------------------------------------------------

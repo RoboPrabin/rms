@@ -22,49 +22,28 @@ from db import db
 import pandas as pd
 import psycopg2
 import psycopg2.extras
-import pandas as pd
 
 def get_connection():
     return psycopg2.connect(
         host="172.17.26.6",
-        dbname="client_holdings",
+        dbname="rms",
         user="postgres",
         password="admin"
     )
 
-import pandas as pd
-from datetime import datetime
-import nepali_datetime
+filepath = r"C:\Users\Prabin\Desktop\test.xlsx"
 
-def convert_ad_to_bs(ad_date: str) -> str:
-    try:
-        ad_dt = datetime.strptime(ad_date, "%Y-%m-%d")
-        bs_date = nepali_datetime.date.from_datetime_date(ad_dt.date())
-        return bs_date.strftime("%Y-%m-%d")
-    except Exception as e:
-        return ""
+df = pd.read_excel(filepath)
+ids = df['id'].tolist()
 
-def update_created_at_bs():
-    conn = get_connection()
-    try:
-        # Load the relevant columns
-        df = pd.read_sql("SELECT id, created_at FROM demat_records", conn)
+conn = get_connection()
+cur = conn.cursor()
 
-        # Convert to BS
-        df["created_at_bs"] = df["created_at"].apply(lambda x: convert_ad_to_bs(x.strftime("%Y-%m-%d")) if pd.notnull(x) else "")
+cur.execute(
+    "DELETE FROM demat_records WHERE id = ANY(%s::uuid[])",
+    (ids,)
+)
 
-        # Update the database in batch
-        with conn.cursor() as cur:
-            for index, row in df.iterrows():
-                cur.execute("""
-                    UPDATE demat_records
-                    SET created_at_bs = %s
-                    WHERE id = %s
-                """, (row["created_at_bs"], row["id"]))
-        conn.commit()
-        print(f"Updated {len(df)} rows successfully.")
-    finally:
-        conn.close()
-
-if __name__ == "__main__":
-    update_created_at_bs()
+conn.commit()
+cur.close()
+conn.close()

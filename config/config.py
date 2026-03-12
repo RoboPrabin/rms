@@ -55,7 +55,7 @@ postgresql_config = {
     "db_host" : "172.17.26.6" ,        
     # "db_host" : "localhost" ,        
     "db_port" : "5432",          
-    "db_name" : "client_holdings"
+    "db_name" : "rms"
 }
 
 

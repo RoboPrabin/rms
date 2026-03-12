@@ -12,7 +12,7 @@ from psycopg2.extras import DictCursor
 def get_connection():
     return psycopg2.connect(
         host="172.17.26.6",
-        dbname="client_holdings",
+        dbname="rms",
         user="postgres",
         password="admin",
         cursor_factory=DictCursor
@@ -20,7 +20,7 @@ def get_connection():
 
 # SQLAlchemy engine for easy append
 engine = create_engine(
-    'postgresql+psycopg2://postgres:admin@172.17.26.6/client_holdings'
+    'postgresql+psycopg2://postgres:admin@172.17.26.6/rms'
 )
 
 def get_today_data():

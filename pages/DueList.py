@@ -31,16 +31,34 @@ def get_due_list_last_updated_ts_bro(bro_name):
     return pd.read_sql(query, intranet_engine, params=(bro_name,)).iloc[0, 0]
 
 
+
 # --- Load functions ---
+# def load_due_list_data_all():
+#     query = """
+#         SELECT d.*,
+#                COALESCE(m."rmName", 'N/A') AS "rmName"
+#         FROM due_list d
+#         LEFT JOIN client_rm_map m ON d."clientCode" = m."clientCode"
+#     """
+#     df = pd.read_sql(query, intranet_engine)
+#     return df
+
+
 def load_due_list_data_all():
     query = """
-        SELECT d.*,
-               COALESCE(m."rmName", 'N/A') AS "rmName"
+        SELECT 
+            d.*,
+            COALESCE(m."rmName", bm."code", 'N/A') AS "rmName"
         FROM due_list d
-        LEFT JOIN client_rm_map m ON d."clientCode" = m."clientCode"
+        LEFT JOIN client_rm_map m 
+            ON d."clientCode" = m."clientCode"
+        LEFT JOIN branch_manager bm 
+            ON d."branch" = bm."branch_code"
     """
     df = pd.read_sql(query, intranet_engine)
     return df
+
+
 
 def load_due_list_data_bro(alias):
     query = """
