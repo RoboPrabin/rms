@@ -19,6 +19,20 @@ def get_clients_by_rm(rm_name):
     conn.close()
     return rows
 
+def get_clients_by_admin():
+    conn = get_connection()
+    query = sql.SQL("""
+        SELECT "rmName","clientCode", "clientName", category, credit_limit, trading_limit
+        FROM client_rm_map
+    """)
+    
+    with conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+    
+    conn.close()
+    return rows
+
 def get_all_clients():
     conn = get_connection()
     query = sql.SQL("""

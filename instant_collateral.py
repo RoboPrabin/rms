@@ -34,7 +34,10 @@ class InstantCollateral:
         return matched_df
     
     def process_instant_collateral(self):
+        # DF from trade_book db, updated every 1 minute.
         df = self.get_list_of_instant_collateral_receiver()
+        df.to_excel("instant_collateral.xlsx", index=False)
+
         total = len(df)
         for index, row in df.iterrows():
             client_code = str(row['Client Code']).upper()
@@ -76,4 +79,4 @@ class InstantCollateral:
 
 if __name__ == "__main__":
     instant_collateral = InstantCollateral()
-    instant_collateral.get_list_of_instant_collateral_receiver()
+    instant_collateral.process_instant_collateral()

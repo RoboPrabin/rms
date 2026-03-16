@@ -345,6 +345,12 @@ from pages.BasePage import BasePage
 # pd.set_option("styler.render.max_elements", 1579383)
 
 
+@st.cache_data(ttl=3600)
+def get_latest_holdings():
+    df = db.get_latest_holdings_dpm3()
+    return df
+
+
 
 @st.cache_data(ttl=3600)
 def get_latest_closing_price():
@@ -769,19 +775,60 @@ class DPM3(BasePage):
         
 
     def render_page(self):
-        mode = st.radio(
-            "Select Mode",
-            ["Upload DPM3 File", "View Latest Holdings", "Detailed View"],
-            key="dpm3_mode",
-            horizontal=True,
-            index=0,
-        )
-        if mode == "Upload DPM3 File":
-            self.render_upload_mode()
-        elif mode == "View Latest Holdings":
-            self.render_latest_holdings_mode()
-        elif mode == "Detailed View":
-            self.render_detailed_view_mode()
+        # mode = st.radio(
+        #     "Select Mode",
+        #     ["Upload DPM3 File", "View Latest Holdings", "Detailed View"],
+        #     key="dpm3_mode",
+        #     horizontal=True,
+        #     index=0,
+        # )
+        # if mode == "Upload DPM3 File":
+        #     self.render_upload_mode()
+        # elif mode == "View Latest Holdings":
+        #     self.render_latest_holdings_mode()
+        # elif mode == "Detailed View":
+        #     self.render_detailed_view_mode()
+
+        mode = st.radio("Select Mode", ["Latest Holdings (UAT)"])
+        if mode == "Latest Holdings (UAT)":
+            with st.spinner("Loading latest holdings. Please wait...", show_time=True):
+                df = get_latest_holdings()
+                df.drop(columns=['STATUS', 'UPLOADED_AT', 'FLAGS', 'CURRENT BALANCE'], inplace=True)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Filter by option
+                    filter_by = st.selectbox(
+                        "Filter by",
+                        options=["ALL", "CLIENT CODE", "SCRIPT", "BOID"]
+                    )
+
+                # If user selects a filter other than ALL, show another selectbox
+                if filter_by != "ALL":
+                    # Get unique values for the selected column
+                    unique_values = df[filter_by].unique()
+                    unique_values = sorted(unique_values)  # sort ascending
+                    with col2:
+                        selected_value = st.selectbox(
+                            f"Select {filter_by}",
+                            options=unique_values
+                        )
+                    # Apply filter
+                    df = df[df[filter_by] == selected_value]
+                    df = df.reset_index(drop=True)
+
+
+                # Display dataframe
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.badge(f"Total rows: {len(df):,}", color="green")
+                with col2:
+                    st.badge(f"Total Free Balance: {df['FREE BALANCE'].sum():,.2f}", color="blue")
+                with col3:
+                    st.badge(f"Total Valuation: {df['TOTAL VALUATION'].sum():,.2f}", color="orange")
+                df.reset_index(drop=True, inplace=True)
+                df.index = df.index + 1
+                st.dataframe(df, width='stretch')
 
 
 if __name__ == "__main__":

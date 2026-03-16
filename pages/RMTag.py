@@ -127,6 +127,7 @@ class RMTag(BasePage):
         col1, col2 = st.columns(2)
         with col1:
             client_type = st.selectbox("Select Client Type", helper.default_category_list())
+            client_type = client_type.split("(")[0].strip()
         with col2:
             selected_rm = st.selectbox("Select RM", rm_df["display"].tolist(), disabled=True if self.role == "BRO" else False)
 
@@ -272,8 +273,10 @@ class RMTag(BasePage):
     # Main UI
     # ---------------------------
     def render_ui(self):
-        if self.role in ["BRO", "VIEWER", "USER"]:
+        if self.role in ["BRO", "USER"]:
             mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client"], horizontal=True, index=0)
+        elif self.role in ["VIEWER"]:
+            mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client","Single Transfer"], horizontal=True, index=0)
         else:
             mode = st.radio("Mode", ["Show RM Clients", "Tag RM", "Search Tagged Client","Single Transfer" ,"Bulk Tag", "Bulk Transfer"], horizontal=True, index=0)
 
@@ -340,7 +343,9 @@ class RMTag(BasePage):
                     selected_codes=selected_codes,
                     rm_username=selected_rm,
                     assign_by=assigned_by,
-                    assign_at=assigned_at
+                    assign_at=assigned_at,
+                    updated_at=assigned_at,
+                    updated_by=st.session_state.username
                 )
                 st.success("✅ Clients transferred successfully")
                 # Optional: del st.session_state.client_options to refresh list next time

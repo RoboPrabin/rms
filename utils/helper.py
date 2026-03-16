@@ -97,7 +97,7 @@ def remove_token_from_local_storage():
         key=f"clear_my_token", 
     )
 def default_category_list():
-    return ['NONE','CASH', 'CREDIT', 'DUE']
+    return ['MTF (Margin Trading Fund)','CASH (Cash in Advance or settles before T+2)', 'T+2 (Settles on T+2 days)', 'DUE (Over due)']
 
 
 def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:

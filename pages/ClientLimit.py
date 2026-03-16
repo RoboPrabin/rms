@@ -27,12 +27,18 @@ def get_client_list_cached_admin():
 
 def refresh_client_data():
     """Fetches fresh data and updates session state immediately"""
-    rows = client_limit_repo.get_clients_by_rm(rm_name=st.session_state.username)
+    if st.session_state.role == "ADMIN":
+        rows = client_limit_repo.get_clients_by_admin()
+    else:
+        rows = client_limit_repo.get_clients_by_rm(rm_name=st.session_state.username)
     df = pd.DataFrame(rows, columns=['BRO','Client Code','Client Name','Category', 'Credit Limit', 'Trading Limit (Threshold)'])
     
     # Pre-formatting for display
     df.sort_values(by='Client Name', inplace=True)
-    df_display = df.drop(columns=['BRO', 'Credit Limit']).copy()
+    if st.session_state.role in ["ADMIN", "MANAGER", "MANAGEMENT"]:
+        df_display = df.copy()
+    else:
+        df_display = df.drop(columns=['BRO', 'Credit Limit']).copy()
     df_display['Trading Limit (Threshold)'] = df_display['Trading Limit (Threshold)'].apply(lambda x: f"{x:,}" if x is not None else 0)
     df_display.reset_index(inplace=True, drop=True)
     df_display.index += 1
@@ -63,8 +69,11 @@ class ClientLimit(BasePage):
                 client_options = get_client_list_cached(st.session_state.username)
             client_display = st.selectbox("Select Client", options=client_options, key="client_code_select")
             client_code = str(client_display).split("-")[0].strip() if client_display else None
+        
+        
         with col2:
             category = st.selectbox("Category", options=helper.default_category_list(), key="category_input")
+            category = category.split("(")[0].strip()
         with col3:
             limit_amount = st.number_input("Trading Limit (Threshold)", min_value=0, step=1000, key="limit_amount_input")
 
@@ -76,7 +85,7 @@ class ClientLimit(BasePage):
             # 1. Fetch bro limits
             bro_limits_df = client_limit_repo.get_loggedin_bro_limits(bro_id=st.session_state.id)
             total_limit = int(str(bro_limits_df['TOTAL LIMIT'].iloc[0]).replace(",", "") or 0)
-            # used_limit = int(str(bro_limits_df['USED LIMIT'].iloc[0]).replace(",", "") or 0)
+
 
             # 2. Check if new limit exceeds available capacity
             if limit_amount > total_limit:
@@ -92,17 +101,51 @@ class ClientLimit(BasePage):
                 st.toast(f"Limit for {client_code} updated!", icon="🚀")
                 sleep(0.6)
                 st.rerun()
-
-        st.divider()
-        self.my_limit_ui()
+        if st.session_state.role != "ADMIN":
+            st.divider()
+            self.my_limit_ui()
+        
         st.divider()
         self.show_my_clients_limits()
 
     def show_my_clients_limits(self):
-        st.subheader("🍁 My Clients Limit Details", anchor=False)
-        # Pull directly from state
-        df = st.session_state.my_clients_df
-        st.dataframe(df, width='stretch')
+        if st.session_state.role in ["ADMIN", "MANAGER", "MANAGEMENT"]:
+            st.subheader("🍁 All Clients Limit Details", anchor=False)
+
+            df = st.session_state.my_clients_df
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # First dropdown: Select Type
+                filter_type = st.selectbox(
+                    "Select Type",
+                    options=["All", "BRO", "Client Code", "Client Name"],
+                    key="filter_type"
+                )
+
+            # Default: show all data
+            filtered_df = df
+
+            # If user selects a specific filter type
+            if filter_type != "All":
+                with col2:
+                    selected_value = st.selectbox(
+                        f"Select {filter_type}",
+                        options=df[filter_type].unique().tolist(),
+                        key="filter_value"
+                    )
+                # Apply filter
+                filtered_df = df[df[filter_type] == selected_value]
+
+            # Sort by BRO and reset index
+            filtered_df = filtered_df.sort_values(by="BRO").reset_index(drop=True)
+            filtered_df.index += 1  # Start index from 1 for display
+            st.dataframe(filtered_df, width='stretch')
+        else:
+            st.subheader("🍁 My Clients Limit Details", anchor=False)
+            # Pull directly from state
+            df = st.session_state.my_clients_df
+            st.dataframe(df, width='stretch')
     
     def my_limit_ui(self):
         st.subheader("📊 My Current Limit ", anchor=False)

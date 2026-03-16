@@ -41,6 +41,33 @@ def fetch_clients_category():
     except Exception as e:
         print(f"Error connecting to database: {e}")
 
+
+def get_latest_holdings_dpm3():
+    query = """select * from dpm3 where "FREE BALANCE" != '0'"""
+    
+    try:
+        # Establish connection
+        conn = get_connection()
+        
+        # Use cursor with column names
+        with conn.cursor() as cur:
+            cur.execute(query)
+            results = cur.fetchall()
+            
+            # Extract column names from cursor description
+            colnames = [desc[0] for desc in cur.description]
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(results, columns=colnames)
+            return df
+        
+        conn.close()
+        
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+        return None
+
+
 def fetch_trade_book_test():
     query = """SELECT "clientName", "clientMemberCode" ,"buy/sell", "sellAmount" 
 FROM trade_book 
@@ -2925,7 +2952,7 @@ def save_feedback(bro: str, star: int, remarks: str = "") -> None:
         cur.close()
         conn.close()
 
-def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at):
+def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at, updated_at, updated_by):
     """
     selected_codes : list[str]
     rm_username    : str
@@ -2937,7 +2964,9 @@ def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at):
             "rmName" = %s,
             "rmFullName" = au.full_name,
             "assignBy" = %s,
-            "assignAt" = %s
+            "assignAt" = %s,
+            "updated_at" = %s,
+            "updated_by" = %s
         FROM app_user au
         WHERE
             au.username = %s
@@ -2954,6 +2983,8 @@ def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at):
                     rm_username,   # rmName
                     assign_by,     # assignBy
                     assign_at,     # assignAt
+                    updated_at,
+                    updated_by,
                     rm_username,   # join with app_user
                     selected_codes # LIST → works with ANY()
                 )
