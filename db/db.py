@@ -42,14 +42,46 @@ def fetch_clients_category():
         print(f"Error connecting to database: {e}")
 
 
+# def get_latest_holdings_dpm3():
+#     query = """select * from dpm3 where "FREE BALANCE" != '0'"""
+    
+#     try:
+#         # Establish connection
+#         conn = get_connection()
+        
+#         # Use cursor with column names
+#         with conn.cursor() as cur:
+#             cur.execute(query)
+#             results = cur.fetchall()
+            
+#             # Extract column names from cursor description
+#             colnames = [desc[0] for desc in cur.description]
+            
+#             # Convert to DataFrame
+#             df = pd.DataFrame(results, columns=colnames)
+#             return df
+        
+#         conn.close()
+        
+#     except Exception as e:
+#         print(f"Error connecting to database: {e}")
+#         return None
+
+
 def get_latest_holdings_dpm3():
-    query = """select * from dpm3 where "FREE BALANCE" != '0'"""
+    query = """
+        SELECT d.*,
+            a."closePrice",
+            a.updated_at
+        FROM dpm3 d
+        LEFT JOIN average_price a
+        ON d."SCRIPT" = a."symbol"
+        WHERE d."FREE BALANCE" != '0'
+    """
     
     try:
-        # Establish connection
         conn = get_connection()
         
-        # Use cursor with column names
         with conn.cursor() as cur:
             cur.execute(query)
             results = cur.fetchall()
@@ -59,10 +91,10 @@ def get_latest_holdings_dpm3():
             
             # Convert to DataFrame
             df = pd.DataFrame(results, columns=colnames)
-            return df
         
         conn.close()
-        
+        return df
+    
     except Exception as e:
         print(f"Error connecting to database: {e}")
         return None

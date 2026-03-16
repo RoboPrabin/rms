@@ -94,6 +94,7 @@ def fetch_trading_average_price(table_name:str = "average_price"):
         if response.status_code == 200:
             json_response = response.json()
             df = pd.DataFrame(json_response)
+            df['updated_at'] = pd.Timestamp.now()
             engine = create_engine(get_holding_engine())
             # Dump DataFrame to SQL table
             df.to_sql(name=table_name,con=engine,if_exists="replace", index=False)

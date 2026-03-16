@@ -345,7 +345,7 @@ from pages.BasePage import BasePage
 # pd.set_option("styler.render.max_elements", 1579383)
 
 
-@st.cache_data(ttl=3600)
+# @st.cache_data(ttl=3600)
 def get_latest_holdings():
     df = db.get_latest_holdings_dpm3()
     return df
@@ -793,7 +793,21 @@ class DPM3(BasePage):
         if mode == "Latest Holdings (UAT)":
             with st.spinner("Loading latest holdings. Please wait...", show_time=True):
                 df = get_latest_holdings()
+                close_price_date = df['updated_at'].head(1).values[0]
+                close_price_date = pd.to_datetime(close_price_date)
+                # Format to 12-hour with AM/PM
+                formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
+                st.caption(f"Note: Close Price updated on: {formatted_date}")
                 df.drop(columns=['STATUS', 'UPLOADED_AT', 'FLAGS', 'CURRENT BALANCE'], inplace=True)
+                df.rename(columns={'closePrice':'CLOSE PRICE'}, inplace=True)
+                
+                df['FREE BALANCE'] = df['FREE BALANCE'].astype(float)
+                df['PLEDGE BALANCE'] = df['PLEDGE BALANCE'].astype(float)
+                df['CLOSE PRICE'] = df['CLOSE PRICE'].astype(float)
+
+                df['FREE SHARE VALUATION'] = df['FREE BALANCE'] * df['CLOSE PRICE']
+                df['PLEDGE SHARE VALUATION'] = df['PLEDGE BALANCE'] * df['CLOSE PRICE']
+                df['TOTAL VALUATION'] = df['FREE SHARE VALUATION'] + df['PLEDGE SHARE VALUATION']
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -826,8 +840,28 @@ class DPM3(BasePage):
                     st.badge(f"Total Free Balance: {df['FREE BALANCE'].sum():,.2f}", color="blue")
                 with col3:
                     st.badge(f"Total Valuation: {df['TOTAL VALUATION'].sum():,.2f}", color="orange")
+                column_order = ['BOID', 'CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'CLOSE PRICE',
+                                'TOTAL VALUATION',
+                                'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE' ,  
+                                'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION']
+                formatting_columns = ['CLOSE PRICE',
+                                'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE' ,  
+                                'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION', 'TOTAL VALUATION']
+                
+                df.sort_values(by="TOTAL VALUATION", inplace=True, ascending=False)
+                # Ensure numeric types
+                for col in formatting_columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+                # Format with commas (like Excel)
+                df[formatting_columns] = df[formatting_columns].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+
+                # Reorder, sort, reset index
+                df = df[column_order]
                 df.reset_index(drop=True, inplace=True)
                 df.index = df.index + 1
+
+                # Show in Streamlit
                 st.dataframe(df, width='stretch')
 
 
