@@ -345,7 +345,7 @@ from pages.BasePage import BasePage
 # pd.set_option("styler.render.max_elements", 1579383)
 
 
-# @st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600)
 def get_latest_holdings():
     df = db.get_latest_holdings_dpm3()
     return df
