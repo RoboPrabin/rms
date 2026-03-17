@@ -100,6 +100,32 @@ def get_latest_holdings_dpm3():
         return None
 
 
+def get_dpm3_onhold():
+    query = """
+       select * from dpm3_onhold;
+    """
+    
+    try:
+        conn = get_connection()
+        
+        with conn.cursor() as cur:
+            cur.execute(query)
+            results = cur.fetchall()
+            
+            # Extract column names from cursor description
+            colnames = [desc[0] for desc in cur.description]
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(results, columns=colnames)
+        
+        conn.close()
+        return df
+    
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+        return None
+
+
 def fetch_trade_book_test():
     query = """SELECT "clientName", "clientMemberCode" ,"buy/sell", "sellAmount" 
 FROM trade_book 

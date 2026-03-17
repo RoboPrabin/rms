@@ -351,6 +351,12 @@ def get_latest_holdings():
     return df
 
 
+@st.cache_data(ttl=3600)
+def get_dpm3_onhold():
+    df = db.get_dpm3_onhold()
+    return df
+
+
 
 @st.cache_data(ttl=3600)
 def get_latest_closing_price():
@@ -789,7 +795,7 @@ class DPM3(BasePage):
         # elif mode == "Detailed View":
         #     self.render_detailed_view_mode()
 
-        mode = st.radio("Select Mode", ["Latest Holdings (UAT)"])
+        mode = st.radio("Select Mode", ["Latest Holdings (UAT)", "On Hold"])
         if mode == "Latest Holdings (UAT)":
             with st.spinner("Loading latest holdings. Please wait...", show_time=True):
                 df = get_latest_holdings()
@@ -854,7 +860,7 @@ class DPM3(BasePage):
                     df[col] = pd.to_numeric(df[col], errors='coerce')
 
                 # Format with commas (like Excel)
-                df[formatting_columns] = df[formatting_columns].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+                df[formatting_columns] = df[formatting_columns].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
 
                 # Reorder, sort, reset index
                 df = df[column_order]
@@ -863,7 +869,10 @@ class DPM3(BasePage):
 
                 # Show in Streamlit
                 st.dataframe(df, width='stretch')
-
+        elif mode == "On Hold":
+            with st.spinner("Loading on hold. Please wait...", show_time=True):
+                df = get_dpm3_onhold()
+                st.dataframe(df, width='stretch')
 
 if __name__ == "__main__":
     DPM3().render_page()
