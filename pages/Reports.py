@@ -268,14 +268,28 @@ class Reports(BasePage):
 
     def render_page(self):
         col1, col2, col3 = st.columns(3)
-        report_options = ['TMS Limit','Branch Turnover' ,'EDIS Call', 'Others', 'None']
+        report_options = ['Categorized Adjusted Balance' ,
+                          'TMS Limit','Branch Turnover' , 
+                          'EDIS Call', 'Others', 'None']
         with col1:
             selected_type = st.selectbox("Report Type", report_options, index=0)
-
-        if selected_type == 'TMS Limit':
-           self.tms_limit_ui(col2, col3)
-        elif selected_type == 'Branch Turnover':
-            self.branch_turnover_ui(col2, col3)
+        with st.spinner(f"Loading {selected_type} report...", show_time=True):
+            if selected_type == 'TMS Limit':
+                self.tms_limit_ui(col2, col3)
+            elif selected_type == 'Branch Turnover':
+                self.branch_turnover_ui(col2, col3)
+            elif selected_type == 'Categorized Adjusted Balance':
+                df = db.fetch_category_client_data()
+                df.columns = df.columns.str.upper()
+                df.rename(columns={
+                    'RM': 'BRO'}, inplace=True)
+                # Format all columns except RM with commas
+                for col in df.columns:
+                    if col != "BRO":
+                        df[col] = df[col].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else x)
+                df.reset_index(drop=True, inplace=True)
+                df.index +=1
+                st.dataframe(df, width='stretch')
 
 if __name__ == "__main__":
     Reports().render_page()

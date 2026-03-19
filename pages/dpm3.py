@@ -795,7 +795,7 @@ class DPM3(BasePage):
         # elif mode == "Detailed View":
         #     self.render_detailed_view_mode()
 
-        mode = st.radio("Select Mode", ["Latest Holdings (UAT)", "On Hold"])
+        mode = st.radio("Select Mode", ["Latest Holdings (UAT)", "On Hold"], horizontal=True)
         if mode == "Latest Holdings (UAT)":
             with st.spinner("Loading latest holdings. Please wait...", show_time=True):
                 df = get_latest_holdings()

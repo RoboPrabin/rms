@@ -63,7 +63,7 @@ class ClientLimit(BasePage):
     def set_limit_threshold(self):
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.session_state.role == "ADMIN":
+            if st.session_state.role in ['ADMIN', 'MANAGER', 'MANAGEMENT']:
                 client_options = get_client_list_cached_admin()
             else:
                 client_options = get_client_list_cached(st.session_state.username)
