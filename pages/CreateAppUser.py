@@ -292,7 +292,7 @@ class CreateAppUser(BasePage):
 
                 branch = st.selectbox("Branch", self.branch, index=branch_index)
 
-                if st.form_submit_button("Update User"):
+                if st.form_submit_button("Update User", icon="🔄"):
                     try:
                         with self.engine.begin() as conn:
                             conn.execute(
@@ -300,7 +300,8 @@ class CreateAppUser(BasePage):
                                         UPDATE app_user
                                         SET email = :email, role = :role, password = :password, full_name = :full_name,
                                             phone = :phone, citizenship = :citizenship, onboarded_by = :onboarded_by, 
-                                        status = :status, failed_attempts = :failed_attempst, alias = :alias, branch = :branch
+                                        status = :status, failed_attempts = :failed_attempst, alias = :alias, branch = :branch,
+                                         updated_by = :updated_by
                                         WHERE username = :username
                                     """),
                                     {
@@ -315,7 +316,8 @@ class CreateAppUser(BasePage):
                                         "alias":alias.split("-", 1)[0].strip().upper(),
                                         "status": status,
                                         "failed_attempst":failed_attempts,
-                                        "branch": branch
+                                        "branch": branch,
+                                        "updated_by": st.session_state.username
                                     }
                                 )
                         st.success(f"User '{selected_user}' updated successfully.")

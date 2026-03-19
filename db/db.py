@@ -26,43 +26,49 @@ def get_connection():
 
 def fetch_category_client_data():
     query = """
-       
-        WITH has_after AS (
-            SELECT 1
-            FROM due_list
-            WHERE updated_at::date = CURRENT_DATE
-            AND updated_at::time > TIME '12:00:00'
-            LIMIT 1
-        )
+    WITH has_after AS (
+        SELECT 1
+        FROM due_list
+        WHERE updated_at::date = CURRENT_DATE
+          AND updated_at::time > TIME '12:00:00'
+        LIMIT 1
+    )
+    SELECT 
+        crm."rmName" AS RM,
+        COUNT(DISTINCT crm."clientCode") AS "TOTAL CLIENTS",
+        SUM(CASE WHEN crm.category = 'CASH' THEN crm.adjustedBalance ELSE 0 END) AS CASH,
+        SUM(CASE WHEN crm.category = 'T+2' THEN crm.adjustedBalance ELSE 0 END) AS "T+2",
+        SUM(CASE WHEN crm.category = 'DUE' THEN crm.adjustedBalance ELSE 0 END) AS DUE,
+        SUM(CASE WHEN crm.category = 'MTF' THEN crm.adjustedBalance ELSE 0 END) AS MTF,
+        SUM(CASE WHEN crm.category IS NULL THEN crm.adjustedBalance ELSE 0 END) AS UNCATEGORIZED,
+        SUM(crm.adjustedBalance) AS "TOTAL ADJUSTED BALANCE"
+    FROM (
         SELECT 
-            crm."rmName" AS RM,
-            SUM(CASE WHEN crm.category = 'CASH' THEN crm.adjustedBalance ELSE 0 END) AS CASH,
-            SUM(CASE WHEN crm.category = 'T+2' THEN crm.adjustedBalance ELSE 0 END) AS "T+2",
-            SUM(CASE WHEN crm.category = 'DUE' THEN crm.adjustedBalance ELSE 0 END) AS DUE,
-            SUM(CASE WHEN crm.category = 'MTF' THEN crm.adjustedBalance ELSE 0 END) AS MTF,
-            SUM(CASE WHEN crm.category IS NULL THEN crm.adjustedBalance ELSE 0 END) AS UNCATEGORIZED,
-            SUM(crm.adjustedBalance) AS "TOTAL ADJUSTED BALANCE",
-            COUNT(DISTINCT crm."clientCode") AS "TOTAL CLIENTS"
-        FROM (
-            SELECT 
-                crm.*,
-                COALESCE(dl."adjustedBalance", 0) AS adjustedBalance
-            FROM client_rm_map crm
-            LEFT JOIN due_list dl
-                ON crm."clientCode" = dl."clientCode"
-            AND dl.updated_at::date = CURRENT_DATE
-            AND (
-                    (EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time > TIME '12:00:00')
-                OR (NOT EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time < TIME '12:00:00')
-            )
-        ) crm
-        GROUP BY crm."rmName"
-        ORDER BY crm."rmName";
+            crm.*,
+            COALESCE(dl."adjustedBalance", 0) AS adjustedBalance
+        FROM client_rm_map crm
+        LEFT JOIN due_list dl
+            ON crm."clientCode" = dl."clientCode"
+           AND dl.updated_at::date = CURRENT_DATE
+           AND (
+                (EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time > TIME '12:00:00')
+             OR (NOT EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time < TIME '12:00:00')
+           )
+    ) crm
+    GROUP BY crm."rmName"
+    ORDER BY crm."rmName";
     """
+
     conn = get_connection()
-    df = pd.read_sql(query, conn)
+    with conn.cursor() as cur:
+        cur.execute(query)
+        results = cur.fetchall()  # list of DictRow objects
     conn.close()
+
+    # Convert to DataFrame for Streamlit display
+    df = pd.DataFrame(results, columns=[desc.name for desc in cur.description])
     return df
+
 
 
 
