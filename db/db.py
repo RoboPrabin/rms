@@ -137,14 +137,50 @@ def fetch_clients_category():
 #         return None
 
 
+# def get_latest_holdings_dpm3():
+#     query = """
+#         SELECT d.*,
+#             a."closePrice",
+#             a.updated_at
+#         FROM dpm3 d
+#         LEFT JOIN average_price a
+#         ON d."SCRIPT" = a."symbol"
+#         WHERE d."FREE BALANCE" != '0'
+#     """
+    
+#     try:
+#         conn = get_connection()
+        
+#         with conn.cursor() as cur:
+#             cur.execute(query)
+#             results = cur.fetchall()
+            
+#             # Extract column names from cursor description
+#             colnames = [desc[0] for desc in cur.description]
+            
+#             # Convert to DataFrame
+#             df = pd.DataFrame(results, columns=colnames)
+        
+#         conn.close()
+#         return df
+    
+#     except Exception as e:
+#         print(f"Error connecting to database: {e}")
+#         return None
+
+
+
 def get_latest_holdings_dpm3():
     query = """
         SELECT d.*,
-            a."closePrice",
-            a.updated_at
+               a."closePrice",
+               a.updated_at,
+               COALESCE(c."rmName", 'N/A') AS "rmName"
         FROM dpm3 d
         LEFT JOIN average_price a
-        ON d."SCRIPT" = a."symbol"
+               ON d."SCRIPT" = a."symbol"
+        LEFT JOIN client_rm_map c
+               ON d."CLIENT CODE" = c."clientCode"
         WHERE d."FREE BALANCE" != '0'
     """
     
@@ -167,7 +203,9 @@ def get_latest_holdings_dpm3():
     except Exception as e:
         print(f"Error connecting to database: {e}")
         return None
+    
 
+    
 
 def get_dpm3_onhold():
     query = """
@@ -197,9 +235,9 @@ def get_dpm3_onhold():
 
 def fetch_trade_book_test():
     query = """SELECT "clientName", "clientMemberCode" ,"buy/sell", "sellAmount" 
-FROM trade_book 
-WHERE "buy/sell" = 'SELL' OR "buy/sell" = 'BOTH';"""
-    
+            FROM trade_book 
+            WHERE "buy/sell" = 'SELL' OR "buy/sell" = 'BOTH';"""
+                
     try:
         # Establish connection
         conn = get_connection()

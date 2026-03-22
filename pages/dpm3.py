@@ -359,11 +359,8 @@ def get_dpm3_onhold():
                        'quantity':'QUANTITY','status':'STATUS','settlement_date':'SETTLEMENT DATE',
                        'uploaded_at':'UPLOADED AT'}, inplace=True)
     df.drop(columns=['UPLOADED AT'], inplace=True)
-     # 🔹 Ensure QUANTITY is numeric
-    df['QUANTITY'] = pd.to_numeric(df['QUANTITY'], errors='coerce')
-
-    # 🔹 Format with commas (like Excel)
-    df['QUANTITY'] = df['QUANTITY'].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
+    # df['QUANTITY'] = pd.to_numeric(df['QUANTITY'], errors='coerce')
+    # df['QUANTITY'] = df['QUANTITY'].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
     df['CLIENT NAME'] = df['CLIENT NAME'].str.upper()
     df['BRANCH'] = df['BRANCH'].str.upper()
     return df
@@ -373,7 +370,7 @@ def get_dpm3_onhold():
 @st.cache_data(ttl=3600)
 def get_latest_closing_price():
     row = db.get_table_average_price()
-    df = pd.DataFrame(row, columns=['Symbol', 'Ltp'])
+    df = pd.DataFrame(row, columns=['symbol', 'closePrice'])
     return df
 
 @st.cache_data(ttl=3600)
@@ -381,6 +378,13 @@ def get_today_due_list():
     # IMPORTANT: use date(), not strftime()
     target_date = datetime.now().date()
     return db.get_due_list_for_dpm3(target_date)
+
+
+@st.cache_data(ttl=3600)
+def get_client_rm_map():
+    rows = db.get_table_rm_child_map()
+    df = pd.DataFrame(rows, columns=["BRO", "CLIENT CODE"])
+    return df
 
 class DPM3(BasePage):
     def __init__(self):
@@ -816,8 +820,8 @@ class DPM3(BasePage):
                 formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
                 st.caption(f"Note: Close Price updated on: {formatted_date}")
 
-                df.drop(columns=['STATUS'], inplace=True)
-                df.rename(columns={'closePrice':'CLOSE PRICE'}, inplace=True)
+                df.drop(columns=['STATUS', 'BOID'], inplace=True)
+                df.rename(columns={'closePrice':'CLOSE PRICE', 'rmName':'BRO'}, inplace=True)
 
                 df['FREE BALANCE'] = df['FREE BALANCE'].astype(float)
                 df['PLEDGE BALANCE'] = df['PLEDGE BALANCE'].astype(float)
@@ -854,9 +858,11 @@ class DPM3(BasePage):
                 with col3:
                     st.badge(f"Total Valuation: {df['TOTAL VALUATION'].sum():,.2f}", color="orange")
 
-                column_order = ['BOID', 'CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'CLOSE PRICE',
+                column_order = ['BRO','CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'CLOSE PRICE',
                                 'TOTAL VALUATION', 'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE',
                                 'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION']
+                
+                
                 formatting_columns = ['CLOSE PRICE', 'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE',
                                     'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION', 'TOTAL VALUATION']
 
@@ -872,38 +878,117 @@ class DPM3(BasePage):
                 # 🔹 If filter is CLIENT CODE, also show On Hold data
                 if filter_by in ["CLIENT CODE", "CLIENT NAME"]:
                     df_onhold = get_dpm3_onhold()
+                    df_closing_price = get_latest_closing_price()
+                    df_onhold = df_onhold.merge(
+                        df_closing_price[['symbol', 'closePrice']], 
+                        left_on="SCRIPT", 
+                        right_on="symbol", 
+                        how="left"
+                    )
 
+                    # Drop the duplicate 'symbol' column
+                    df_onhold.drop(columns=['symbol'], inplace=True)
+
+                    # If you want the column name to be consistent
+                    df_onhold.rename(columns={'closePrice': 'CLOSE PRICE'}, inplace=True)
+                    # Convert QUANTITY and CLOSE PRICE to numeric types first
+                    df_onhold['QUANTITY'] = df_onhold['QUANTITY'].astype(float)
+                    df_onhold['CLOSE PRICE'] = df_onhold['CLOSE PRICE'].astype(float)
+
+                    # Compute TOTAL VALUATION
+                    df_onhold['TOTAL VALUATION'] = df_onhold['QUANTITY'] * df_onhold['CLOSE PRICE']
+                  
                     # Match dynamically based on filter_by
                     df_onhold = df_onhold[df_onhold[filter_by] == selected_value].reset_index(drop=True)
 
                     if not df_onhold.empty:
-                        st.subheader("On Hold Data", anchor=False)
+                        st.subheader("On Hold SCRIPTS", anchor=False)
                         df_onhold.index = df_onhold.index + 1
+                        col_order = ['CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'QUANTITY', 'CLOSE PRICE', 'TOTAL VALUATION',
+                                     'TRANSACTION TYPE', 'STATUS', 'SETTLEMENT DATE']
+                        df_onhold = df_onhold[col_order]
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.badge(f"Total rows: {len(df_onhold):,}", color="green")
+                        with col2:
+                            st.badge(f"Total Quantity: {df_onhold['QUANTITY'].sum():,.2f}", color="blue")
+                        with col3:
+                            st.badge(f"Total Valuation: {df_onhold['TOTAL VALUATION'].sum():,.2f}", color="orange")
+                        df_onhold['QUANTITY'] = df_onhold['QUANTITY'].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+                        df_onhold['TOTAL VALUATION'] = df_onhold['TOTAL VALUATION'].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                         st.dataframe(df_onhold, width='stretch')
+
 
 
         elif mode == "On Hold":
             with st.spinner("Loading on hold. Please wait...", show_time=True):
-                df = get_dpm3_onhold()
+                df_onhold = get_dpm3_onhold()
+                df_rm_map = get_client_rm_map()
+
+                df_closing_price = get_latest_closing_price()
+                df_onhold = df_onhold.merge(
+                    df_closing_price[['symbol', 'closePrice']],
+                    left_on="SCRIPT",
+                    right_on="symbol",
+                    how="left"
+                )
+
+                df_onhold = df_onhold.merge(
+                    df_rm_map,
+                    on="CLIENT CODE",
+                    how="left"
+                )
+
+                # Replace missing BRO with "N/A"
+                df_onhold['BRO'] = df_onhold['BRO'].fillna("N/A")
+
+
+                # Drop duplicate symbol column
+                df_onhold.drop(columns=['symbol'], inplace=True)
+
+                # Rename for consistency
+                df_onhold.rename(columns={'closePrice': 'CLOSE PRICE'}, inplace=True)
+
+                # 🔹 Filtering UI
                 col1, col2 = st.columns(2)
                 with col1:
                     filter_by = st.selectbox(
                         "Filter by",
-                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT"]
+                        options=["ALL", "CLIENT CODE", "CLIENT NAME", "SCRIPT"]
                     )
 
                 if filter_by != "ALL":
-                    unique_values = sorted(df[filter_by].unique())
+                    unique_values = sorted(df_onhold[filter_by].unique())
                     with col2:
                         selected_value = st.selectbox(
                             f"Select {filter_by}",
                             options=unique_values
                         )
-                    df = df[df[filter_by] == selected_value].reset_index(drop=True)
+                    df_onhold = df_onhold[df_onhold[filter_by] == selected_value].reset_index(drop=True)
 
-                df.reset_index(drop=True, inplace=True)
-                df.index = df.index + 1
-                st.dataframe(df, width='stretch')
+                df_onhold['TOTAL VALUATION'] = df_onhold['QUANTITY'] * df_onhold['CLOSE PRICE']
+
+                # Reset index for display
+                df_onhold.sort_values(by="TOTAL VALUATION", inplace=True, ascending=False)
+                df_onhold.reset_index(drop=True, inplace=True)
+                df_onhold.index = df_onhold.index + 1
+                col_order = ['BRO','CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'QUANTITY', 'CLOSE PRICE', 
+                             'TOTAL VALUATION',
+                                     'TRANSACTION TYPE', 'STATUS', 'SETTLEMENT DATE']
+                df_onhold = df_onhold[col_order]
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.badge(f"Total rows: {len(df_onhold):,}", color="green")
+                with col2:
+                    st.badge(f"Total Quantity: {df_onhold['QUANTITY'].sum():,.2f}", color="blue")
+                with col3:
+                    st.badge(f"Total Valuation: {df_onhold['TOTAL VALUATION'].sum():,.2f}", color="orange")
+
+
+                df_onhold['QUANTITY'] = df_onhold['QUANTITY'].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+                df_onhold['CLOSE PRICE'] = df_onhold['CLOSE PRICE'].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+                df_onhold['TOTAL VALUATION'] = df_onhold['TOTAL VALUATION'].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+                st.dataframe(df_onhold, width='stretch')
 
 if __name__ == "__main__":
     DPM3().render_page()
