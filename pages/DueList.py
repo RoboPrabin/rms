@@ -395,7 +395,7 @@ class DueList(BasePage):
                 st.session_state['client_name'] = client_name
                 st.session_state['client_code'] = client_code
             except Exception as e:
-                st.error(f"Client Code: '{client_code.upper()}' not found")
+                st.error(f"Error {e}")
                 return
 
         # --- Ledger display formatting ---

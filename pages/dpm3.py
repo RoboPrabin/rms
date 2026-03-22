@@ -354,6 +354,18 @@ def get_latest_holdings():
 @st.cache_data(ttl=3600)
 def get_dpm3_onhold():
     df = db.get_dpm3_onhold()
+    df.rename(columns={'client_code':'CLIENT CODE', 'client_name':'CLIENT NAME', 'branch':'BRANCH',
+                       'symbol':'SCRIPT','transaction_type':'TRANSACTION TYPE',
+                       'quantity':'QUANTITY','status':'STATUS','settlement_date':'SETTLEMENT DATE',
+                       'uploaded_at':'UPLOADED AT'}, inplace=True)
+    df.drop(columns=['UPLOADED AT'], inplace=True)
+     # 🔹 Ensure QUANTITY is numeric
+    df['QUANTITY'] = pd.to_numeric(df['QUANTITY'], errors='coerce')
+
+    # 🔹 Format with commas (like Excel)
+    df['QUANTITY'] = df['QUANTITY'].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
+    df['CLIENT NAME'] = df['CLIENT NAME'].str.upper()
+    df['BRANCH'] = df['BRANCH'].str.upper()
     return df
 
 
@@ -801,12 +813,12 @@ class DPM3(BasePage):
                 df = get_latest_holdings()
                 close_price_date = df['updated_at'].head(1).values[0]
                 close_price_date = pd.to_datetime(close_price_date)
-                # Format to 12-hour with AM/PM
                 formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
                 st.caption(f"Note: Close Price updated on: {formatted_date}")
-                df.drop(columns=['STATUS', 'UPLOADED_AT', 'FLAGS', 'CURRENT BALANCE'], inplace=True)
+
+                df.drop(columns=['STATUS'], inplace=True)
                 df.rename(columns={'closePrice':'CLOSE PRICE'}, inplace=True)
-                
+
                 df['FREE BALANCE'] = df['FREE BALANCE'].astype(float)
                 df['PLEDGE BALANCE'] = df['PLEDGE BALANCE'].astype(float)
                 df['CLOSE PRICE'] = df['CLOSE PRICE'].astype(float)
@@ -817,28 +829,23 @@ class DPM3(BasePage):
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    # Filter by option
                     filter_by = st.selectbox(
                         "Filter by",
-                        options=["ALL", "CLIENT CODE", "SCRIPT", "BOID"]
+                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT", "BOID"]
                     )
 
-                # If user selects a filter other than ALL, show another selectbox
                 if filter_by != "ALL":
-                    # Get unique values for the selected column
-                    unique_values = df[filter_by].unique()
-                    unique_values = sorted(unique_values)  # sort ascending
+                    unique_values = sorted(df[filter_by].unique())
                     with col2:
                         selected_value = st.selectbox(
                             f"Select {filter_by}",
                             options=unique_values
                         )
-                    # Apply filter
-                    df = df[df[filter_by] == selected_value]
-                    df = df.reset_index(drop=True)
+                    df = df[df[filter_by] == selected_value].reset_index(drop=True)
 
+                  
 
-                # Display dataframe
+                # Display summary badges
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.badge(f"Total rows: {len(df):,}", color="green")
@@ -846,32 +853,56 @@ class DPM3(BasePage):
                     st.badge(f"Total Free Balance: {df['FREE BALANCE'].sum():,.2f}", color="blue")
                 with col3:
                     st.badge(f"Total Valuation: {df['TOTAL VALUATION'].sum():,.2f}", color="orange")
+
                 column_order = ['BOID', 'CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'CLOSE PRICE',
-                                'TOTAL VALUATION',
-                                'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE' ,  
+                                'TOTAL VALUATION', 'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE',
                                 'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION']
-                formatting_columns = ['CLOSE PRICE',
-                                'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE' ,  
-                                'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION', 'TOTAL VALUATION']
-                
+                formatting_columns = ['CLOSE PRICE', 'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE',
+                                    'FREE SHARE VALUATION', 'PLEDGE SHARE VALUATION', 'TOTAL VALUATION']
+
                 df.sort_values(by="TOTAL VALUATION", inplace=True, ascending=False)
-                # Ensure numeric types
                 for col in formatting_columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
-
-                # Format with commas (like Excel)
                 df[formatting_columns] = df[formatting_columns].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
 
-                # Reorder, sort, reset index
-                df = df[column_order]
-                df.reset_index(drop=True, inplace=True)
+                df = df[column_order].reset_index(drop=True)
                 df.index = df.index + 1
-
-                # Show in Streamlit
                 st.dataframe(df, width='stretch')
+
+                # 🔹 If filter is CLIENT CODE, also show On Hold data
+                if filter_by in ["CLIENT CODE", "CLIENT NAME"]:
+                    df_onhold = get_dpm3_onhold()
+
+                    # Match dynamically based on filter_by
+                    df_onhold = df_onhold[df_onhold[filter_by] == selected_value].reset_index(drop=True)
+
+                    if not df_onhold.empty:
+                        st.subheader("On Hold Data", anchor=False)
+                        df_onhold.index = df_onhold.index + 1
+                        st.dataframe(df_onhold, width='stretch')
+
+
         elif mode == "On Hold":
             with st.spinner("Loading on hold. Please wait...", show_time=True):
                 df = get_dpm3_onhold()
+                col1, col2 = st.columns(2)
+                with col1:
+                    filter_by = st.selectbox(
+                        "Filter by",
+                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT"]
+                    )
+
+                if filter_by != "ALL":
+                    unique_values = sorted(df[filter_by].unique())
+                    with col2:
+                        selected_value = st.selectbox(
+                            f"Select {filter_by}",
+                            options=unique_values
+                        )
+                    df = df[df[filter_by] == selected_value].reset_index(drop=True)
+
+                df.reset_index(drop=True, inplace=True)
+                df.index = df.index + 1
                 st.dataframe(df, width='stretch')
 
 if __name__ == "__main__":
