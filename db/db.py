@@ -2117,7 +2117,7 @@ def process_bulk_tag(df: pd.DataFrame, assign_by: str):
         insert_query = """
             INSERT INTO client_rm_map (
                 id, "clientCode", "clientName", "rmName", "rmFullName",
-                "assignBy", "assignAt"
+                "assign_by", "assign_at"
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
@@ -2167,8 +2167,8 @@ def process_tranfer_from_file(df, assign_by: str) -> int:
                     WHERE "rmName" = %s
                     LIMIT 1
                 ),
-                "assignBy" = %s,
-                "assignAt" = %s
+                "assign_by" = %s,
+                "assign_at" = %s
             WHERE
                 "clientCode" = %s
                 AND "rmName" = %s
@@ -3128,8 +3128,8 @@ def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at, upda
         SET
             "rmName" = %s,
             "rmFullName" = au.full_name,
-            "assignBy" = %s,
-            "assignAt" = %s,
+            "assign_by" = %s,
+            "assig_at" = %s,
             "updated_at" = %s,
             "updated_by" = %s
         FROM app_user au
