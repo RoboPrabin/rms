@@ -74,7 +74,7 @@ class RMTag(BasePage):
         engine = create_engine(_self.holding_engine)
 
         query = """
-            SELECT "clientName", "clientCode", "category" ,"assignBy", "assignAt"
+            SELECT "clientName", "clientCode", "category" ,"assign_by", "assign_at"
             FROM client_rm_map
             WHERE "rmName" = %s
         """
@@ -99,13 +99,13 @@ class RMTag(BasePage):
         if len(client_df) >= 1:
             st.badge(f"Total Clients : {len(client_df)}", color="green")
 
-        client_df.drop(columns=["assignAt"], inplace=True)
+        client_df.drop(columns=["assign_at"], inplace=True)
         client_df = client_df.map(lambda x: x.upper() if isinstance(x, str) else x)
         client_df.sort_values(by="clientName", inplace=True)
         client_df.reset_index(drop=True, inplace=True)
         client_df.index = client_df.index + 1
         client_df.rename(
-            columns={"clientName": "Client Name", "clientCode": "Client Code", "assignBy": "Assign By", "category":"Category"},
+            columns={"clientName": "Client Name", "clientCode": "Client Code", "assign_by": "Assign By", "category":"Category"},
             inplace=True,
         )
         if len(client_df)==0:
@@ -152,7 +152,7 @@ class RMTag(BasePage):
             else:
                 insert_query = """
                     INSERT INTO client_rm_map
-                    (id, "rmName", "rmFullName", "clientName", "clientCode", "assignBy", "assignAt")
+                    (id, "rmName", "rmFullName", "clientName", "clientCode", "assign_by", "assign_at")
                     VALUES (%s, %s, %s, %s, %s, %s, NOW())
                 """
                 values = (
