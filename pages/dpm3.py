@@ -459,7 +459,12 @@ class DPM3(BasePage):
         
 
     def render_page(self):
+        # col1, col2 = st.columns(2)
+        # with col1:
         mode = st.radio("Select Mode", ["Latest Holdings (UAT)", "On Hold"], horizontal=True)
+        # with col2:
+        #     if st.button("Clear Cache"):
+        #         st.cache_data.clear()      # clears all st.cache_data
         if mode == "Latest Holdings (UAT)":
             with st.spinner("Loading latest holdings. Please wait...", show_time=True):
                 df = get_latest_holdings()
@@ -497,14 +502,16 @@ class DPM3(BasePage):
 
                   
 
-                # Display summary badges
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.badge(f"Total rows: {len(df):,}", color="green")
-                with col2:
-                    st.badge(f"Total Free Balance: {df['FREE BALANCE'].sum():,.2f}", color="blue")
+                 # Display summary badges
+                st.badge(f"Total rows: {len(df):,}", color="green")
+                col3, col4, col5 = st.columns(3)
                 with col3:
-                    st.badge(f"Total Valuation: {df['TOTAL VALUATION'].sum():,.2f}", color="orange")
+                    st.badge(f"Total Valuation: {df['TOTAL VALUATION'].sum():,.2f}", color="blue")
+                with col4:
+                    st.badge(f"Total Free Valuation: {df['FREE SHARE VALUATION'].sum():,.2f}", color="green")
+                with col5:
+                    st.badge(f"Total Pledge Valuation: {df['PLEDGE SHARE VALUATION'].sum():,.2f}", color="red")
+
 
                 column_order = ['BRO','CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'CLOSE PRICE',
                                 'TOTAL VALUATION', 'FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE',
