@@ -617,7 +617,12 @@ class DPM3(BasePage):
                 df_onhold['TOTAL VALUATION'] = df_onhold['QUANTITY'] * df_onhold['CLOSE PRICE']
 
                 # Reset index for display
-                df_onhold.sort_values(by="TOTAL VALUATION", inplace=True, ascending=False)
+                df_onhold.sort_values(
+                    by=["SETTLEMENT DATE", "TOTAL VALUATION"],
+                    ascending=[False, False],  # First by date descending, then valuation descending
+                    inplace=True
+                )
+
                 df_onhold.reset_index(drop=True, inplace=True)
                 df_onhold.index = df_onhold.index + 1
                 col_order = ['BRO','CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'QUANTITY', 'CLOSE PRICE', 

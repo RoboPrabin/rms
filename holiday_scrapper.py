@@ -1,3 +1,5 @@
+import uuid
+
 from utils.mailer import send_email
 from datetime import datetime, timedelta
 import pandas as pd
@@ -16,7 +18,7 @@ from sqlalchemy import create_engine
 
 
 
-def get_authorization():
+def get_authorization(current_year:str):
     global driver
     options = Options()
     options.add_argument('--incognito')
@@ -24,14 +26,14 @@ def get_authorization():
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(options=options)
     driver.maximize_window()
-    driver.get("https://nepalstock.com.np/trading-average")
+    driver.get("https://nepalstock.com.np/holiday-listing")
     # show_message_box(message="Plese change date and click ok?")
     time.sleep(3)
     try:
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//th[normalize-space()='Symbol']"))
+            EC.presence_of_element_located((By.XPATH, "//th[text()='Holiday Date']"))
         )
-        show_message("NepseStockExchange Table loaded successfully.")
+        show_message("NepseStockExchange Holiday table loaded successfully.")
     except Exception as e:
         show_message(f"❌ Table not found: {e}", 'red')
         driver.quit()
@@ -39,7 +41,7 @@ def get_authorization():
 
     auth_token = None
     for request in driver.requests:
-        if request.response and "trading-average?nDays=120" in request.url:
+        if request.response and f"list?year={current_year}" in request.url:
             headers = request.headers
 
             if "Authorization" in headers:
@@ -49,10 +51,9 @@ def get_authorization():
     # driver.quit()
     return auth_token
 
-def fetch_trading_average_price(table_name:str = "average_price"):
+def fetch_holidays(current_year:str, table_name:str = "holidays"):
     show_message("Fetching today's stock price from nepse stock exchange. Please wait . . .", 'yellow')
-    authorization = get_authorization()
-        
+    authorization = get_authorization(current_year)
     if authorization:
         headers = {
             'Accept': 'application/json, text/plain, */*',
@@ -71,36 +72,25 @@ def fetch_trading_average_price(table_name:str = "average_price"):
             'sec-ch-ua-platform': '"Windows"',
         }
 
-        # today = datetime.today()
-        today = datetime.today().strftime("%Y-%m-%d")
-        # weekday(): Monday=0, Tuesday=1, ..., Sunday=6
-        # days_back = (today.weekday() - 3) % 7  # Thursday = 3
-        # last_thursday = today - timedelta(days=days_back if days_back != 0 else 7)
-        # last_thursday_date = last_thursday.strftime("%Y-%m-%d")
 
               
         params = {
-            'nDays': '120',
-            'businessDate': today,
-            
+            'year': current_year,
         }
 
-        response = requests.get(
-            'https://nepalstock.com.np/api/nots/nepse-data/trading-average',
-            params=params,
-            headers=headers,
-            verify=False  # ← disables SSL cert check
-        )
+        response = requests.get('https://nepalstock.com.np/api/nots/holiday/list', params=params, headers=headers, verify=False)
 
 
         if response.status_code == 200:
             json_response = response.json()
             df = pd.DataFrame(json_response)
-            df['updated_at'] = pd.Timestamp.now()
-            engine = create_engine(get_holding_engine())
-            # Dump DataFrame to SQL table
-            df.to_sql(name=table_name,con=engine,if_exists="replace", index=False)
-            show_message(f"Average Price from NepalStockExchange dumped to table {table_name}.", color="green")
+            df['created_by'] = 'SYSTEM'
+            df['created_at'] = datetime.now()
+            df['id'] = [str(uuid.uuid4()) for _ in range(len(df))]
+            df.rename(columns={'holidayDate':'holiday_date', 'holidayDescription':'holiday_description'}, inplace=True)
+            df.drop(columns=['instrumentTypeId', 'modifiedBy', 'modifiedDate', 'activeStatus'], inplace=True)
+            df.to_sql(name=table_name, con=get_holding_engine(),if_exists="replace", index=False)
+            show_message(f"Holidays from NepalStockExchange dumped to table {table_name}.", color="green")
         else:
             show_message(f"NepalStoclExchange Request failed:" + response.text, 'red')
     else:
@@ -108,10 +98,8 @@ def fetch_trading_average_price(table_name:str = "average_price"):
 
 
 if __name__ == "__main__":
-    fetch_trading_average_price()
-    # send_email("prabin.trishakti@gmail.com")
-    
-    # from db import db
-    # rows = db.get_table_average_price() 
-    # df_avp = pd.DataFrame(rows, columns=["SYMBOL", "AVERAGE_PRICE"])
-    # print(df_avp)
+    current_year = datetime.now().year
+    show_message(message=f"Current Year: {current_year}", color="yellow")
+    fetch_holidays(current_year=current_year)
+
+  

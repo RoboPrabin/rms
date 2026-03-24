@@ -3129,7 +3129,7 @@ def assign_clients_to_rm(selected_codes, rm_username, assign_by, assign_at, upda
             "rmName" = %s,
             "rmFullName" = au.full_name,
             "assign_by" = %s,
-            "assig_at" = %s,
+            "assign_at" = %s,
             "updated_at" = %s,
             "updated_by" = %s
         FROM app_user au
