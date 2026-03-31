@@ -192,6 +192,7 @@ def render_sidebar():
 
 
         with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
+            st.page_link(page_url.tri_projects_url, label="‎‎ ‎ Trishakti Projects", icon="📁")
             st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
             st.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
             st.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
@@ -240,6 +241,8 @@ def render_sidebar():
             st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
 
         with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
+            if role == 'MANAGEMENT':
+                st.page_link(page_url.tri_projects_url, label="‎‎ ‎ Trishakti Projects", icon="📁")
             st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
             st.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
             st.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
