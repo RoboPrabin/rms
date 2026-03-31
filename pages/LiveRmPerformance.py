@@ -97,7 +97,7 @@ class Uarf(BasePage):
     def __init__(self):
         super().__init__()
         # helper.eliminate_top_padding(padding_top="-90rem")
-        helper.eliminate_top_margin("-8rem")
+        helper.eliminate_top_margin("-12rem")
         st.session_state.active_menu = "rm"
         st.set_page_config("Live RM Performance", page_icon="🟢", layout="wide")
 
