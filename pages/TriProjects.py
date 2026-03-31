@@ -89,6 +89,14 @@ class TriProjects(BasePage):
         """
         params = []
 
+        # 🔐 Role-based filtering
+        if self.username == "ANJIT":
+            query += " AND owner_name = %s"
+            params.append(self.username)
+
+        # -------------------------
+        # Filters
+        # -------------------------
         if status_filter and status_filter != "ALL":
             query += " AND status = %s"
             params.append(status_filter)
@@ -108,6 +116,7 @@ class TriProjects(BasePage):
         query += " ORDER BY created_at DESC"
 
         rows = self._execute_query(query, params, fetchall=True)
+
         if not rows:
             return pd.DataFrame()
 

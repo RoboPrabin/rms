@@ -11,7 +11,7 @@ GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
 login_animation_path = PROJECT_PATH + r"\assets\anim\login.json"
 otp_animation_path = PROJECT_PATH + r"\assets\anim\otp.json"
-
+sidebar_icon = PROJECT_PATH + r"\assets\img\com_logo.png"
 # Set expiry for 8 hours from now (60 sec * 60 min * 8)
 # session_expiry_time = int(time.time()) + (3600 * 8)
 # session_expiry_time = 30

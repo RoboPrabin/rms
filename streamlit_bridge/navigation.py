@@ -4,6 +4,14 @@ import streamlit as st
 # from app_state import is_logged_in, current_user, logout_user
 import streamlit_bridge.app_state as app_state
 from utils import auth_utils, page_url
+import base64
+from config import config
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+    
+
+
 
 def render_sidebar():
     """
@@ -13,7 +21,7 @@ def render_sidebar():
     if "active_menu" not in st.session_state:
         st.session_state.active_menu = None
 
-    
+    img_base64 = get_base64_image(config.sidebar_icon)
     user = st.session_state
     username= user['username']
     role= user['role']
@@ -44,74 +52,114 @@ def render_sidebar():
         }
         </style>
         """, unsafe_allow_html=True)
+    
     st.sidebar.markdown(
-            f"""
-        <style>
-        /* Container */
-        .circle-wrapper {{
-            position: relative;
-            width: 140px;
-            height: 140px;
-            margin: 0 auto;
-            margin-top: -30px !important;
+        f"""
+    <style>
+    .circle-wrapper {{
+        position: relative;
+        width: 140px;
+        height: 140px;
+        margin: 0 auto;
+        margin-top: -30px !important;
+    }}
 
-        }}
+    /* ── Static dim track ring ── */
+    .circle-wrapper::after {{
+        content: "";
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 148px;
+        height: 148px;
+        border-radius: 50%;
+        background: rgba(0,63,140,0.15);
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+        mask:         radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+        z-index: 0;
+    }}
 
-        /* Rotating Border */
-        .circle-wrapper::before {{
-            content: "";
-            position: absolute;
-            top: -3px;
-            left: -3px;
-            width: 146px;
-            height: 146px;
-            border-radius: 50%;
-            padding: 3px;
-            background: conic-gradient(#9e9b9e, #15522c ,#04b347);
-            -webkit-mask: 
-                radial-gradient(farthest-side, transparent calc(100% - 3px), black 0);
-            mask: 
-                radial-gradient(farthest-side, transparent calc(100% - 3px), black 0);
-            animation: spin 3s linear infinite;
-            z-index: 0;
-        }}
+    /* ── Spinning comet arc ── */
+    .circle-wrapper::before {{
+        content: "";
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 148px;
+        height: 148px;
+        border-radius: 50%;
+        background: conic-gradient(
+            from 0deg,
+            transparent         0deg,
+            transparent         260deg,
+            rgba(0,63,140,0.2)  275deg,
+            #24A148             300deg,
+            #F4F4F4             320deg,
+            #003F8C             340deg,
+            transparent         360deg
+        );
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+        mask:         radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+        animation: spin 3s linear infinite;
+        z-index: 1;
+    }}
 
-        /* Actual Image */
-        .circle-img {{
-            width: 140px;
-            height: 140px;
-            border-radius: 50%;
-            overflow: hidden;
-            position: relative;
-            z-index: 2;
-        }}
+    /* ── Image circle ── */
+    .circle-img {{
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        overflow: hidden;
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F4F4F4;
+        box-shadow: 0 0 0 2px rgba(0,63,140,0.15);
+    }}
 
-        @keyframes spin {{
-            from {{ transform: rotate(0deg); }}
-            to {{ transform: rotate(360deg); }}
-        }}
-        </style>
+    /* ── Shimmer overlay ── */
+    .circle-img::after {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: linear-gradient(
+            135deg,
+            rgba(244,244,244,0.18) 0%,
+            transparent 45%,
+            rgba(0,63,140,0.07) 100%
+        );
+        pointer-events: none;
+        z-index: 3;
+    }}
 
-        <div style='text-align:center; padding: 20px 0 10px 0;'>
-            <div class="circle-wrapper">
-                <div class="circle-img">
-                    <img src='https://trishakti.com.np/img/logo1.png' 
-                        width='110' 
-                        style='border-radius: 50%; display: block;margin-top:30px; margin-left:15px;' />
-                </div>
+    @keyframes spin {{
+        from {{ transform: rotate(0deg); }}
+        to   {{ transform: rotate(360deg); }}
+    }}
+    </style>
+
+    <div style='text-align:center; padding: 20px 0 10px 0;'>
+        <div class="circle-wrapper">
+            <div class="circle-img">
+                <img src="data:image/png;base64,{img_base64}"
+                    style="width: auto; height: auto; object-fit: contain;" />
             </div>
         </div>
+    </div>
 
-        <div style='text-align:center; margin:15px 0 25px; color:#444;'>
-            <div style='font-size:14px;font-weight: bold; color:#a6a6a6; margin-top:0px;'> 
-                <span style=''>{username.upper()}</span> | {role.upper()} <br> {branch}
-            </div>
+    <div style='text-align:center; margin:15px 0 25px; color:#444;'>
+        <div style='font-size:14px; font-weight:bold; color:#a6a6a6; margin-top:0px;'>
+            <span>{username.upper()}</span> | {role.upper()} <br> {branch}
         </div>
+    </div>
 
-        <hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #eee;'>
-        """,
-            unsafe_allow_html=True
-        )
+    <hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #eee;'>
+    """,
+        unsafe_allow_html=True
+    )
     
     # Not in use for some period
     # st.sidebar.page_link(page_url.live_holdings_url, label="‎‎ ‎ Live Holdings", icon="🔴")
