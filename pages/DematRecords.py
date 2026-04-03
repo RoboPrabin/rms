@@ -15,6 +15,12 @@ from pages.BasePage import BasePage
 
 
 
+@st.cache_data(show_spinner=True, ttl=3600)
+def fetch_demat_records_with_branch_df_cached():
+    df = db.fetch_demat_records_with_branch_df()
+    return df
+
+
 
 def get_renew_values():
     return {
@@ -28,14 +34,18 @@ def get_renew_values():
 class DematRecords(BasePage):
     def __init__(self):
         super().__init__()
-        # helper.eliminate_top_padding()
+        helper.eliminate_top_margin(margin_top="-6rem")
         st.session_state.active_menu = "kyc"
         st.set_page_config(page_title="Demat Records", page_icon="🧾", layout="wide")
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
-        st.header("🧾 Demat Records", anchor=False)
+       
+        col1, col2 = st.columns(2)
+        with col1:
+            st.header("🧾 Demat Records", anchor=False)
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("‎", icon="🚮", help="Clear Cache. This operation shows latest updated data."):
+                st.cache_data.clear()
+                st.rerun()
 
         render_sidebar()
         self.holding_engine = create_engine(helper.get_holding_engine())
@@ -178,56 +188,87 @@ class DematRecords(BasePage):
 
 
     def view_records(self):
-        df = db.fetch_demat_records_with_branch_df()
-        # Kathmandu sees everything, others see only their branch
+        df = fetch_demat_records_with_branch_df_cached()
+
         if self.branch != "KATHMANDU":
             df = df[df["Branch"] == self.branch]
-        
 
         if df.empty:
-            st.warning(f"Records not found.", icon="⚠️")
+            st.warning("Records not found.", icon="⚠️")
             st.stop()
-            
-        # print(df.columns)
-        # Filter
-        branches = ["All"] + df["Branch"].dropna().unique().tolist()
-        created_at = ["All"] + df["created_at_bs"].dropna().unique().tolist()
+
+        filtered_df = df.copy()
+
+        filter_options = {
+            "Branch": "Branch",
+            "Open By": "open_by",
+            "RM Name": "rm_name",
+            "Gateway": "gateway",
+            "Created At Bs": "created_at_bs"
+        }
+
         col1, col2 = st.columns(2)
+
         with col1:
-            filter_by_branch = st.selectbox("Filter by Branch", branches)
-        with col2:
-            filter_by_created_at = st.selectbox("Filter by Created Date", created_at)
+            selected_filter_label = st.selectbox(
+                "Filter By",
+                ["All"] + list(filter_options.keys()),
+                index=0
+            )
 
-        if filter_by_branch != "All":
-            df = df[df["Branch"] == filter_by_branch]
+        if selected_filter_label != "All":
+            selected_filter_column = filter_options[selected_filter_label]
 
-        df.drop(columns=['id', 'created_at', 'updated_at', 'updated_by'], inplace=True, errors="ignore")
-        df = df.rename(columns=helper.camel_to_title)
-        df.index = df.index + 1
+            with col2:
+                filter_values = (
+                    filtered_df[selected_filter_column]
+                    .replace({None: "None"})     # optional (covers explicit None)
+                    .fillna("None")              # 👈 main fix for NaN
+                    .astype(str)
+                    .sort_values()
+                    .unique()
+                    .tolist()
+                )
 
-        st.badge(f"Total: {len(df):,.2f}", color='green')
+                selected_filter_value = st.selectbox(
+                    f"Select {selected_filter_label}",
+                    ["All"] + filter_values,
+                    index=0
+                )
 
-        # ---------- Dataframe with selection ----------
-        st.dataframe(
-            df,
-            selection_mode='single-row',
-            width='stretch',
-            key='demat_record',
-            on_select='rerun'
+            if selected_filter_value != "All":
+                if selected_filter_value == "None":
+                    filtered_df = filtered_df[filtered_df[selected_filter_column].isna()]
+                else:
+                    filtered_df = filtered_df[
+                        filtered_df[selected_filter_column].astype(str) == selected_filter_value
+                    ]
+
+        filtered_df = filtered_df.drop(
+            columns=["id", "created_at", "updated_at", "updated_by"],
+            errors="ignore"
         )
 
-        # Get the selected row index from session_state
-        # selected_indices = st.session_state.get("demat_record", {}).get("selected_rows", [])
+        filtered_df = filtered_df.rename(columns=helper.camel_to_title)
+        filtered_df.index = filtered_df.index + 1
+
+        st.badge(f"Total: {len(filtered_df):,}", color="green")
+
+        st.dataframe(
+            filtered_df,
+            selection_mode="single-row",
+            width="stretch",
+            key="demat_record",
+            on_select="rerun",
+            hide_index=True
+        )
 
         selection = st.session_state.get("demat_record", {}).get("selection", {})
         selected_rows = selection.get("rows", [])
 
         if selected_rows:
             selected_index = selected_rows[0]
-
-            # Fetch raw row (zero-based index)
-            selected_row = df.iloc[selected_index].to_dict()
-
+            selected_row = filtered_df.iloc[selected_index].to_dict()
             self.edit_record_dialog(selected_row)
 
 
