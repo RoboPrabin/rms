@@ -109,11 +109,6 @@ class LoginPage(BasePage):
                 st.write("✅ Redirecting...")
                 # st.write("✅ Creating secure session...")
                 create_session(db_username, sid=encrypted_token)
-                # Step 4: Finalize
-                time.sleep(0.8)
-
-        # Clear the status UI and move to OTP page
-        # status_placeholder.empty()
         st.switch_page(page_url.otp_url)
         st.stop()
 

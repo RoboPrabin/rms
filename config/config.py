@@ -1,23 +1,26 @@
 from pathlib import Path
 import time
-# PROJECT_PATH = r"D:\Trishakti\Projects\RPA\rms"
-# chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
-# GALLERY_PATH = r"D:\Trishakti_Gallery"
 
-PROJECT_PATH = r"E:\Trishakti\Projects\rms"
-chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
-GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
+
+PROFILE = "PROD"
+# PROFILE = "DEV"
+
+if PROFILE == "PROD":
+    PROJECT_PATH = r"E:\Trishakti\Projects\rms"
+    chrome_profile_bot_dg = r"E:\Trishakti\ChromeProfileBot"
+    GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
+
+else:
+    PROJECT_PATH = r"D:\Trishakti\Projects\RPA\rms"
+    chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
+    GALLERY_PATH = r"D:\Trishakti_Gallery"
 
 
 login_animation_path = PROJECT_PATH + r"\assets\anim\login.json"
 otp_animation_path = PROJECT_PATH + r"\assets\anim\otp.json"
 sidebar_icon = PROJECT_PATH + r"\assets\img\com_logo.png"
-# Set expiry for 8 hours from now (60 sec * 60 min * 8)
-# session_expiry_time = int(time.time()) + (3600 * 8)
-# session_expiry_time = 30
-# session_expiry_time = 28800   #8 hours
+
 session_expiry_time = 18000   # 5 hours
-# session_expiry_time = int(time.time()) + 20
 
 # ---------------- CONFIG ----------------
 dg_api_userName = "tri-api"

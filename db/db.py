@@ -23,51 +23,121 @@ def get_connection():
     )
 
 
-
 def fetch_category_client_data():
     query = """
-    WITH has_after AS (
-        SELECT 1
-        FROM due_list
-        WHERE updated_at::date = CURRENT_DATE
-          AND updated_at::time > TIME '12:00:00'
-        LIMIT 1
-    )
-    SELECT 
-        crm."rmName" AS RM,
-        COUNT(DISTINCT crm."clientCode") AS "TOTAL CLIENTS",
-        SUM(CASE WHEN crm.category = 'CASH' THEN crm.adjustedBalance ELSE 0 END) AS CASH,
-        SUM(CASE WHEN crm.category = 'T+2' THEN crm.adjustedBalance ELSE 0 END) AS "T+2",
-        SUM(CASE WHEN crm.category = 'DUE' THEN crm.adjustedBalance ELSE 0 END) AS DUE,
-        SUM(CASE WHEN crm.category = 'MTF' THEN crm.adjustedBalance ELSE 0 END) AS MTF,
-        SUM(CASE WHEN crm.category IS NULL THEN crm.adjustedBalance ELSE 0 END) AS UNCATEGORIZED,
-        SUM(crm.adjustedBalance) AS "TOTAL ADJUSTED BALANCE"
-    FROM (
-        SELECT 
-            crm.*,
-            COALESCE(dl."adjustedBalance", 0) AS adjustedBalance
+        WITH due_list_parsed AS (
+            SELECT
+                *,
+                TO_TIMESTAMP("uploaded_at", 'YYYY-MM-DD HH12:MI:SS AM') AS uploaded_at_ts
+            FROM due_list
+            WHERE "uploaded_at" IS NOT NULL
+              AND TRIM("uploaded_at") <> ''
+        ),
+        due_list_filtered AS (
+            SELECT *
+            FROM due_list_parsed
+            WHERE uploaded_at_ts::date = CURRENT_DATE
+              AND (
+                    (
+                        EXISTS (
+                            SELECT 1
+                            FROM due_list_parsed
+                            WHERE uploaded_at_ts::date = CURRENT_DATE
+                              AND uploaded_at_ts::time > TIME '12:00:00'
+                        )
+                        AND uploaded_at_ts::time > TIME '12:00:00'
+                    )
+                    OR
+                    (
+                        NOT EXISTS (
+                            SELECT 1
+                            FROM due_list_parsed
+                            WHERE uploaded_at_ts::date = CURRENT_DATE
+                              AND uploaded_at_ts::time > TIME '12:00:00'
+                        )
+                    )
+              )
+        ),
+        latest_due_list AS (
+            SELECT DISTINCT ON ("clientCode")
+                "clientCode",
+                "adjustedBalance",
+                "uploaded_at",
+                uploaded_at_ts
+            FROM due_list_filtered
+            ORDER BY "clientCode", uploaded_at_ts DESC
+        )
+        SELECT
+            crm."rmName",
+            crm."rmFullName",
+            crm."clientName",
+            crm."clientCode",
+            crm."category",
+            crm."trading_limit",
+            COALESCE(ldl."adjustedBalance", 0) AS "adjustedBalance",
+            ldl."uploaded_at" AS "due_uploaded_at",
+            ldl.uploaded_at_ts AS "due_uploaded_at_ts"
         FROM client_rm_map crm
-        LEFT JOIN due_list dl
-            ON crm."clientCode" = dl."clientCode"
-           AND dl.updated_at::date = CURRENT_DATE
-           AND (
-                (EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time > TIME '12:00:00')
-             OR (NOT EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time < TIME '12:00:00')
-           )
-    ) crm
-    GROUP BY crm."rmName"
-    ORDER BY crm."rmName";
+        LEFT JOIN latest_due_list ldl
+            ON crm."clientCode" = ldl."clientCode";
     """
 
     conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute(query)
-        results = cur.fetchall()  # list of DictRow objects
-    conn.close()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            results = cur.fetchall()
+            columns = [desc.name for desc in cur.description]
 
-    # Convert to DataFrame for Streamlit display
-    df = pd.DataFrame(results, columns=[desc.name for desc in cur.description])
-    return df
+        return pd.DataFrame(results, columns=columns)
+
+    finally:
+        conn.close()
+
+# def fetch_category_client_data():
+#     query = """
+#     WITH has_after AS (
+#         SELECT 1
+#         FROM due_list
+#         WHERE updated_at::date = CURRENT_DATE
+#           AND updated_at::time > TIME '12:00:00'
+#         LIMIT 1
+#     )
+#     SELECT 
+#         crm."rmName" AS RM,
+#         COUNT(DISTINCT crm."clientCode") AS "TOTAL CLIENTS",
+#         SUM(CASE WHEN crm.category = 'CASH' THEN crm.adjustedBalance ELSE 0 END) AS CASH,
+#         SUM(CASE WHEN crm.category = 'T+2' THEN crm.adjustedBalance ELSE 0 END) AS "T+2",
+#         SUM(CASE WHEN crm.category = 'DUE' THEN crm.adjustedBalance ELSE 0 END) AS DUE,
+#         SUM(CASE WHEN crm.category = 'MTF' THEN crm.adjustedBalance ELSE 0 END) AS MTF,
+#         SUM(CASE WHEN crm.category IS NULL THEN crm.adjustedBalance ELSE 0 END) AS UNCATEGORIZED,
+#         SUM(crm.adjustedBalance) AS "TOTAL ADJUSTED BALANCE"
+#     FROM (
+#         SELECT 
+#             crm.*,
+#             COALESCE(dl."adjustedBalance", 0) AS adjustedBalance
+#         FROM client_rm_map crm
+#         LEFT JOIN due_list dl
+#             ON crm."clientCode" = dl."clientCode"
+#            AND dl.updated_at::date = CURRENT_DATE
+#            AND (
+#                 (EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time > TIME '12:00:00')
+#              OR (NOT EXISTS (SELECT 1 FROM has_after) AND dl.updated_at::time < TIME '12:00:00')
+#            )
+#     ) crm
+#     GROUP BY crm."rmName"
+#     ORDER BY crm."rmName";
+#     """
+
+#     conn = get_connection()
+#     with conn.cursor() as cur:
+#         cur.execute(query)
+#         results = cur.fetchall()  # list of DictRow objects
+#     conn.close()
+
+#     # Convert to DataFrame for Streamlit display
+#     df = pd.DataFrame(results, columns=[desc.name for desc in cur.description])
+#     return df
 
 
 

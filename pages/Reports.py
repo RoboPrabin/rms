@@ -5,11 +5,237 @@ from db import db
 from utils import auth_utils, helper
 from pages.BasePage import BasePage
 
-
-@st.cache_data(ttl=3600)
-def get_cached_categorized_client_data():
+st.cache_data(ttl=600)
+def get_category_client_data_cached():
     df = db.fetch_category_client_data()
     return df
+
+def prepare_due_dataframe(df_raw: pd.DataFrame) -> pd.DataFrame:
+    df = df_raw.copy()
+
+    df["rmName"] = df["rmName"].fillna("Unknown")
+    df["clientName"] = df["clientName"].fillna("")
+    df["clientCode"] = df["clientCode"].fillna("")
+    df["adjustedBalance"] = pd.to_numeric(df["adjustedBalance"], errors="coerce").fillna(0)
+
+    # Null / blank category => UNCATEGORIZED
+    df["category"] = df["category"].fillna("").astype(str).str.strip()
+    df["category"] = df["category"].replace("", "UNCATEGORIZED")
+
+    # Keep only clients with due
+    # df = df[df["adjustedBalance"] > 0].copy()
+
+    return df
+
+
+def build_rm_due_summary(df_raw: pd.DataFrame) -> pd.DataFrame:
+    df = prepare_due_dataframe(df_raw)
+
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "rmName",
+                "CASH",
+                "T+2",
+                "DUE",
+                "MTF",
+                "UNCATEGORIZED",
+                "Adjusted Balance",
+                "total_client",
+            ]
+        )
+
+    summary = (
+        df.pivot_table(
+            index="rmName",
+            columns="category",
+            values="adjustedBalance",
+            aggfunc="sum",
+            fill_value=0,
+        )
+        .reset_index()
+    )
+
+    summary.columns.name = None
+
+    expected_categories = ["CASH", "T+2", "DUE", "MTF", "UNCATEGORIZED"]
+    for col in expected_categories:
+        if col not in summary.columns:
+            summary[col] = 0
+
+    total_clients_df = (
+        df.groupby("rmName", as_index=False)["clientCode"]
+        .nunique()
+        .rename(columns={"clientCode": "total_client"})
+    )
+
+    summary = summary.merge(total_clients_df, on="rmName", how="left")
+
+    summary["Adjusted Balance"] = (
+        summary["CASH"]
+        + summary["T+2"]
+        + summary["DUE"]
+        + summary["MTF"]
+        + summary["UNCATEGORIZED"]
+    )
+
+    summary["total_client"] = summary["total_client"].fillna(0).astype(int)
+
+    summary = summary[
+        [
+            "rmName",
+            "CASH",
+            "T+2",
+            "DUE",
+            "MTF",
+            "UNCATEGORIZED",
+            "Adjusted Balance",
+            "total_client",
+        ]
+    ].sort_values(by="Adjusted Balance", ascending=False).reset_index(drop=True)
+
+    return summary
+
+
+def get_rm_detail_data(df_raw: pd.DataFrame, rm_name: str):
+    df = prepare_due_dataframe(df_raw)
+    df_rm = df[df["rmName"] == rm_name].copy()
+
+    if df_rm.empty:
+        empty_clients = pd.DataFrame(
+            columns=["clientName", "clientCode", "category", "adjustedBalance"]
+        )
+        empty_category = pd.DataFrame(
+            {
+                "Category": ["CASH", "T+2", "DUE", "MTF", "UNCATEGORIZED"],
+                "Due Amount": [0, 0, 0, 0, 0],
+                "Client Count": [0, 0, 0, 0, 0],
+            }
+        )
+        return empty_clients, empty_category, 0, 0, {
+            "CASH": 0,
+            "T+2": 0,
+            "DUE": 0,
+            "MTF": 0,
+            "UNCATEGORIZED": 0,
+        }
+
+    client_df = (
+        df_rm.groupby(
+            ["clientName", "clientCode", "category"], as_index=False
+        )["adjustedBalance"]
+        .sum()
+        .sort_values(by=["category", "adjustedBalance"], ascending=[True, False])
+        .reset_index(drop=True)
+    )
+
+    category_amount_df = (
+        df_rm.groupby("category", as_index=False)["adjustedBalance"]
+        .sum()
+        .rename(columns={"category": "Category", "adjustedBalance": "Due Amount"})
+    )
+
+    category_count_df = (
+        df_rm.groupby("category")["clientCode"]
+        .nunique()
+        .reset_index()
+        .rename(columns={"category": "Category", "clientCode": "Client Count"})
+    )
+
+    category_df = category_amount_df.merge(category_count_df, on="Category", how="outer")
+
+    expected_categories = ["CASH", "T+2", "DUE", "MTF", "UNCATEGORIZED"]
+    category_df = (
+        category_df.set_index("Category")
+        .reindex(expected_categories, fill_value=0)
+        .reset_index()
+    )
+
+    total_due_clients = df_rm["clientCode"].nunique()
+    total_due_amount = df_rm["adjustedBalance"].sum()
+
+    count_map = {
+        row["Category"]: int(row["Client Count"])
+        for _, row in category_df.iterrows()
+    }
+
+    return client_df, category_df, total_due_clients, total_due_amount, count_map
+
+
+@st.dialog("BRO Category-wise Insights", width="large", icon="📊")
+def show_rm_due_dialog(df_raw: pd.DataFrame, rm_name: str):
+    client_df, category_df, total_due_clients, total_due_amount, count_map = get_rm_detail_data(df_raw, rm_name)
+
+    st.subheader(f"BRO: {rm_name}")
+
+    col1, col2 = st.columns(2)
+    col1.metric("Total Clients Tagged", f"{total_due_clients:,}")
+    col2.metric("Total Due Amount", f"{total_due_amount:,.2f}")
+    st.divider()
+    st.markdown("### Category-wise Client Count")
+    if count_map.get("UNCATEGORIZED", 0) > 0:
+        c1, c2, c3, c4, c5 = st.columns(5)
+    else:
+        c1, c2, c3, c4 = st.columns(4)
+    c1.metric("CASH", count_map.get("CASH", 0))
+    c2.metric("T+2", count_map.get("T+2", 0))
+    c3.metric("DUE", count_map.get("DUE", 0))
+    c4.metric("MTF", count_map.get("MTF", 0))
+    if count_map.get("UNCATEGORIZED", 0) > 0:
+        c5.metric("UNCATEGORIZED", count_map.get("UNCATEGORIZED", 0))
+
+    st.markdown("### Category-wise Due Summary")
+    category_df['Due Amount'] = category_df['Due Amount'].apply(lambda x: f"{x:,.2f}")
+    category_df['Client Count'] = category_df['Client Count'].apply(lambda x: f"{x:,}")
+    category_df.rename(columns={"Due Amount": "ADJUSTED DUE BALANCE", "Client Count": "CLIENT COUNT", "Category":"CATEGORY"}, inplace=True)
+    category_df.reset_index(drop=True, inplace=True)
+    category_df.index += 1
+    st.dataframe(category_df, width="stretch")
+
+    st.markdown("### Client-wise Due Detail")
+    # Category filter with default ALL
+    categories = sorted(client_df["category"].dropna().unique().tolist())
+    filter_options = ["ALL"] + categories
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_category = st.selectbox(
+            "Filter by Category",
+            options=filter_options,
+            index=0
+        )
+
+    # Apply filter
+    filtered_df = client_df.copy()
+    if selected_category != "ALL":
+        filtered_df = filtered_df[filtered_df["category"] == selected_category]
+
+    # Format for display
+    filtered_df = filtered_df.sort_values(by="adjustedBalance", ascending=False).reset_index(drop=True)
+    filtered_df["adjustedBalance"] = filtered_df["adjustedBalance"].apply(lambda x: f"{x:,.2f}")
+    filtered_df.index += 1
+    filtered_df.rename(columns={"adjustedBalance": "ADJUSTED DUE BALANCE", "category": "CATEGORY", 
+                                "clientName": "CLIENT NAME", "clientCode": "CLIENT CODE"}, inplace=True)
+
+    st.badge(f"Total clients in view: {len(filtered_df):,.2f}")
+    st.dataframe(filtered_df, width="stretch")
+
+
+def format_due_summary(df: pd.DataFrame) -> pd.DataFrame:
+    formatted = df.copy()
+    money_cols = ["CASH", "T+2", "DUE", "MTF", "UNCATEGORIZED", "Adjusted Balance"]
+
+    for col in money_cols:
+        formatted[col] = pd.to_numeric(formatted[col], errors="coerce").fillna(0).map(lambda x: f"{x:,.2f}")
+
+    formatted["total_client"] = pd.to_numeric(
+        formatted["total_client"], errors="coerce"
+    ).fillna(0).astype(int)
+
+    return formatted
+
+
+
+
 
 class Reports(BasePage):
     def __init__(self):
@@ -17,10 +243,11 @@ class Reports(BasePage):
         if 'page_config_set' not in st.session_state:
             st.set_page_config(page_title="Reports", page_icon="📂", layout="wide")
             st.session_state.page_config_set = True
-            
+        
         st.session_state.active_menu = "business"        
         helper.eliminate_top_margin("-4rem")
         st.header("📂 Reports", anchor=False)
+        
         render_sidebar()
 
     @st.cache_data(ttl=600)
@@ -176,7 +403,7 @@ class Reports(BasePage):
 
     def render_page(self):
         col1, col2, col3 = st.columns(3)
-        report_options = ['Categorized Adjusted Balance' ,
+        report_options = ['Categorized Adjusted Due Balance' ,
                           'TMS Limit','Branch Turnover' , 
                           'EDIS Call', 'Others', 'None']
         with col1:
@@ -186,41 +413,51 @@ class Reports(BasePage):
                 self.tms_limit_ui(col2, col3)
             elif selected_type == 'Branch Turnover':
                 self.branch_turnover_ui(col2, col3)
-            elif selected_type == 'Categorized Adjusted Balance':
-                df_raw = get_cached_categorized_client_data()
-                df_raw.columns = df_raw.columns.str.upper()
-                df_raw.rename(columns={'RM': 'BRO'}, inplace=True)
+            
+            
+            # ---------------------------------------------------
+            # Streamlit UI
+            # ---------------------------------------------------
+            elif selected_type == "Categorized Adjusted Due Balance":
+                df_raw = get_category_client_data_cached()
+                latest_update = df_raw["due_uploaded_at_ts"].dropna().max()
+                df_summary = build_rm_due_summary(df_raw).copy()
 
-                # Calculate totals for all numeric columns except BRO
-                totals = {}
-                for col in df_raw.columns:
-                    if col != "BRO":
-                        if pd.api.types.is_numeric_dtype(df_raw[col]):
-                            totals[col] = df_raw[col].sum()
-                        else:
-                            totals[col] = None
-                    else:
-                        totals[col] = "Total"
+                display_df = df_summary.copy()
 
-                # Append the totals row
-                df_raw = pd.concat([df_raw, pd.DataFrame([totals])], ignore_index=True)
+                display_df.rename(columns={
+                    "rmName": "BRO",
+                    "Adjusted Balance": "ADJUSTED DUE BALANCE",
+                    "total_client": "TOTAL CLIENTS"
+                }, inplace=True)
 
-                # Now apply formatting (commas, decimals) to all except BRO
-                for col in df_raw.columns:
-                    if col != "BRO":
-                        df_raw[col] = df_raw[col].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) and isinstance(x,(int,float)) else x)
+                display_df.sort_values(by="ADJUSTED DUE BALANCE", ascending=False, inplace=True)
+                display_df.reset_index(drop=True, inplace=True)
 
-                # Reset index for display
-                df_raw.index += 1
+                # display_df["TOTAL CLIENTS"] = display_df["TOTAL CLIENTS"].apply(lambda x: f"{x:,}")
+                money_cols = ["CASH", "T+2", "DUE", "MTF", "UNCATEGORIZED", "ADJUSTED DUE BALANCE", "TOTAL CLIENTS"]
+                for col in money_cols:
+                    display_df[col] = display_df[col].apply(lambda x: f"{x:,.2f}")
+                col1, col2 = st.columns([1, 6])
+                with col1:
+                    st.badge(f"Total BROs: {len(display_df):,.0f}", color='green')
+                with col2:
+                    st.badge(f"Last Updated Due List: {latest_update.strftime('%Y-%m-%d %I:%M:%S %p') if pd.notna(latest_update) else 'N/A'}", color='blue')
+                selected = st.dataframe(
+                    display_df,
+                    width="stretch",
+                    hide_index=True,
+                    key="category_dues",
+                    on_select="rerun",
+                    selection_mode="single-row",
+                )
 
-                # Show in Streamlit 
-                df_raw.index = df_raw.index[:-1].tolist() + [""]
-                st.dataframe(df_raw, width='stretch')
+                selected_rows = selected.get("selection", {}).get("rows", [])
 
-                # st.write("### Totals")
-                # st.table(df_raw.tail(1))   # show only the last row separately
-
-
+                if selected_rows:
+                    selected_idx = selected_rows[0]
+                    selected_rm = display_df.iloc[selected_idx]["BRO"]
+                    show_rm_due_dialog(df_raw, selected_rm)
 
 if __name__ == "__main__":
     Reports().render_page()

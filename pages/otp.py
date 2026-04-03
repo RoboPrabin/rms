@@ -67,7 +67,7 @@ class OTPPage:
             if submit:
                 if verify_user_otp(st.session_state.username, otp):
                     st.success("OTP verified successfully!", icon="✅")
-                    time.sleep(0.5)
+                    time.sleep(0.3)
                     if st.session_state.role == "USER":
                         st.switch_page(page_url.book_closure_url)
                     else:

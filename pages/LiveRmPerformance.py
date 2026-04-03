@@ -90,21 +90,24 @@ def get_city_code(full_name: str) -> str:
     # Convert input to uppercase to make it case-insensitive
     return city_map.get(full_name.upper(), "Unknown")
 
-
+@st.fragment(run_every="1s")
+def live_clock():
+    now = datetime.now()
+    formatted_time = now.strftime("%I:%M:%S %p")  # 12-hour with seconds
+    st.badge(formatted_time, color="green", icon="⌚")
+    # st.markdown(
+        # f"<h1 style='text-align: center;'>{formatted_time}</h1>",
+        # unsafe_allow_html=True
+    # )
 
 # ---------- App ----------
 class Uarf(BasePage):
     def __init__(self):
         super().__init__()
         # helper.eliminate_top_padding(padding_top="-90rem")
-        helper.eliminate_top_margin("-12rem")
+        helper.eliminate_top_margin("-10rem")
         st.session_state.active_menu = "rm"
         st.set_page_config("Live RM Performance", page_icon="🟢", layout="wide")
-
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
         navigation.render_sidebar()
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
@@ -390,7 +393,6 @@ class Uarf(BasePage):
         statuses =  [s for s in df["activeStatus"].dropna().unique().tolist()]
         # statuses = ["All"] + [s for s in df["activeStatus"].dropna().unique().tolist() if s != "COMPLETED"]
         selected_status = st.radio("Filter by Active Status:", options=statuses, horizontal=True)
-
         # Filter dataframe
         if selected_status == "All":
             filtered_df = df
@@ -541,6 +543,7 @@ class Uarf(BasePage):
             horizontal=True
         )
 
+        live_clock()
         st.markdown("---")
         if view_option == "Trade Book":
             self.show_trade_book()

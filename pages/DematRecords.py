@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 from nepali_datetime import date as nepali_date
 from time import sleep
@@ -365,13 +365,183 @@ class DematRecords(BasePage):
                 st.error(f"Something went wrong. Please contact IT.")
     
     def render_page(self):
-        mode = st.radio("Mode", ['Entry', 'View/Edit', 'File Upload'], horizontal=True)
+        mode = st.radio("Mode", ['Entry', 'View/Edit', 'File Upload', 'Bulk Update (Client Code)'], horizontal=True)
         if mode == "Entry":
             self.entry_ui()
         elif mode=='View/Edit':
             self.view_records()
         elif mode == 'File Upload':
             self.file_upload()
+        elif mode == 'Bulk Update (Client Code)':
+            self.bulk_update_client_code()
+    
+    def bulk_update_client_code(self):
+        st.caption("*Note: Make sure your file has BOID and CLIENT CODE columns.")
+
+        uploaded_file = st.file_uploader(
+            label="Upload file",
+            type=["xlsx"],
+            accept_multiple_files=False
+        )
+
+        if not uploaded_file:
+            return
+
+        try:
+            df = pd.read_excel(uploaded_file, dtype=str)
+        except Exception as e:
+            st.error(f"Failed to read Excel file: {e}")
+            return
+
+        # Normalize column names to avoid silly user-side formatting drama
+        df.columns = [str(col).strip().upper() for col in df.columns]
+
+        required_columns = {"BOID", "CLIENT CODE"}
+        missing_columns = required_columns - set(df.columns)
+
+        if missing_columns:
+            st.error(
+                f"Required column(s) missing: {', '.join(sorted(missing_columns))}"
+            )
+            return
+
+        working_df = df[["BOID", "CLIENT CODE"]].copy().fillna("")
+        working_df = working_df.apply(lambda col: col.astype(str).str.strip())
+        working_df = working_df.replace("nan", "")
+        working_df["BOID"] = working_df["BOID"].str.replace(r"\.0$", "", regex=True)
+        working_df["CLIENT CODE"] = working_df["CLIENT CODE"].str.replace(r"\.0$", "", regex=True)
+
+        working_df = working_df[
+            (working_df["BOID"] != "") | (working_df["CLIENT CODE"] != "")
+        ].reset_index(drop=True)
+
+        st.subheader("Review and edit uploaded data", anchor=False)
+        st.badge(f"Total rows: {len(working_df):,.0f}", color='green')
+        edited_df = st.data_editor(
+            working_df,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            key="bulk_update_editor"
+        )
+
+        if st.button("Update Client Code", icon="🚀"):
+            self._process_bulk_client_code_update(edited_df)
+
+    def _process_bulk_client_code_update(self, edited_df: pd.DataFrame):
+        if edited_df.empty:
+            st.warning("No data available to update.")
+            return
+
+        # Clean edited data again before DB work
+        df = edited_df.copy()
+        df.columns = [str(col).strip().upper() for col in df.columns]
+        df["BOID"] = df["BOID"].astype(str).str.strip()
+        df["CLIENT CODE"] = df["CLIENT CODE"].astype(str).str.strip()
+
+        # Remove completely blank rows
+        df = df[
+            (df["BOID"].ne("")) &
+            (df["CLIENT CODE"].ne("")) &
+            (~df["BOID"].str.lower().eq("nan")) &
+            (~df["CLIENT CODE"].str.lower().eq("nan"))
+        ].copy()
+
+        if df.empty:
+            st.warning("No valid rows found after cleaning the edited data.")
+            return
+
+        # Optional: de-duplicate by BOID, keeping last edited value
+        df = df.drop_duplicates(subset=["BOID"], keep="last").reset_index(drop=True)
+
+        conn = None
+        cursor = None
+
+        updated_rows = 0
+        not_found_rows = []
+
+        try:
+            conn = db.get_connection()   # your psycopg2 connection
+            cursor = conn.cursor()
+
+            uploaded_boids = df["BOID"].tolist()
+
+            # Fetch existing BOIDs once -> much faster than row-by-row select
+            cursor.execute(
+                """
+                SELECT boid
+                FROM demat_records
+                WHERE boid = ANY(%s)
+                """,
+                (uploaded_boids,)
+            )
+
+            existing_boids = {str(row[0]).strip() for row in cursor.fetchall()}
+
+            rows_to_update = []
+            for _, row in df.iterrows():
+                boid = row["BOID"]
+                client_code = row["CLIENT CODE"]
+
+                if boid in existing_boids:
+                    rows_to_update.append((client_code, boid))
+                else:
+                    not_found_rows.append({
+                        "BOID": boid,
+                        "CLIENT CODE": client_code,
+                        "REMARK": "BOID not found in demat_records"
+                    })
+
+            if rows_to_update:
+                cursor.executemany(
+                    """
+                    UPDATE demat_records
+                    SET client_code = %s
+                    WHERE boid = %s
+                    """,
+                    rows_to_update
+                )
+                updated_rows = cursor.rowcount
+
+            conn.commit()
+
+            st.success(f"Update completed. Total updated rows: {updated_rows}")
+
+            if not_found_rows:
+                not_found_df = pd.DataFrame(not_found_rows)
+                missing_count = len(not_found_rows)
+
+                st.warning(f"{missing_count} BOID(s) were not found.")
+
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                    not_found_df.to_excel(writer, index=False, sheet_name="Not Found BOIDs")
+                output.seek(0)
+
+                file_name = f"missing_boids_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+                st.download_button(
+                    label=f"Download Missing BOIDs ({missing_count})",
+                    data=output,
+                    file_name=file_name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+                st.dataframe(not_found_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("All BOIDs were found and processed successfully.")
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            st.error(f"Bulk update failed: {e}")
+
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
     
     def download_template(self):
         # Create empty DataFrame with required columns
