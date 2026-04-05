@@ -1,4 +1,5 @@
 # navigation.py
+from datetime import datetime
 import time
 import streamlit as st
 # from app_state import is_logged_in, current_user, logout_user
@@ -10,6 +11,26 @@ def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
     
+
+
+@st.fragment(run_every="1s")
+def live_clock():
+    now = datetime.now()
+    formatted_time = now.strftime("%I:%M:%S %p")
+    st.markdown(
+        f"<div style='font-size:14px; font-weight:bold; color:#a6a6a6; text-align:center;margin-top:-32px;'>{formatted_time}</div>",
+        unsafe_allow_html=True
+    )
+
+
+# def live_clock():
+#     now = datetime.now()
+#     formatted_time = now.strftime("%I:%M:%S %p")  # 12-hour with seconds
+#     st.badge(formatted_time, color="green", icon="⌚")
+#     # st.markdown(
+#         # f"<h1 style='text-align: center;'>{formatted_time}</h1>",
+#         # unsafe_allow_html=True
+#     # )
 
 
 
@@ -156,11 +177,25 @@ def render_sidebar():
         </div>
     </div>
 
-    <hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #eee;'>
     """,
         unsafe_allow_html=True
     )
-    
+
+        # Clock directly below branch
+    with st.sidebar:
+        live_clock()   # renders the badge centered
+
+    # Divider line
+    # st.sidebar.markdown(
+    #     "<hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #e3e4e6;'>",
+    #     unsafe_allow_html=True
+    # )
+    # Divider line
+    st.sidebar.markdown(
+        "<hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #bfbfbf;'>",
+        unsafe_allow_html=True
+    )
+        
     # Not in use for some period
     # st.sidebar.page_link(page_url.live_holdings_url, label="‎‎ ‎ Live Holdings", icon="🔴")
     # st.sidebar.page_link(page_url.manager_summary_url, label="‎‎ ‎ Manager Summary", icon="👨‍💼")
@@ -178,16 +213,16 @@ def render_sidebar():
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
 
     if role == "ADMIN":
-        # # Inside your dashboard
-        if st.session_state.get("expiry"):
-            # remaining = st.session_state.expiry - int(time.time())
-            # st.sidebar.write(f"Session ends in: {remaining}s")
-            remaining = st.session_state.expiry - int(time.time())
+        # # # Inside your dashboard
+        # if st.session_state.get("expiry"):
+        #     # remaining = st.session_state.expiry - int(time.time())
+        #     # st.sidebar.write(f"Session ends in: {remaining}s")
+        #     remaining = st.session_state.expiry - int(time.time())
 
-            if remaining > 0:
-                st.sidebar.write(f"Session expires in: {remaining}s")
-            else:
-                st.sidebar.write("Session expired ❌")
+        #     if remaining > 0:
+        #         st.sidebar.write(f"Session expires in: {remaining}s")
+        #     else:
+        #         st.sidebar.write("Session expired ❌")
 
 
         st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")

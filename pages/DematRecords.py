@@ -34,7 +34,7 @@ def get_renew_values():
 class DematRecords(BasePage):
     def __init__(self):
         super().__init__()
-        helper.eliminate_top_margin(margin_top="-6rem")
+        helper.eliminate_top_margin(margin_top="-4rem")
         st.session_state.active_menu = "kyc"
         st.set_page_config(page_title="Demat Records", page_icon="🧾", layout="wide")
        

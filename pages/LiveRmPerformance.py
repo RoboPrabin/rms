@@ -90,16 +90,6 @@ def get_city_code(full_name: str) -> str:
     # Convert input to uppercase to make it case-insensitive
     return city_map.get(full_name.upper(), "Unknown")
 
-@st.fragment(run_every="1s")
-def live_clock():
-    now = datetime.now()
-    formatted_time = now.strftime("%I:%M:%S %p")  # 12-hour with seconds
-    st.badge(formatted_time, color="green", icon="⌚")
-    # st.markdown(
-        # f"<h1 style='text-align: center;'>{formatted_time}</h1>",
-        # unsafe_allow_html=True
-    # )
-
 # ---------- App ----------
 class Uarf(BasePage):
     def __init__(self):
@@ -543,7 +533,6 @@ class Uarf(BasePage):
             horizontal=True
         )
 
-        live_clock()
         st.markdown("---")
         if view_option == "Trade Book":
             self.show_trade_book()
