@@ -678,14 +678,14 @@ class DPM3(BasePage):
                             col1, col2 = st.columns(2)
                             with col1:
                                 st.metric(
-                                    "ℹ️ Total Valuation",
+                                    "ℹ️ Overall Valuation",
                                     value=f"Rs. {self.total_valuation_all:,.2f}",
                                     border=True,
                                     width='content'
                                 )
                             with col2:
                                 st.metric(
-                                    "🔖 Total Scripts",
+                                    "🔖 Overall Scripts",
                                     value=f"{self.total_scripts_all:,.2f}",
                                     border=True,
                                     width='content'
@@ -709,7 +709,7 @@ class DPM3(BasePage):
                             df_onhold['TOTAL VALUATION'] = df_onhold['TOTAL VALUATION'].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                             st.dataframe(df_onhold, width='stretch')
 
-                    st.divider()
+                            st.divider()
                     # 🔹 Current Holdings section
                     st.subheader("🟢 Current Holdings", anchor=False)                
                     col3, col4, col5, col6 = st.columns(4)
