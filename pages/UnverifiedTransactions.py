@@ -79,7 +79,7 @@ class UnverifiedTransactions(BasePage):
     def __init__(self):
         super().__init__()
         # helper.eliminate_top_padding()
-        st.session_state.active_menu = "business"
+        st.session_state.active_menu = "account"
         st.set_page_config(page_title="Unverified Transactions", page_icon="⚠️", layout="wide")
         # user = auth_utils.ensure_logged_in()
         # self.username= user['username']

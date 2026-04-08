@@ -182,8 +182,8 @@ def render_sidebar():
     )
 
         # Clock directly below branch
-    with st.sidebar:
-        live_clock()   # renders the badge centered
+    # with st.sidebar:
+    #     live_clock()   # renders the badge centered
 
     # Divider line
     # st.sidebar.markdown(
@@ -237,8 +237,6 @@ def render_sidebar():
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-            st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
 
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
@@ -253,12 +251,19 @@ def render_sidebar():
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
 
+
+
+        with st.sidebar.expander("‎‎ ‎ Accounts", icon="📖", expanded=(active_menu == "account")):
+            st.page_link(page_url.cashin_out_url, label="‎‎ ‎ Cash In/Out", icon="📖")
+            st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
+
+
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
             st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
             st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
 
 
-            
 
         
 
@@ -300,8 +305,6 @@ def render_sidebar():
             st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
             st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
             st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-            st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
             st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare Accounts", icon="📝")
@@ -314,6 +317,10 @@ def render_sidebar():
             st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
             st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
 
+        with st.sidebar.expander("‎‎ ‎ Accounts", icon="📖", expanded=(active_menu == "account")):
+            st.page_link(page_url.cashin_out_url, label="‎‎ ‎ Cash In/Out", icon="📖")
+            st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
+            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
 
 
         with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):

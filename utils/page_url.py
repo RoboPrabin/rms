@@ -17,6 +17,7 @@ client_communication = base_path + "ClientCommunication.py"
 kyc_modify = base_path + "KycModification.py" 
 reports_url = base_path + "Reports.py" 
 otp_url = base_path + "otp.py" 
+cashin_out_url = base_path + "CashInOut.py" 
 
 
 cache_url = base_path + "Cache.py" 

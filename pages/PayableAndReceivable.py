@@ -14,7 +14,7 @@ class PayableAndReceivable(BasePage):
         super().__init__()
         st.set_page_config("Payable & Receivable", page_icon="💸", layout='wide')
         helper.eliminate_top_padding()
-
+        st.session_state.active_menu = "account"
         # app_state.restore_state_from_query_params()
         # app_state.sync_query_params_from_session()
         # app_state.check_authenticaiton_state()

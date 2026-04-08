@@ -468,7 +468,7 @@ class DPM3(BasePage):
         if mode == "Latest Holdings (UAT)":
             with st.spinner("Loading latest holdings. Please wait...", show_time=True):
                 df = get_latest_holdings()
-                close_price_date = df['updated_at'].head(1).values[0]
+                close_price_date = df['UPDATED AT'].head(1).values[0]
                 close_price_date = pd.to_datetime(close_price_date)
                 formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
                 st.caption(f"Note: Close Price updated on: {formatted_date}")
