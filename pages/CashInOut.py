@@ -188,15 +188,15 @@ class CashInOut(BasePage):
 
     def show_tabbed_dataframes(self, df_final: pd.DataFrame, bro_summary: pd.DataFrame, branch_summary: pd.DataFrame):
         # Metric with formatted sum
-        st.metric("Total Cash In:", value=f"Rs. {df_final['Cash In Amount'].sum():,.2f}")
+        st.metric("Total Cash In", value=f"Rs. {df_final['Cash In Amount'].sum():,.2f}")
 
-        tabs = st.tabs(["All", "BRO", "Branch"])
+        tabs = st.tabs(["BRANCH", "BRO", "ALL"])
 
         with tabs[0]:
-            df_final = df_final.reset_index(drop=True)
-            df_final.index += 1
+            branch_summary = branch_summary.reset_index(drop=True)
+            branch_summary.index += 1
             st.dataframe(
-                df_final.style.format({"Cash In Amount": "{:,.2f}"}),
+                branch_summary.style.format({"Cash In Amount": "{:,.2f}"}),
                 use_container_width=True
             )
 
@@ -209,10 +209,10 @@ class CashInOut(BasePage):
             )
 
         with tabs[2]:
-            branch_summary = branch_summary.reset_index(drop=True)
-            branch_summary.index += 1
+            df_final = df_final.reset_index(drop=True)
+            df_final.index += 1
             st.dataframe(
-                branch_summary.style.format({"Cash In Amount": "{:,.2f}"}),
+                df_final.style.format({"Cash In Amount": "{:,.2f}"}),
                 use_container_width=True
             )
 

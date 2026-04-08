@@ -18,7 +18,7 @@ class KycModification(BasePage):
         # 1. Setup Page Config FIRST (Must be the first Streamlit command)
         st.set_page_config("Kyc Modification", page_icon="📚", layout='wide')
         
-        helper.eliminate_top_padding()
+        helper.eliminate_top_margin("-8rem")
         st.session_state.active_menu = "kyc"
         activate_client_code_hotkey()
 
@@ -43,12 +43,13 @@ class KycModification(BasePage):
 
 
     def view_clients(self):
-        df = st.session_state.kyc_data.copy()
+        df:pd.DataFrame = st.session_state.kyc_data.copy()
         
         # 1. Total Count Badge
 
         # 2. Dynamic Branch Badges
         # We calculate counts once using vectorized pandas operations
+        df.sort_values(by="Branch", inplace=True)
         branch_counts = df['Branch'].value_counts().to_dict()
         container = st.container(border=True)
         with container:
@@ -62,6 +63,39 @@ class KycModification(BasePage):
         
 
         # Calculate branch counts with In-DP / Out-DP split
+        # df['DP Type'] = df['BOID'].apply(lambda x: 'IN' if str(x).startswith('13011400') else 'OUT')
+
+        # branch_dp_counts = (
+        #     df.groupby(['Branch', 'DP Type'])
+        #     .size()
+        #     .unstack(fill_value=0)
+        #     .to_dict('index')
+        # )
+
+        # container = st.container(border=True)
+        # with container:
+        #     col1, spacr, col2 = st.columns([1, 0.1, 6])
+        #     with col1:
+        #         st.badge(f"Total IN-DP: {len(df[df['DP Type'] == 'IN']):,.0f}", color='green')
+        #     with col2:
+        #         st.badge(f"Total OUT-DP: {len(df[df['DP Type'] == 'OUT']):,.0f}", color='red')
+        #     if branch_dp_counts:
+        #         cols = st.columns(len(branch_dp_counts))
+        #         for i, (branch, counts) in enumerate(branch_dp_counts.items()):
+        #             with cols[i]:
+        #                 in_dp = counts.get('IN', 0)
+        #                 out_dp = counts.get('OUT', 0)
+        #                 st.metric(label=f"{branch} (IN)", value=f"{in_dp:,}")
+        #                 st.metric(label=f"{branch} (OUT)", value=f"{out_dp:,}")
+
+
+        # Calculate branch counts with In-DP / Out-DP split
+        branch_order = [
+            "KATHMANDU", "POKHARA", "MAHENDRANAGAR", 
+            "HETAUDA", "LALITPUR", "BUTWAL", "BANEPA"
+        ]
+
+        # Compute branch DP counts
         df['DP Type'] = df['BOID'].apply(lambda x: 'IN' if str(x).startswith('13011400') else 'OUT')
 
         branch_dp_counts = (
@@ -71,6 +105,7 @@ class KycModification(BasePage):
             .to_dict('index')
         )
 
+        # Streamlit container
         container = st.container(border=True)
         with container:
             col1, spacr, col2 = st.columns([1, 0.1, 6])
@@ -78,14 +113,17 @@ class KycModification(BasePage):
                 st.badge(f"Total IN-DP: {len(df[df['DP Type'] == 'IN']):,.0f}", color='green')
             with col2:
                 st.badge(f"Total OUT-DP: {len(df[df['DP Type'] == 'OUT']):,.0f}", color='red')
-            if branch_dp_counts:
-                cols = st.columns(len(branch_dp_counts))
-                for i, (branch, counts) in enumerate(branch_dp_counts.items()):
-                    with cols[i]:
-                        in_dp = counts.get('IN', 0)
-                        out_dp = counts.get('OUT', 0)
-                        st.metric(label=f"{branch} (IN)", value=f"{in_dp:,}")
-                        st.metric(label=f"{branch} (OUT)", value=f"{out_dp:,}")
+
+            # Display branches in desired order
+            cols = st.columns(len(branch_order))
+            for i, branch in enumerate(branch_order):
+                counts = branch_dp_counts.get(branch, {})
+                in_dp = counts.get('IN', 0)
+                out_dp = counts.get('OUT', 0)
+                with cols[i]:
+                    st.metric(label=f"{branch} (IN)", value=f"{in_dp:,}")
+                    st.metric(label=f"{branch} (OUT)", value=f"{out_dp:,}")
+
 
 
         if st.toggle("Show Reference"):

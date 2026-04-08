@@ -475,12 +475,21 @@ class TransactionMonitoring(BasePage):
 
 
     def render_page(self):
-        mode = st.radio(
-            "Mode",
-            ['Data Entry', 'Populate Traders Info', 'View All Restrictions', 'Reports'],
-            horizontal=True,
-            index=0
-        )
+        if self.role == "BRO":
+            mode = st.radio(
+                "Mode",
+                ['Data Entry',  'View All Restrictions'],
+                horizontal=True,
+                index=0
+            )
+        else:
+            mode = st.radio(
+                "Mode",
+                ['Data Entry', 'Populate Traders Info', 'View All Restrictions', 'Reports'],
+                horizontal=True,
+                index=0
+            )
+
 
         if mode == "Data Entry":
             self.data_entry()

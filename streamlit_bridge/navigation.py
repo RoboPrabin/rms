@@ -270,6 +270,7 @@ def render_sidebar():
 
         with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
             st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
+            st.page_link(page_url.trade_history_url, label="‎‎ ‎ Trade History", icon="🔎")
                                     
         with st.sidebar.expander("‎‎ ‎ User Management", icon="🤹🏻", expanded=(active_menu == "user")):
             st.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
@@ -329,6 +330,8 @@ def render_sidebar():
             
         with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
             st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
+            st.page_link(page_url.trade_history_url, label="‎‎ ‎ Trade History", icon="🔎")
+
 
         with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
             if role == 'MANAGEMENT':
@@ -359,6 +362,11 @@ def render_sidebar():
             st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
             st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
 
+        with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
+            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
+            st.page_link(page_url.trade_history_url, label="‎‎ ‎ Trade History", icon="🔎")
+
+            
         with st.sidebar.expander("‎‎ ‎ Client Management", icon="🤹🏻", expanded=(active_menu == "user")):
             st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
 
