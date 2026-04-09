@@ -21,6 +21,7 @@ reports_url = base_path + "Reports.py"
 otp_url = base_path + "otp.py" 
 cashin_out_url = base_path + "CashInOut.py" 
 
+access_management_url = base_path + "AccessManagement.py"
 
 cache_url = base_path + "Cache.py" 
 interest_calc_url = base_path + "InterestCalculation.py" 
