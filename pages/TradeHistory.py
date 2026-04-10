@@ -88,6 +88,7 @@ class TradeHistory(BasePage):
 
 
     def show_expander_with_date_range(self):
+        ready_to_find = False
         with st.expander("Filter Date Range", expanded=True):
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -103,53 +104,60 @@ class TradeHistory(BasePage):
                 if not client_code:
                     st.error("Please provide client Code", icon="❌")
                     st.stop()
+                else:
+                    ready_to_find = True
+
+        if ready_to_find:
+            df, nepse_days, client_days = get_all_floorsheet_with_days(client_code, from_date, to_date)
+            if df.empty:
+                st.info(f"Data not found", icon="ℹ️")
+                st.stop()
+            with st.container(border=True):
+                # Metrics: total buy / total sell
+                total_buy = df.loc[df["transaction_type"].str.lower() == "buy", "Total Amount"].sum()
+                total_sell = df.loc[df["transaction_type"].str.lower() == "sell", "Total Amount"].sum()
+                colm1, colm2 = st.columns(2)
+                with colm1:
+                    st.metric("🔴 Total Buy", f"Rs. {total_buy:,.2f}", border=True)
+                with colm2:
+                    st.metric("🟢 Total Sell", f"Rs. {total_sell:,.2f}",border=True)
 
 
-        df, nepse_days, client_days = get_all_floorsheet_with_days(client_code, from_date, to_date)
-        if df.empty:
-            st.info(f"Data not found", icon="ℹ️")
-            st.stop()
-        with st.container(border=True):
-            # Metrics: total buy / total sell
-            total_buy = df.loc[df["transaction_type"].str.lower() == "buy", "Total Amount"].sum()
-            total_sell = df.loc[df["transaction_type"].str.lower() == "sell", "Total Amount"].sum()
-            colm1, colm2 = st.columns(2)
-            with colm1:
-                st.metric("🔴 Total Buy", f"Rs. {total_buy:,.2f}", border=True)
-            with colm2:
-                st.metric("🟢 Total Sell", f"Rs. {total_sell:,.2f}",border=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("🔵 Total NEPSE Trade Days", nepse_days, border=True)
+                with col2:
+                    st.metric("🔵 Client Trade Days", client_days, border=True)
 
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total NEPSE Trade Days", nepse_days, border=True)
-            with col2:
-                st.metric("Client Trade Days", client_days, border=True)
-
-            # Format dataframe for display
-            df_display = df.copy()
-            df_display["Total Amount"] = df_display["Total Amount"].map(lambda x: f"{x:,.2f}")
-            df_display["amount"] = df_display["amount"].map(lambda x: f"{x:,.2f}")
-            df_display["rate"] = df_display["rate"].map(lambda x: f"{x:,.2f}")
-            df_display["quantity"] = df_display["quantity"].map(lambda x: f"{x:,.2f}")
-            df_display["tradetime"] = df_display["tradetime"].dt.strftime("%Y-%m-%d %I:%M:%S")
-            df_display.reset_index(inplace=True, drop=True)
-            df_display.index += 1
-            df_display.rename(columns={
-                "clientname":"Client Name",
-                "clientcode":"Client Code",
-                "symbol":"Symbol",
-                "quantity":"Quantity",
-                "rate":"Rate",
-                "transaction_type": "Transaction Type",
-                "tradetime":"Trade Date/Time"
-            }, inplace=True)
-            st.badge(f"Total rows: {len(df_display):,.2f}")
-            st.dataframe(
-                df_display[["Client Name", "Client Code", "Symbol","Transaction Type", "Quantity", "Rate", "Total Amount",  "Trade Date/Time"]],
-                width='stretch'
-            )
-            st.toast(f"Data fetched successfully.", icon="✅")
+                # Format dataframe for display
+                df_display = df.copy()
+                df_display["Total Amount"] = df_display["Total Amount"].map(lambda x: f"{x:,.2f}")
+                df_display["amount"] = df_display["amount"].map(lambda x: f"{x:,.2f}")
+                df_display["rate"] = df_display["rate"].map(lambda x: f"{x:,.2f}")
+                df_display["quantity"] = df_display["quantity"].map(lambda x: f"{x:,.2f}")
+                df_display["tradetime"] = df_display["tradetime"].dt.strftime("%Y-%m-%d %I:%M:%S")
+                df_display.reset_index(inplace=True, drop=True)
+                df_display.index += 1
+                df_display.rename(columns={
+                    "clientname":"Client Name",
+                    "clientcode":"Client Code",
+                    "symbol":"Symbol",
+                    "quantity":"Quantity",
+                    "rate":"Rate",
+                    "transaction_type": "Transaction Type",
+                    "tradetime":"Trade Date/Time"
+                }, inplace=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.badge(f"Total rows: {len(df_display):,.2f}")
+                with col2:
+                    unique_scripts = df_display['Symbol'].unique()
+                    st.badge(f"Total Unique Scripts: {len(unique_scripts)}")
+                st.dataframe(
+                    df_display[["Client Name", "Client Code", "Symbol","Transaction Type", "Quantity", "Rate", "Total Amount",  "Trade Date/Time"]],
+                    width='stretch'
+                )
+                st.toast(f"Data fetched successfully.", icon="✅")
 
     def render_page(self):
         self.show_expander_with_date_range()

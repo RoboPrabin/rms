@@ -74,7 +74,7 @@ def get_jwt_token_cached():
     return token
 
 
-
+token = db.get_jwt_token()
 class CashInOut(BasePage):
     def __init__(self):
         super().__init__()
@@ -114,9 +114,16 @@ class CashInOut(BasePage):
 
     
     def fetch_data_logic(self, from_date, to_date):
-        token = get_jwt_token_cached()
+        # token = "fasdfsyfadsofjasdm"
+        # token = get_jwt_token_cached()
+        # try:
         ledger_data = get_ledger(token=token, ac_code="1020201", date_from=from_date, date_to=to_date)
-                
+        # except Exception as e:
+        #     st.error(f"Error fetching data: {e}", icon="❌")
+        #     st.error(f"Token Expired", icon="❌")
+        #     if st.button("Get New Token", icon="🛬"):
+        #        helper.get_and_store_new_token()
+        #     st.stop()
         extracted_list = []
 
         for entry in ledger_data.get("data", []):
