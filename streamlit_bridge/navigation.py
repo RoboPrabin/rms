@@ -287,7 +287,7 @@ def render_sidebar():
             st.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
             st.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
             st.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-            st.page_link(page_url.cache_url, label="‎‎ ‎ Cache", icon="🗑️")
+            st.page_link(page_url.cache_url, label="‎‎ ‎ Cache", icon="🧹")
             st.page_link(page_url.view_feedback_url, label="‎‎ ‎ View Feedback", icon="💬")
 
         st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎‎‎ ‎‎‎ ‎Logout", icon="🏃")
