@@ -1,3 +1,4 @@
+from api.ledger_api import dg_ledger_api
 from streamlit_searchbox import st_searchbox
 from datetime import date, timedelta
 import pandas as pd
@@ -53,6 +54,8 @@ def get_client_rm_map():
     df = pd.DataFrame(rows, columns=["BRO", "CLIENT CODE"])
     return df
 
+
+ledger_token = db.get_jwt_token()
 class DPM3(BasePage):
     def __init__(self):
         super().__init__()
@@ -64,7 +67,16 @@ class DPM3(BasePage):
         self.today_np_date = nepali_date.today()
         activate_client_code_hotkey()
         navigation.render_sidebar()
-        st.header("📦 DPM3", anchor=False)
+        col1, col2, spcr = st.columns([1,2,3])
+        with col1:
+            st.header("📦 DPM3", anchor=False)
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("‎", icon="🧹", type='tertiary',help="Clear Cache. This operation shows latest updated data."):
+                st.cache_data.clear()
+                st.success(f"Cache cleared successfully.", icon="✅")
+                sleep(0.5)
+                st.rerun()
 
 
 
@@ -816,7 +828,31 @@ class DPM3(BasePage):
                             with col2:
                                 st.metric("🔖 Overall Scripts", value=f"{self.total_scripts_all:,.2f}", border=True, width='content')
                             st.divider()
-
+                    if filter_by == "CLIENT CODE":
+                        from_date_default = "2025-07-17"
+                        to_date_str = datetime.now().strftime("%Y-%m-%d")
+                        nepse_code = df['CLIENT CODE'].iloc[0]
+                        ledger_data = dg_ledger_api.get_ledger(token=ledger_token, nepse_code=nepse_code, date_from=from_date_default, date_to=to_date_str)
+                        balance = float(ledger_data['balance'])
+                        
+                        balance_type = ledger_data['balanceType']
+                        unbilled_balance = sum(
+                                txn.get("credit", 0)   # safely get credit, default to 0 if missing
+                                for txn in ledger_data["ubilledTransactions"]
+                            )
+                        
+                        adjusted_balance = float(balance) - float(unbilled_balance)
+                        st.caption(f"💡 Ledger Information")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            # st.badge(f"Balance Type:{ledger_data['balanceType']}")
+                            st.badge(f"Unbilled Amount:{unbilled_balance:,.2f}", color="grey")
+                        with col2:
+                            st.badge(f"Adjusted Balance:{adjusted_balance:,.2f}", color="grey")
+                        with col3:
+                            st.badge(f"Balance:{balance:,.2f} {balance_type}", color="green")
+                        st.divider()
+                        # st.json(ledger_data)
                     # 🔹 Current Holdings section FIRST
                     st.subheader("🟢 Current Holdings", anchor=False)                
                     col3, col4, col5, col6 = st.columns(4)
