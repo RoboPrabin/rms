@@ -1,5 +1,6 @@
 import streamlit as st
 import io
+import hashlib
 import pandas as pd
 from db import db
 import streamlit_bridge.navigation as navigation
@@ -13,6 +14,13 @@ from pages.BasePage import BasePage
 def get_all_kyc_info():
     rows = db.get_kyc()
     return pd.DataFrame(rows, columns=["CLIENT CODE", "CLIENT NAME", "BRANCH", "BOID"])
+
+
+def get_file_hash(file):
+    file.seek(0)
+    hash_md5 = hashlib.md5(file.read()).hexdigest()
+    file.seek(0)
+    return hash_md5
 
 
 class TMSCode(BasePage):
@@ -69,7 +77,7 @@ class TMSCode(BasePage):
             st.session_state.prev_tms_option = option
         
         if st.session_state.prev_tms_option != option:
-            for key in ["tms_result", "branch_result"]:
+            for key in ["tms_result", "branch_result", "show_result", "show_branch_result"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.session_state.prev_tms_option = option
@@ -82,31 +90,57 @@ class TMSCode(BasePage):
             uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx"], key="kyc_upload")
 
             if uploaded_file:
+                file_hash = get_file_hash(uploaded_file)
+                
+                if "last_kyc_file_hash" in st.session_state:
+                    if st.session_state.last_kyc_file_hash != file_hash:
+                        for key in ["tms_result", "show_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                    else:
+                        for key in ["tms_result", "show_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                
+                st.session_state.last_kyc_file_hash = file_hash
+                
                 try:
                     df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
                     df.index += 1
 
                     st.subheader("📊 Uploaded Data", anchor=False)
                     st.dataframe(df, width="stretch")
-
+                    
                     col1, col2 = st.columns([1, 1])
+
                     with col1:
                         if st.button("🌐 Find TMS Code"):
                             kyc_data = get_all_kyc_info()
                             result = self.process_kyc(df, kyc_data)
+
                             st.session_state.tms_result = result
-                            
+                            st.session_state.show_result = True
+
                             found = (result["CLIENT CODE"] != "N/A").sum()
                             not_found = (result["CLIENT CODE"] == "N/A").sum()
+
                             st.success(f"✅ TMS Code found: {found}")
                             st.warning(f"⚠️ TMS code not found: {not_found}")
 
-                    if "tms_result" in st.session_state:
+                    if st.session_state.get("show_result"):
                         with col2:
-                            data = self.download_excel(st.session_state.tms_result, "tms_code_result.xlsx")
-                            st.download_button("📥 Download Result", data, "tms_code_result.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    
-                    if "tms_result" in st.session_state:
+                            data = self.download_excel(
+                                st.session_state.tms_result,
+                                "tms_code_result.xlsx"
+                            )
+
+                            st.download_button(
+                                "📥 Download Result",
+                                data,
+                                "tms_code_result.xlsx",
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
                         with st.expander("Client Code Result Details", expanded=False):
                             st.subheader("📈 Matched Result", anchor=False)
                             st.dataframe(st.session_state.tms_result, width="stretch")
@@ -118,6 +152,20 @@ class TMSCode(BasePage):
             uploaded_file = st.file_uploader("Upload Data", type=["csv", "xlsx"], key="branch_upload")
 
             if uploaded_file:
+                file_hash = get_file_hash(uploaded_file)
+                
+                if "last_branch_file_hash" in st.session_state:
+                    if st.session_state.last_branch_file_hash != file_hash:
+                        for key in ["branch_result", "show_branch_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                    else:
+                        for key in ["branch_result", "show_branch_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                
+                st.session_state.last_branch_file_hash = file_hash
+                
                 try:
                     df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
                     df.index += 1
@@ -131,18 +179,18 @@ class TMSCode(BasePage):
                             kyc_data = get_all_kyc_info()
                             result = self.process_branch(df, kyc_data)
                             st.session_state.branch_result = result
+                            st.session_state.show_branch_result = True
                             
                             found = (result["BRANCH"] != "N/A").sum()
                             not_found = (result["BRANCH"] == "N/A").sum()
                             st.success(f"✅ Branch found: {found}")
                             st.warning(f"⚠️ Branch not found: {not_found}")
 
-                    if "branch_result" in st.session_state:
+                    if st.session_state.get("show_branch_result"):
                         with col2:
                             data = self.download_excel(st.session_state.branch_result, "branch_result.xlsx")
                             st.download_button("📥 Download Result", data, "branch_result.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     
-                    if "branch_result" in st.session_state:
                         with st.expander("Branch Result Details", expanded=False):
                             st.subheader("📈 Matched Branch Result", anchor=False)
                             st.dataframe(st.session_state.branch_result, width="stretch")
