@@ -11,11 +11,6 @@ from config import config
 logger = logging.getLogger(__name__)
 
 
-# ==========================================================
-# Role-Based Default Permissions
-# SINGLE SOURCE — kept identical to access_management.py
-# ==========================================================
-
 DEFAULT_ROLE_ACCESS = {
     "ADMIN": {},  # ADMIN handled separately — all keys granted
 

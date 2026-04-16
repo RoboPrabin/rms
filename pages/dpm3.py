@@ -636,7 +636,7 @@ class DPM3(BasePage):
                 with col1:
                     filter_by = st.selectbox(
                         "Filter by",
-                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT"]
+                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT","BRANCH"]
                     )
 
                 if filter_by != "ALL":

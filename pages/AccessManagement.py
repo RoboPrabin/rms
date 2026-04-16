@@ -9,13 +9,10 @@ from pages.BasePage import BasePage
 from db.db import get_connection
 
 
-# ==========================================================
-# Role-Based Default Permissions
-# Synced with navigation.py — SINGLE SOURCE OF TRUTH
-# ==========================================================
+
 
 DEFAULT_ROLE_ACCESS = {
-    "ADMIN": {},  # ADMIN always gets all keys — handled separately
+    "ADMIN": {},
 
     "MANAGEMENT": {
         "reports": True,
