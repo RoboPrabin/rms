@@ -65,7 +65,7 @@ class TMSCode(BasePage):
             st.session_state.prev_tms_option = option
 
         if option == "Client Code":
-            uploaded_file = st.file_uploader("Upload KYC Data", type=["csv", "xlsx"], key="kyc_upload")
+            uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx"], key="kyc_upload")
 
             if uploaded_file:
                 try:
@@ -101,7 +101,7 @@ class TMSCode(BasePage):
                     st.error(f"Error processing file: {e}")
         
         if option == "Branch":
-            uploaded_file = st.file_uploader("Upload Branch Data", type=["csv", "xlsx"], key="branch_upload")
+            uploaded_file = st.file_uploader("Upload Data", type=["csv", "xlsx"], key="branch_upload")
 
             if uploaded_file:
                 try:

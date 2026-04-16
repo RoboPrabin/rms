@@ -223,6 +223,7 @@ ALL_MENU_KEYS = {
     "access_management",
     "cashin_out",
     "trade_history",
+    "tms_code",
 }
 
 MENU_SECTIONS = [
@@ -284,6 +285,7 @@ MENU_SECTIONS = [
                 "items": [
                     ("kyc_modify",    "📚", "KYC modification"),
                     ("demat_records", "🧾", "Demat records"),
+                    ("tms_code",      "🏷️", "TMS code"),
                 ],
             },
             {
