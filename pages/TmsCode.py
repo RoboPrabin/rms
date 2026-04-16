@@ -52,6 +52,16 @@ class TMSCode(BasePage):
             df.to_excel(writer, index=False, sheet_name="Result")
         return output.getvalue()
     
+    def sample_file_download(self, filename, file_path):
+        with open(file_path, "rb") as f:
+            content = f.read()
+
+        st.download_button(
+            label="📥 Download Sample File",
+            data=content,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     def main(self):
         option = st.radio("Find", ["Client Code", "Branch"], horizontal=True, key="tms_option")
 
@@ -65,6 +75,10 @@ class TMSCode(BasePage):
             st.session_state.prev_tms_option = option
 
         if option == "Client Code":
+            self.sample_file_download(
+                "sample.xlsx",
+                r"D:\Anjit\project\rms\data\sample.xlsx"
+            )
             uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx"], key="kyc_upload")
 
             if uploaded_file:
