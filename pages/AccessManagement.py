@@ -1,12 +1,12 @@
 from time import sleep
 from contextlib import suppress
-
 import streamlit as st
 from utils import helper
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
 from pages.BasePage import BasePage
 from db.db import get_connection
+from utils import auth_utils
 
 
 
@@ -544,6 +544,7 @@ def _render_column(section: dict, username: str, user_role: str):
 class AccessManagement(BasePage):
     def __init__(self):
         super().__init__()
+        auth_utils.ensure_admin()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         st.set_page_config("Access Management", page_icon="📌", layout="wide")
