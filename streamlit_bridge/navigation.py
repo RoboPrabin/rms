@@ -225,6 +225,7 @@ ALL_MENU_KEYS = {
     "access_management",
     "cashin_out",
     "trade_history",
+    "tms_code"
 }
 
 
@@ -269,6 +270,7 @@ RM_MAP = {
 KYC_MAP = {
     "kyc_modify":    (page_url.kyc_modify,        "📚 KYC modification"),
     "demat_records": (page_url.demat_records_url, "🧾 Demat records"),
+    "tms_code":      (page_url.tms_code_url,      "🏷️ TMS code"),
 }
 
 # AML

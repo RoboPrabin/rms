@@ -55,3 +55,5 @@ profile_url = base_path + "Profile.py"
 tri_projects_url = base_path + "TriProjects.py"
 feedback_url = base_path + "Feedback.py"
 logout_url = base_path + "Logout.py"
+
+tms_code_url = base_path + "TmsCode.py"
