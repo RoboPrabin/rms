@@ -1,12 +1,12 @@
 from time import sleep
 from contextlib import suppress
 import streamlit as st
-from utils import helper
+from utils import helper, page_url
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
 from pages.BasePage import BasePage
 from db.db import get_connection
-from utils import auth_utils
+import time
 
 
 
@@ -536,6 +536,37 @@ def _render_column(section: dict, username: str, user_role: str):
         )
         _render_toggles(sub["items"], username, user_role)
 
+def admin_page_guard():
+    ss = st.session_state
+
+    # 🚨 Hard block: no session
+    if not ss.get("auth") or not ss.get("role"):
+        st.session_state.clear()
+        st.switch_page(page_url.logout_url)
+        st.stop()
+
+    # ⏳ Expiry check
+    expiry = ss.get("expiry")
+    if expiry and time.time() > expiry:
+        _force_logout("Session expired")
+
+    # 🚨 ONLY ADMIN allowed
+    if str(ss.get("role")).upper() != "ADMIN":
+        st.session_state.clear()
+        st.switch_page(page_url.logout_url)
+        st.stop()
+
+
+def _force_logout(msg="Logged out"):
+    # 🔥 Clear everything
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+
+    st.session_state["auth"] = False
+    st.session_state["role"] = None
+
+    st.switch_page(page_url.logout_url)
+    st.stop()
 
 # ==========================================================
 # Page class
@@ -544,6 +575,7 @@ def _render_column(section: dict, username: str, user_role: str):
 class AccessManagement(BasePage):
     def __init__(self):
         super().__init__()
+        admin_page_guard()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         st.set_page_config("Access Management", page_icon="📌", layout="wide")
