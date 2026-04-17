@@ -544,7 +544,6 @@ def _render_column(section: dict, username: str, user_role: str):
 class AccessManagement(BasePage):
     def __init__(self):
         super().__init__()
-        auth_utils.ensure_admin()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "user"
         st.set_page_config("Access Management", page_icon="📌", layout="wide")

@@ -80,13 +80,6 @@ def clear_session_and_redirect():
     st.stop()
 
 
-def ensure_admin():
-    user = ensure_logged_in()
-    role = user.get("role", "").upper().strip()
-    if role != "ADMIN":
-        clear_session_and_redirect()
-    return user
-
 
 # -------------------------------------------------------------------
 # LOGIN SUCCESS HANDLER
