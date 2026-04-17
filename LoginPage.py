@@ -232,4 +232,3 @@ class LoginPage(BasePage):
 
 if __name__ == "__main__":
     LoginPage().render_page()
-

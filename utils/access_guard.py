@@ -1,124 +1,166 @@
 import time
 import streamlit as st
-import streamlit.components.v1 as components
 from utils import page_url
+from db.db import get_connection
+
+_audit_table_ensured = False
 
 
-# -------------------------------------------------------------------
-# STRICT ACCESS GUARD
-# -------------------------------------------------------------------
-def enforce_strict_access(required_role: str = "ADMIN"):
-    """
-    Centralized function to enforce strict role-based access control.
-    
-    Runs on EVERY page load and validates:
-    - User has valid authenticated session
-    - User has required role (default: ADMIN)
-    - Session is not expired (if expiry exists in query params)
-    
-    If any validation fails:
-    - Clears all session state
-    - Deletes cookies via JavaScript
-    - Replaces browser history (prevents back button)
-    - Redirects to login page
-    - Stops execution immediately
-    
-    Args:
-        required_role: The role required to access the page (default: ADMIN)
-    
-    Usage:
-        from utils.access_guard import enforce_strict_access
-        
-        # For admin-only pages:
-        enforce_strict_access("ADMIN")
-        
-        # For pages requiring specific role:
-        enforce_strict_access("MANAGER")
-    """
-    # Step 1: Check if user is authenticated in session
-    if not st.session_state.get("authenticated"):
-        _force_logout()
-    
-    # Step 2: Check if username exists
-    if not st.session_state.get("username"):
-        _force_logout()
-    
-    # Step 3: Check if user has required role
+def _ensure_audit_table():
+    global _audit_table_ensured
+    if _audit_table_ensured:
+        return
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS access_audit_log (
+                        id              SERIAL PRIMARY KEY,
+                        username        VARCHAR(100),
+                        page_accessed    VARCHAR(200),
+                        ip_address       VARCHAR(50),
+                        success          BOOLEAN,
+                        reason           TEXT,
+                        accessed_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
+        _audit_table_ensured = True
+    except Exception:
+        _audit_table_ensured = True
+
+
+def _invalidate_user_session(username: str):
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE user_session
+                    SET session_status = 'EXPIRED'
+                    WHERE UPPER(username) = UPPER(%s)
+                    AND session_status = 'ACTIVE'
+                """, (username,))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _validate_db_session(username: str) -> bool:
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT session_status
+                    FROM user_session
+                    WHERE UPPER(username) = UPPER(%s)
+                    AND session_status = 'ACTIVE'
+                    LIMIT 1
+                """, (username,))
+                result = cur.fetchone()
+                return result is not None
+    except Exception:
+        return True
+
+
+def _log_access_attempt(username: str, page: str, success: bool, reason: str = ""):
+    try:
+        _ensure_audit_table()
+        from utils.helper import get_client_ip
+        ip_address = get_client_ip()
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO access_audit_log (username, page_accessed, ip_address, success, reason, accessed_at)
+                    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (username, page, ip_address, success, reason))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _prevent_cached_page():
+    st.html("""
+        <script>
+        if (window.history && window.history.pushState) {
+            window.history.pushState(null, '', window.location.href);
+            window.addEventListener('popstate', function(event) {
+                window.history.pushState(null, '', window.location.href);
+                window.location.reload();
+            });
+        }
+        </script>
+    """)
+
+
+def _redirect_to_login():
+    st.html("""
+        <script>
+        window.location.replace(arguments[0]);
+        </script>
+    """.format(page_url.login_url))
+    st.stop()
+
+
+def _enforce_logout(username: str = "", page: str = "access_management"):
+    if username:
+        _log_access_attempt(username, page, False, "Unauthorized access attempt - forced logout")
+        _invalidate_user_session(username)
+
+    _prevent_cached_page()
+
+    st.query_params.clear()
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.session_state.clear()
+
+    st.error("Access denied. Redirecting to login...")
+
+    st.html(f"""
+        <script>
+        window.location.replace("{page_url.login_url}");
+        </script>
+    """)
+    st.stop()
+
+
+def enforce_strict_access(required_role: str = "ADMIN", page_name: str = ""):
+    current_page = page_name or "restricted_page"
+    username = st.session_state.get("username", "")
+
+    _prevent_cached_page()
+
+    if not st.session_state.get("auth"):
+        _enforce_logout(username, current_page)
+
+    if not username:
+        _enforce_logout(username, current_page)
+
     role = str(st.session_state.get("role", "")).upper().strip()
     required_role_upper = str(required_role).upper().strip()
-    
+
     if role != required_role_upper:
-        _force_logout()
-    
-    # Step 4: Validate session from query params if exists
+        _enforce_logout(username, current_page)
+
+    if not _validate_db_session(username):
+        _enforce_logout(username, current_page)
+
     sid = st.query_params.get("sid")
     if sid:
         try:
             from utils.security import decrypt_data
             payload = decrypt_data(sid)
             if payload:
-                # Update session state with valid payload
                 st.session_state.update(payload)
-                # Check expiry if present
-                if "expiry" in payload:
-                    if payload.get("expiry", 0) <= int(time.time()):
-                        _force_logout()
+                if "expiry" in payload and payload.get("expiry", 0) <= int(time.time()):
+                    _enforce_logout(username, current_page)
+                if payload.get("username", "").upper() != username.upper():
+                    _enforce_logout(username, current_page)
         except Exception:
-            # If decryption fails, check if session is valid another way
             pass
-    
+
+    _log_access_attempt(username, current_page, True, "Access granted")
     return True
 
 
-def _force_logout():
-    """
-    Internal function to force logout - clears everything and redirects.
-    """
-    # Clear all session state (iterate over copy of keys)
-    keys_to_delete = list(st.session_state.keys())
-    for key in keys_to_delete:
-        if key != "cookies_initialized":
-            if key in st.session_state:
-                del st.session_state[key]
-    
-    # Clear query params
-    st.query_params.clear()
-    
-    # JavaScript to delete cookies and replace history
-    logout_js = f"""
-    <script>
-        (function() {{
-            // Delete all cookies with rms_ prefix
-            var cookies = document.cookie.split(";");
-            for (var i = 0; i < cookies.length; i++) {{
-                var cookie = cookies[i].trim();
-                var eqPos = cookie.indexOf("=");
-                var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-                if (name.indexOf("rms_") === 0) {{
-                    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
-                }}
-            }}
-            // Force delete auth tokens
-            document.cookie = "rms_auth_token=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
-            document.cookie = "rms_EncryptedCookieManager.key_params=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
-            document.cookie = "auth_token=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
-        }})();
-        // Replace browser history to prevent back button
-        window.location.replace("{page_url.login_url}");
-    </script>
-    """
-    components.html(logout_js, height=0, width=0)
-    st.switch_page(page_url.login_url)
-    st.stop()
-
-
-def ensure_admin_only():
-    """
-    Convenience function specifically for ADMIN-only access.
-    Equivalent to enforce_strict_access("ADMIN")
-    
-    Usage:
-        from utils.access_guard import ensure_admin_only
-        ensure_admin_only()
-    """
-    enforce_strict_access("ADMIN")
+def ensure_admin_only(page_name: str = "access_management"):
+    enforce_strict_access("ADMIN", page_name)
