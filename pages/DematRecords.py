@@ -43,7 +43,7 @@ class DematRecords(BasePage):
             st.header("🧾 Demat Records", anchor=False)
         with col2:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("‎", icon="🚮", help="Clear Cache. This operation shows latest updated data."):
+            if st.button("‎", icon="🧹", help="Clear Cache. This operation shows latest updated data."):
                 st.cache_data.clear()
                 st.rerun()
 

@@ -23,6 +23,29 @@ from typing import Final
 import nepali_datetime
 from typing import Tuple
 
+from db import db
+
+
+def get_token():
+    resp = requests.post(
+        config.LOGIN_API,
+        json={"userName": config.dg_api_userName, "password": config.dg_api_password},
+        timeout=30
+    )
+    resp.raise_for_status()
+    return resp.json().get("token")
+
+
+
+def get_and_store_new_token():
+    token = get_token()
+    db.store_jwt_token(jwt_value=token)
+    st.success(f"Token generated succesfully. Please clear the cache now.", icon="✅")
+    if st.button("Clear Cache", icon="🧹"):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.session_state.clear()
+        st.rerun()
 
 
 

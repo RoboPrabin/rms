@@ -16,7 +16,7 @@ username= user['username']
 role= user['role']
 branch = user['branch']
 navigation.render_sidebar()
-if st.button("Clear cache", icon="🗑️"):
+if st.button("Clear cache", icon="🧹"):
     st.cache_data.clear()      # clears all st.cache_data
     st.cache_resource.clear()  # clears all st.cache_resource
     st.success("Cache cleared!")

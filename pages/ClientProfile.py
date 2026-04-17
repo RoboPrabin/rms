@@ -11,19 +11,9 @@ from pages.BasePage import BasePage
 class ClientRemarks(BasePage):
     def __init__(self):
         super().__init__()
-        # helper.eliminate_top_padding()
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
+        helper.eliminate_top_margin("-4rem")
         st.session_state.active_menu = "business"
         st.set_page_config(page_title="Client Remarks", page_icon="🖊️", layout="wide")
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        # app_state.enforce_authentication()
-        # app_state.sync_local_storage_to_session()
-        # self.username, self.role, self.branch = app_state.get_current_user_info()
         st.header("🖊️ Client Remarks", anchor=False)
 
         render_sidebar()
@@ -59,7 +49,8 @@ class ClientRemarks(BasePage):
     def render_page(self):
         mode = st.radio("Mode", ['Add Remarks', 'View Remarks'], horizontal=True)
         if mode == "Add Remarks":
-            self.add_remarks()
+            with st.container(border=True):
+                self.add_remarks()
         elif mode == "View Remarks":
             self.show_remarks()
         

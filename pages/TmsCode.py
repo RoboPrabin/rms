@@ -78,7 +78,8 @@ class TMSCode(BasePage):
         result = df.merge(rm_data[["CLIENT CODE", "RM NAME"]], 
                           left_on=client_col, right_on="CLIENT CODE", how="left")
         result["RM TAG"] = result["RM NAME"].fillna("N/A")
-        result.drop(columns=["RM NAME", "CLIENT CODE"], inplace=True)
+        result.rename(columns={client_col: "CLIENT CODE"}, inplace=True)
+        result.drop(columns=["RM NAME"], inplace=True)
         result.index += 1
         return result
     
