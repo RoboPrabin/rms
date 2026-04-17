@@ -1,4 +1,3 @@
-# navigation.py
 import base64
 import logging
 from datetime import datetime
@@ -532,6 +531,8 @@ def render_sidebar():
 
     with st.sidebar:
 
+        live_clock() 
+        
         # ── Animated header ──────────────────────────────────
         try:
             img_base64 = _get_base64_image(config.sidebar_icon)
