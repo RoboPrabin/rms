@@ -3711,4 +3711,3 @@ def end_session(username: str):
                 cur.fetchall()
     finally:
         conn.close()
-
