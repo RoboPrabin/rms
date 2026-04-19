@@ -768,11 +768,17 @@ class DPM3(BasePage):
                 formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
                 st.caption(f"Note: Close Price updated on: {formatted_date}")
 
-                df.drop(columns=['STATUS', 'BOID'], inplace=True)
+                cols_to_drop = [col for col in ['STATUS', 'BOID'] if col in df.columns]
+                df.drop(columns=cols_to_drop, inplace=True)
                 df.rename(columns={'closePrice':'CLOSE PRICE', 'rmName':'BRO'}, inplace=True)
+                
+                if 'BRO' not in df.columns:
+                    df["BRO"] = 'N/A'
+                if 'LOCKIN BALANCE' not in df.columns:
+                    df['LOCKIN BALANCE'] = 0
 
-                df['FREE BALANCE'] = df['FREE BALANCE'].astype(float)
-                df['PLEDGE BALANCE'] = df['PLEDGE BALANCE'].astype(float)
+                for col in ['FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE']:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
                 df['CLOSE PRICE'] = df['CLOSE PRICE'].astype(float)
 
                 df['FREE SHARE VALUATION'] = df['FREE BALANCE'] * df['CLOSE PRICE']
