@@ -224,6 +224,7 @@ ALL_MENU_KEYS = {
     "cashin_out",
     "trade_history",
     "tms_code",
+    "mail_cleaner"
 }
 
 MENU_SECTIONS = [
@@ -328,6 +329,7 @@ MENU_SECTIONS = [
                     ("digital_vault",        "🔐", "Digital vault"),
                     ("uarf",                 "🪪", "UARF"),
                     ("cache",                "🗑️", "Cache"),
+                    ("mail_cleaner",         "📧", "Mail cleaner"),
                     ("feedback",             "💬", "Feedback"),
                     ("view_feedback",        "💬", "View feedback"),
                     ("interest_calc",        "🧩", "Interest calculation"),

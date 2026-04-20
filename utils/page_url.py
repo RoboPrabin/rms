@@ -57,3 +57,4 @@ feedback_url = base_path + "Feedback.py"
 logout_url = base_path + "Logout.py"
 
 tms_code_url = base_path + "TmsCode.py"
+mail_cleaner_url = base_path + "MailCleaner.py"

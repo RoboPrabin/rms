@@ -224,7 +224,8 @@ ALL_MENU_KEYS = {
     "access_management",
     "cashin_out",
     "trade_history",
-    "tms_code"
+    "tms_code",
+    "mail_cleaner"
 }
 
 
@@ -291,6 +292,7 @@ UTILITY_MAP = {
     "profile":              (page_url.profile_url,              "💼 Profile"),
     "communication_report": (page_url.communication_report_url, "📢 Communication report"),
     "project_request":      (page_url.project_request_url,      "🤝 Project request"),
+    "mail_cleaner":         (page_url.mail_cleaner_url,         "📧 Mail cleaner"),
     "digital_vault":        (page_url.digital_url,              "🔐 Digital vault"),
     "uarf":                 (page_url.uarf_url,                 "🪪 UARF"),
     "cache":                (page_url.cache_url,                "🗑️ Cache"),
