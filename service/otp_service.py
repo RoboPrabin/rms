@@ -55,7 +55,7 @@ async def create_user_otp(username: str, user_email: str) -> str:
 
     # Send OTP via email
     subject = "RMS OTP Code"
-    # send_email(to_email=user_email, subject=subject, username=username, otp_code=otp, minutes=OTP_EXPIRY_MINUTES)
+    send_email(to_email=user_email, subject=subject, username=username, otp_code=otp, minutes=OTP_EXPIRY_MINUTES)
     return otp
 
 
