@@ -93,6 +93,10 @@ class DPM3(BasePage):
             if_exists="replace",
             index=False
         )
+        
+        # Clear session state after upload to ensure fresh data on next load
+        if 'dpm3' in st.session_state:
+            del st.session_state['dpm3']
 
     def extract_data_from_raw_txt_file(self, file_obj):
         columns_to_extract = {
@@ -293,10 +297,13 @@ class DPM3(BasePage):
 
 
     # @st.cache_data(ttl=1600)
-    def get_dpm3_data(_self):
-        if 'dpm3' not in st.session_state:
-            st.session_state['dpm3'] = db.get_dpm3()
-        df:pd.DataFrame =  st.session_state['dpm3']
+    def get_dpm3_data(_self, use_cache=False):
+        if use_cache and 'dpm3' in st.session_state:
+            df = st.session_state['dpm3']
+        else:
+            df = db.get_dpm3()
+            st.session_state['dpm3'] = df
+        
         df['CLIENT NAME'] = df['CLIENT NAME'].str.upper()
         df['BRANCH'] = df['BRANCH'].str.upper()
         group_keys = ["BRO","CLIENT CODE","CLIENT NAME","BRANCH","BOID"]
@@ -327,7 +334,7 @@ class DPM3(BasePage):
 
     def render_latest_holdings_mode(self):
         with st.spinner("Loading latest holdings. Please wait...", show_time=True):
-            df_grouped,df_uploaded  = self.get_dpm3_data()
+            df_grouped,df_uploaded  = self.get_dpm3_data(use_cache=True)
         
         st.badge(f"Total rows: {len(df_grouped):,}", color="green")
         selection = st.dataframe(
@@ -361,7 +368,7 @@ class DPM3(BasePage):
     
     def render_detailed_view_mode(self):
         with st.spinner("Loading detailed holdings. Please wait...", show_time=True):
-            _, df_uploaded = self.get_dpm3_data()
+            _, df_uploaded = self.get_dpm3_data(use_cache=False)
 
             desired_cols = [
                 "BRO",
@@ -768,11 +775,17 @@ class DPM3(BasePage):
                 formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
                 st.caption(f"Note: Close Price updated on: {formatted_date}")
 
-                df.drop(columns=['STATUS', 'BOID'], inplace=True)
+                cols_to_drop = [col for col in ['STATUS', 'BOID'] if col in df.columns]
+                df.drop(columns=cols_to_drop, inplace=True)
                 df.rename(columns={'closePrice':'CLOSE PRICE', 'rmName':'BRO'}, inplace=True)
+                
+                if 'BRO' not in df.columns:
+                    df["BRO"] = 'N/A'
+                if 'LOCKIN BALANCE' not in df.columns:
+                    df['LOCKIN BALANCE'] = 0
 
-                df['FREE BALANCE'] = df['FREE BALANCE'].astype(float)
-                df['PLEDGE BALANCE'] = df['PLEDGE BALANCE'].astype(float)
+                for col in ['FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE']:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
                 df['CLOSE PRICE'] = df['CLOSE PRICE'].astype(float)
 
                 df['FREE SHARE VALUATION'] = df['FREE BALANCE'] * df['CLOSE PRICE']
@@ -783,7 +796,7 @@ class DPM3(BasePage):
                 with col1:
                     filter_by = st.selectbox(
                         "Filter by",
-                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT"]
+                        options=["ALL", "CLIENT CODE","CLIENT NAME" ,"SCRIPT","BRANCH"]
                     )
 
                 if filter_by != "ALL":

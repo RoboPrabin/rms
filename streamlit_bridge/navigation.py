@@ -1,53 +1,386 @@
-# navigation.py
-from datetime import datetime
-import time
-import streamlit as st
-# from app_state import is_logged_in, current_user, logout_user
-import streamlit_bridge.app_state as app_state
-from utils import auth_utils, page_url
 import base64
-from config import config
-def get_base64_image(image_path):
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
-    
+import logging
+from datetime import datetime
 
+import streamlit as st
+from utils import page_url
+from db.db import get_connection
+from config import config
+
+logger = logging.getLogger(__name__)
+
+
+DEFAULT_ROLE_ACCESS = {
+    "ADMIN": {},  # ADMIN handled separately — all keys granted
+
+    "MANAGEMENT": {
+        "reports": True,
+        "client_profile": True,
+        "client_limit": True,
+        "business_turnover": True,
+        "top_broker": True,
+        "cbr": True,
+        "business_ratio": True,
+        "floorsheet": True,
+        "due_list": True,
+        "pay_rec": True,
+        "unverified_trans": True,
+        "book_closure": True,
+        "dpm3": True,
+        "meroshare": True,
+        "gallery": True,
+        "live_rm": True,
+        "client_comm": True,
+        "bro_targets": True,
+        "rm_tag": True,
+        "kyc_modify": True,
+        "demat_records": True,
+        "transaction_monitoring": True,
+        "tri_projects": True,
+        "profile": True,
+        "communication_report": True,
+        "project_request": True,
+        "digital_vault": True,
+        "uarf": True,
+        "cache": True,
+        "feedback": True,
+        "cashin_out": True,
+        "trade_history": True,
+    },
+
+    "MANAGER": {
+        "reports": True,
+        "client_profile": True,
+        "client_limit": True,
+        "business_turnover": True,
+        "top_broker": True,
+        "cbr": True,
+        "business_ratio": True,
+        "floorsheet": True,
+        "due_list": True,
+        "pay_rec": True,
+        "unverified_trans": True,
+        "book_closure": True,
+        "dpm3": True,
+        "meroshare": True,
+        "gallery": True,
+        "live_rm": True,
+
+        "client_comm": True,
+        "bro_targets": True,
+        "rm_tag": True,
+        "kyc_modify": True,
+        "demat_records": True,
+        "transaction_monitoring": True,
+        "profile": True,
+        "communication_report": True,
+        "project_request": True,
+        "digital_vault": True,
+        "uarf": True,
+        "cache": True,
+        "feedback": True,
+        "cashin_out": True,
+        "trade_history": True,
+    },
+
+    "BM": {
+        "profile": True,
+        "uarf": True,
+        "feedback": True,
+    },
+
+    "RM": {
+        "bro_targets": True,
+        "live_rm": True,
+        "rm_tag": True,
+    },
+
+    "BRO": {
+        "live_rm": True,
+        "client_comm": True,
+        "client_limit": True,
+        "bro_targets": True,
+        "rm_tag": True,
+        "client_profile": True,
+        "due_list": True,
+        "top_broker": True,
+        "book_closure": True,
+        "gallery": True,
+        "meroshare": True,
+        "uarf": True,
+        "communication_report": True,
+        "project_request": True,
+        "digital_vault": True,
+        "profile": True,
+        "feedback": True,
+        "trade_history": True,
+    },
+
+    "HR": {
+        "uarf": True,
+        "top_broker": True,
+        "pay_rec": True,
+        "book_closure": True,
+        "gallery": True,
+        "communication_report": True,
+        "project_request": True,
+        "digital_vault": True,
+        "profile": True,
+        "feedback": True,
+    },
+
+    "IT": {
+        "uarf": True,
+        "create_user": True,
+        "top_broker": True,
+        "pay_rec": True,
+        "bro_targets": True,
+        "book_closure": True,
+        "gallery": True,
+        "communication_report": True,
+        "project_request": True,
+        "digital_vault": True,
+        "profile": True,
+        "feedback": True,
+    },
+
+    "VIEWER": {
+        "cbr": True,
+        "client_profile": True,
+        "unverified_trans": True,
+        "live_rm": True,
+        "dpm3": True,
+        "due_list": True,
+        "top_broker": True,
+        "rm_tag": True,
+        "book_closure": True,
+        "gallery": True,
+        "communication_report": True,
+        "project_request": True,
+        "digital_vault": True,
+        "profile": True,
+        "feedback": True,
+    },
+
+    "USER": {
+        "book_closure": True,
+        "edis_call": True,
+        "demat_records": True,
+        "pay_rec": True,
+        "uarf": True,
+        "gallery": True,
+        "profile": True,
+    },
+
+    "DEFAULT": {},
+}
+
+
+# ==========================================================
+# All possible permission keys
+# Synced with access_management.py — SINGLE SOURCE OF TRUTH
+# ==========================================================
+
+ALL_MENU_KEYS = {
+    "dashboard",
+    "interest_calc",
+    "pledge",
+    "reports",
+    "client_profile",
+    "client_limit",
+    "business_turnover",
+    "top_broker",
+    "cbr",
+    "business_ratio",
+    "floorsheet",
+    "due_list",
+    "pay_rec",
+    "unverified_trans",
+    "book_closure",
+    "gallery",
+    "dpm3",
+    "edis_call",
+    "live_rm",
+    "client_comm",
+    "bro_limit",
+    "bro_targets",
+    "rm_tag",
+    "kyc_modify",
+    "demat_records",
+    "transaction_monitoring",
+    "create_user",
+    "active_session",
+    "meroshare",
+    "automation",
+    "tri_projects",
+    "profile",
+    "communication_report",
+    "project_request",
+    "digital_vault",
+    "uarf",
+    "cache",
+    "feedback",
+    "view_feedback",
+    "access_management",
+    "cashin_out",
+    "trade_history",
+    "tms_code",
+    "mail_cleaner"
+}
+
+
+# ==========================================================
+# Sidebar section → permission key → (url, label) mapping
+# ==========================================================
+
+# Business Information
+BI_MAP = {
+    "reports":           (page_url.reports_url,           "📂 Reports"),
+    "client_profile":    (page_url.client_remarks_url,    "🖊️ Client profile"),
+    "business_turnover": (page_url.business_turnover_url, "🅱️ Business turnover"),
+    "top_broker":        (page_url.top_broker_url,        "🏦 Top brokers"),
+    "cbr":               (page_url.cbr_url,               "🌱 Cost benefit"),
+    "business_ratio":    (page_url.business_ratio_url,    "⚖️ Business ratio"),
+    "floorsheet":        (page_url.floorsheet_url,        "📄 Floorsheet"),
+    "due_list":          (page_url.due_list_url,          "📋 Due list"),
+    "book_closure":      (page_url.book_closure_url,      "📫 Book closure"),
+    "gallery":           (page_url.gallery_url,           "📸 Gallery"),
+    "dpm3":              (page_url.dpm_3_url,             "📦 DPM3"),
+    "edis_call":         (page_url.edis_call_url,         "📞 EDIS call"),
+}
+
+# Accounts
+ACCOUNTS_MAP = {
+    "cashin_out":       (page_url.cashin_out_url,       "📖 Cash In/Out"),
+    "pay_rec":          (page_url.pay_rec_url,           "💸 Payable & receivable"),
+    "unverified_trans": (page_url.unverified_trans_url,  "⚠️ Unverified transactions"),
+}
+
+# RM Management
+RM_MAP = {
+    "live_rm":     (page_url.live_rm_performance_url,          "🟢 Live RM performance"),
+    "client_comm": (page_url.client_communication,             "📅 Client communication"),
+    "client_limit":      (page_url.client_limit_url,      "💷 Client limit"),
+    "bro_limit":   (page_url.bro_limit_url,                   "🧮 BRO limit manager"),
+    "bro_targets": (page_url.bro_targets_and_achievements_url, "🎯 RM targets & achievements"),
+    "rm_tag":      (page_url.rm_tag_url,                      "🏷️ RM tag"),
+}
+
+# KYC
+KYC_MAP = {
+    "kyc_modify":    (page_url.kyc_modify,        "📚 KYC modification"),
+    "demat_records": (page_url.demat_records_url, "🧾 Demat records"),
+    "tms_code":      (page_url.tms_code_url,      "🏷️ TMS code"),
+}
+
+# AML
+AML_MAP = {
+    "transaction_monitoring": (page_url.transaction_monitoring_url, "🕵️ Transaction monitoring"),
+    "trade_history":          (page_url.trade_history_url,          "🔎 Trade history"),
+}
+
+# User Management
+UM_MAP = {
+    "create_user":    (page_url.create_app_user_url, "➕ Create app user"),
+    "active_session": (page_url.active_session_url,  "🕓 Active sessions"),
+    "meroshare":      (page_url.meroshare_url,        "📝 Meroshare"),
+}
+
+# Utility
+UTILITY_MAP = {
+    "tri_projects":         (page_url.tri_projects_url,         "📁 Trishakti projects"),
+    "profile":              (page_url.profile_url,              "💼 Profile"),
+    "communication_report": (page_url.communication_report_url, "📢 Communication report"),
+    "project_request":      (page_url.project_request_url,      "🤝 Project request"),
+    "mail_cleaner":         (page_url.mail_cleaner_url,         "📧 Mail cleaner"),
+    "digital_vault":        (page_url.digital_url,              "🔐 Digital vault"),
+    "uarf":                 (page_url.uarf_url,                 "🪪 UARF"),
+    "cache":                (page_url.cache_url,                "🗑️ Cache"),
+    "feedback":             (page_url.feedback_url,             "💬 Feedback"),
+    "view_feedback":        (page_url.view_feedback_url,        "💬 View feedback"),
+}
+
+
+# ==========================================================
+# Live clock (1-second fragment)
+# ==========================================================
 
 @st.fragment(run_every="1s")
 def live_clock():
     now = datetime.now()
     formatted_time = now.strftime("%I:%M:%S %p")
     st.markdown(
-        f"<div style='font-size:14px; font-weight:bold; color:#a6a6a6; text-align:center;margin-top:-32px;'>{formatted_time}</div>",
-        unsafe_allow_html=True
+        f"<div style='font-size:14px; font-weight:bold; color:#a6a6a6; "
+        f"text-align:center; margin-top:-32px;'>{formatted_time}</div>",
+        unsafe_allow_html=True,
     )
 
 
-# def live_clock():
-#     now = datetime.now()
-#     formatted_time = now.strftime("%I:%M:%S %p")  # 12-hour with seconds
-#     st.badge(formatted_time, color="green", icon="⌚")
-#     # st.markdown(
-#         # f"<h1 style='text-align: center;'>{formatted_time}</h1>",
-#         # unsafe_allow_html=True
-#     # )
+# ==========================================================
+# Image helper
+# ==========================================================
+
+def _get_base64_image(image_path: str) -> str:
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 
+# ==========================================================
+# Permission resolver
+# ==========================================================
 
-def render_sidebar():
+def get_user_menu_permissions(username: str, user_role: str | None = None) -> dict:
     """
-    Renders the sidebar menus based on login state and role.
+    Merge role-level defaults with per-user DB overrides.
+    DB True  → grant access regardless of role default.
+    DB False / missing → fall back to role default.
+    Returns only keys where access is True.
     """
-    active_menu = st.session_state.get("active_menu", "")
-    if "active_menu" not in st.session_state:
-        st.session_state.active_menu = None
+    if not username:
+        return {}
 
-    img_base64 = get_base64_image(config.sidebar_icon)
-    user = st.session_state
-    username= user['username']
-    role= user['role']
-    branch = user['branch']
-    
+    role_key      = str(user_role).upper().strip() if user_role else "DEFAULT"
+    role_defaults = DEFAULT_ROLE_ACCESS.get(role_key, DEFAULT_ROLE_ACCESS["DEFAULT"])
+
+    db_permissions: dict = {}
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT menu_item, has_access
+                    FROM user_menu_access
+                    WHERE username = %s
+                """, (username,))
+                db_permissions = {row[0]: row[1] for row in cur.fetchall()}
+    except Exception as e:
+        logger.warning("Could not load menu permissions for %s: %s", username, e)
+
+    merged = {}
+    for key in ALL_MENU_KEYS:
+        db_val = db_permissions.get(key)
+        if db_val is True:
+            merged[key] = True
+        else:
+            merged[key] = role_defaults.get(key, False)
+
+    return {k: v for k, v in merged.items() if v}
+
+
+# ==========================================================
+# Sidebar helpers
+# ==========================================================
+
+def _collect(mapping: dict, permissions: dict) -> list[tuple[str, str]]:
+    """Return (url, label) pairs for permitted keys."""
+    return [
+        (url, label)
+        for key, (url, label) in mapping.items()
+        if permissions.get(key)
+    ]
+
+
+def _render_header(img_base64: str, username: str, role: str, branch: str):
+    """Animated spinning-comet logo + user info header."""
 
     st.markdown("""
         <style>
@@ -55,380 +388,223 @@ def render_sidebar():
                 visibility: visible !important;
                 opacity: 1 !important;
             }
+            section[data-testid="stSidebar"] > div:first-child {
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+            }
         </style>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("""
-        <style>
-        /* Remove top gap */
-        section[data-testid="stSidebar"] > div:first-child {
-            padding-top: 0 !important;
-            margin-top: 0 !important;
-        }
+    """, unsafe_allow_html=True)
 
-        /* Also remove padding inside sidebar content wrapper */
-        section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
-            padding-top: 0 !important;
-            margin-top: 0 !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    
     st.sidebar.markdown(
         f"""
-    <style>
-    .circle-wrapper {{
-        position: relative;
-        width: 140px;
-        height: 140px;
-        margin: 0 auto;
-        margin-top: -30px !important;
-    }}
+        <style>
+        .circle-wrapper {{
+            position: relative;
+            width: 140px;
+            height: 140px;
+            margin: 0 auto;
+            margin-top: -30px !important;
+        }}
 
-    /* ── Static dim track ring ── */
-    .circle-wrapper::after {{
-        content: "";
-        position: absolute;
-        top: -4px;
-        left: -4px;
-        width: 148px;
-        height: 148px;
-        border-radius: 50%;
-        background: rgba(0,63,140,0.15);
-        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
-        mask:         radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
-        z-index: 0;
-    }}
+        /* ── Static dim track ring ── */
+        .circle-wrapper::after {{
+            content: "";
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            width: 148px;
+            height: 148px;
+            border-radius: 50%;
+            background: rgba(0,63,140,0.15);
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+            mask:         radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+            z-index: 0;
+        }}
 
-    /* ── Spinning comet arc ── */
-    .circle-wrapper::before {{
-        content: "";
-        position: absolute;
-        top: -4px;
-        left: -4px;
-        width: 148px;
-        height: 148px;
-        border-radius: 50%;
-        background: conic-gradient(
-            from 0deg,
-            transparent         0deg,
-            transparent         260deg,
-            rgba(0,63,140,0.2)  275deg,
-            #24A148             300deg,
-            #F4F4F4             320deg,
-            #003F8C             340deg,
-            transparent         360deg
-        );
-        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
-        mask:         radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
-        animation: spin 3s linear infinite;
-        z-index: 1;
-    }}
+        /* ── Spinning comet arc ── */
+        .circle-wrapper::before {{
+            content: "";
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            width: 148px;
+            height: 148px;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                transparent         0deg,
+                transparent         260deg,
+                rgba(0,63,140,0.2)  275deg,
+                #24A148             300deg,
+                #F4F4F4             320deg,
+                #003F8C             340deg,
+                transparent         360deg
+            );
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+            mask:         radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);
+            animation: spin 3s linear infinite;
+            z-index: 1;
+        }}
 
-    /* ── Image circle ── */
-    .circle-img {{
-        width: 140px;
-        height: 140px;
-        border-radius: 50%;
-        overflow: hidden;
-        position: relative;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #F4F4F4;
-        box-shadow: 0 0 0 2px rgba(0,63,140,0.15);
-    }}
+        /* ── Image circle ── */
+        .circle-img {{
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #F4F4F4;
+            box-shadow: 0 0 0 2px rgba(0,63,140,0.15);
+        }}
 
-    /* ── Shimmer overlay ── */
-    .circle-img::after {{
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        background: linear-gradient(
-            135deg,
-            rgba(244,244,244,0.18) 0%,
-            transparent 45%,
-            rgba(0,63,140,0.07) 100%
-        );
-        pointer-events: none;
-        z-index: 3;
-    }}
+        /* ── Shimmer overlay ── */
+        .circle-img::after {{
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(
+                135deg,
+                rgba(244,244,244,0.18) 0%,
+                transparent 45%,
+                rgba(0,63,140,0.07) 100%
+            );
+            pointer-events: none;
+            z-index: 3;
+        }}
 
-    @keyframes spin {{
-        from {{ transform: rotate(0deg); }}
-        to   {{ transform: rotate(360deg); }}
-    }}
-    </style>
+        @keyframes spin {{
+            from {{ transform: rotate(0deg); }}
+            to   {{ transform: rotate(360deg); }}
+        }}
+        </style>
 
-    <div style='text-align:center; padding: 20px 0 10px 0;'>
-        <div class="circle-wrapper">
-            <div class="circle-img">
-                <img src="data:image/png;base64,{img_base64}"
-                    style="width: auto; height: auto; object-fit: contain;" />
+        <div style='text-align:center; padding: 20px 0 10px 0;'>
+            <div class="circle-wrapper">
+                <div class="circle-img">
+                    <img src="data:image/png;base64,{img_base64}"
+                         style="width:auto; height:auto; object-fit:contain;" />
+                </div>
             </div>
         </div>
-    </div>
 
-    <div style='text-align:center; margin:15px 0 25px; color:#444;'>
-        <div style='font-size:14px; font-weight:bold; color:#a6a6a6; margin-top:0px;'>
-            <span>{username.upper()}</span> | {role.upper()} <br> {branch}
+        <div style='text-align:center; margin:15px 0 25px; color:#444;'>
+            <div style='font-size:14px; font-weight:bold; color:#a6a6a6; margin-top:0px;'>
+                <span>{username.upper()}</span> | {role.upper()} <br> {branch}
+            </div>
         </div>
-    </div>
 
-    """,
-        unsafe_allow_html=True
+        <hr style='margin:0 0 12px 0; border:0; border-top:1px solid #eee;'>
+        """,
+        unsafe_allow_html=True,
     )
 
-        # Clock directly below branch
-    # with st.sidebar:
-    #     live_clock()   # renders the badge centered
 
-    # Divider line
-    # st.sidebar.markdown(
-    #     "<hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #e3e4e6;'>",
-    #     unsafe_allow_html=True
-    # )
-    # Divider line
-    st.sidebar.markdown(
-        "<hr style='margin: 10px 0 20px 0; border:0; border-top:1px solid #bfbfbf;'>",
-        unsafe_allow_html=True
+# ==========================================================
+# Main sidebar renderer
+# ==========================================================
+
+def render_sidebar():
+    if "active_menu" not in st.session_state:
+        st.session_state.active_menu = None
+
+    state    = st.session_state
+    username = state.get("username", "")
+    role     = str(state.get("role", "")).upper().strip()
+    branch   = state.get("branch", "")
+
+    is_admin    = role == "ADMIN"
+    active_menu = st.session_state.get("active_menu")
+
+    # Admins get every key; all other roles go through the permission resolver
+    permissions = (
+        {key: True for key in ALL_MENU_KEYS}
+        if is_admin
+        else get_user_menu_permissions(username, role)
     )
+
+    with st.sidebar:
+
+        live_clock() 
         
-    # Not in use for some period
-    # st.sidebar.page_link(page_url.live_holdings_url, label="‎‎ ‎ Live Holdings", icon="🔴")
-    # st.sidebar.page_link(page_url.manager_summary_url, label="‎‎ ‎ Manager Summary", icon="👨‍💼")
-    # st.sidebar.page_link(page_url.client_summary_url, label="‎‎ ‎ Client Summary", icon="📃")
+        # ── Animated header ──────────────────────────────────
+        try:
+            img_base64 = _get_base64_image(config.sidebar_icon)
+        except Exception:
+            img_base64 = ""
 
-    # Authenticated menus
-    if role == "USER":
-        st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        st.sidebar.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
-        st.sidebar.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
-        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
+        _render_header(img_base64, username, role, branch)
 
-    if role == "ADMIN":
-        # # # Inside your dashboard
-        # if st.session_state.get("expiry"):
-        #     # remaining = st.session_state.expiry - int(time.time())
-        #     # st.sidebar.write(f"Session ends in: {remaining}s")
-        #     remaining = st.session_state.expiry - int(time.time())
+        # ── Dashboard ────────────────────────────────────────
+        st.page_link(page_url.dashbord_url, label="🏠 Dashboard")
 
-        #     if remaining > 0:
-        #         st.sidebar.write(f"Session expires in: {remaining}s")
-        #     else:
-        #         st.sidebar.write("Session expired ❌")
+        # ── Interest Calculation (non-USER roles) ─────────────
+        if permissions.get("interest_calc") and role != "USER":
+            st.page_link(page_url.interest_calc_url, label="🧩 Interest calculation")
 
+        # ── Business Information ──────────────────────────────
+        bi_items = _collect(BI_MAP, permissions)
+        if bi_items:
+            with st.expander("🅱️ Business information", expanded=(active_menu == "business")):
+                for url, label in bi_items:
+                    st.page_link(url, label=label)
 
-        st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
-        
-        with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
-            st.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
-            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
-            st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
-            st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
-            st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
-            st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
-            st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
-            st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
+        # ── Accounts ─────────────────────────────────────────
+        accounts_items = _collect(ACCOUNTS_MAP, permissions)
+        if accounts_items:
+            with st.expander("📖 Accounts", expanded=(active_menu == "account")):
+                for url, label in accounts_items:
+                    st.page_link(url, label=label)
 
-            st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-            st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-            st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-            st.page_link(page_url.edis_call_url, label="‎‎ ‎ EDIS Call", icon="📞")
+        # ── RM Management ─────────────────────────────────────
+        rm_items = _collect(RM_MAP, permissions)
+        if rm_items:
+            with st.expander("🧑 RM management", expanded=(active_menu == "rm")):
+                for url, label in rm_items:
+                    st.page_link(url, label=label)
 
-        with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
-            st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-            st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit Manager", icon="🧮")
-            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
-            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
-            st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
+        # ── KYC ───────────────────────────────────────────────
+        kyc_items = _collect(KYC_MAP, permissions)
+        if kyc_items:
+            with st.expander("🧾 KYC", expanded=(active_menu == "kyc")):
+                for url, label in kyc_items:
+                    st.page_link(url, label=label)
 
+        # ── AML ───────────────────────────────────────────────
+        aml_items = _collect(AML_MAP, permissions)
+        if aml_items:
+            with st.expander("🕵️ AML", expanded=(active_menu == "aml")):
+                for url, label in aml_items:
+                    st.page_link(url, label=label)
 
-
-        with st.sidebar.expander("‎‎ ‎ Accounts", icon="📖", expanded=(active_menu == "account")):
-            st.page_link(page_url.cashin_out_url, label="‎‎ ‎ Cash In/Out", icon="📖")
-            st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
-
-
-        with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
-            st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
-            st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
-
-
-
-        
-
-
-        with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
-            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
-            st.page_link(page_url.trade_history_url, label="‎‎ ‎ Trade History", icon="🔎")
-                                    
-        with st.sidebar.expander("‎‎ ‎ User Management", icon="🤹🏻", expanded=(active_menu == "user")):
-            st.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
-            st.page_link(page_url.active_session_url, label="‎‎ ‎ Active Sessions", icon="🕓")
-            st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
-            if username == "ADMIN":
-                st.page_link(page_url.automation_url, label="‎‎ ‎ Automations", icon="⚡")
-
-
-        with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
-            st.page_link(page_url.tri_projects_url, label="‎‎ ‎ Trishakti Projects", icon="📁")
-            st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-            st.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-            st.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-            st.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-            st.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-            st.page_link(page_url.cache_url, label="‎‎ ‎ Cache", icon="🧹")
-            st.page_link(page_url.view_feedback_url, label="‎‎ ‎ View Feedback", icon="💬")
-
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎‎‎ ‎‎‎ ‎Logout", icon="🏃")
-    
-    if role in ["MANAGEMENT", "MANAGER"]:
-        st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.interest_calc_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Interest Calculation", icon="🧩")
-
-        with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
-            st.page_link(page_url.reports_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Reports", icon="📂")        
-            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
-            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit", icon="💷")
-            st.page_link(page_url.business_turnover_url, label="‎‎ ‎ Business Turnover", icon="🅱️")
-            st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
-            st.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
-            st.page_link(page_url.business_ratio_url, label="‎‎ ‎ Business Ratio", icon="⚖️")
-            st.page_link(page_url.floorsheet_url, label="‎‎ ‎ Floorsheet", icon="📄")
-            st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-            st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-            st.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-            st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare Accounts", icon="📝")
-            st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
-        with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
-            st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-            st.page_link(page_url.bro_limit_url, label="‎‎ ‎ BRO Limit Manager", icon="🧮")
-            st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
-            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
-            st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-
-        with st.sidebar.expander("‎‎ ‎ Accounts", icon="📖", expanded=(active_menu == "account")):
-            st.page_link(page_url.cashin_out_url, label="‎‎ ‎ Cash In/Out", icon="📖")
-            st.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-            st.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
-
-
-        with st.sidebar.expander("‎‎ ‎ KYC", icon="🧾", expanded=(active_menu == "kyc")):
-            st.page_link(page_url.kyc_modify, label="‎‎ ‎ Kyc Modification", icon="📚")
-            st.page_link(page_url.demat_records_url, label="‎‎ ‎ Demat Records", icon="🧾")
+        # ── User Management ───────────────────────────────────
+        um_items = _collect(UM_MAP, permissions)
+        # Automations: only for ADMIN username (matches original navigation.py logic)
+        if permissions.get("automation") and username.upper() == "ADMIN":
+            um_items.append((page_url.automation_url, "⚡ Automations"))
             
-        with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
-            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
-            st.page_link(page_url.trade_history_url, label="‎‎ ‎ Trade History", icon="🔎")
-
-
-        with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
-            if role == 'MANAGEMENT':
-                st.page_link(page_url.tri_projects_url, label="‎‎ ‎ Trishakti Projects", icon="📁")
-            st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-            st.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-            st.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-            st.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-            st.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-            st.page_link(page_url.cache_url, label="‎‎ ‎ Cache", icon="🗑️")
-            st.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎‎‎ ‎‎‎ ‎ Logout", icon="🏃")
-    
-    if role == "BRO":
-        st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        with st.sidebar.expander("‎‎ ‎ RM Management", icon="🧑🏻‍🦱", expanded=(active_menu == "rm")):
-            st.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-            st.page_link(page_url.client_communication, label="‎‎ ‎ Client Communication", icon="📅")
-            st.page_link(page_url.client_limit_url, label="‎‎ ‎ Client Limit Manager", icon="🧮")
-            st.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM T/A", icon="🎯")
-            st.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-        
-        with st.sidebar.expander("‎‎ ‎ Business Information", icon="🅱️", expanded=(active_menu == "business")):
-            st.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
-            st.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-            st.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
-            st.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-            st.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
-        with st.sidebar.expander("‎‎ ‎ AML", icon="🕵🏻", expanded=(active_menu == "aml")):
-            st.page_link(page_url.transaction_monitoring_url, label="‎‎ ‎ Transaction Monitoring", icon="🕵🏻")
-            st.page_link(page_url.trade_history_url, label="‎‎ ‎ Trade History", icon="🔎")
-
             
-        with st.sidebar.expander("‎‎ ‎ Client Management", icon="🤹🏻", expanded=(active_menu == "user")):
-            st.page_link(page_url.meroshare_url, label="‎‎ ‎ Meroshare", icon="📝")
+        if um_items:
+            with st.expander("🤹 User management", expanded=(active_menu == "user")):
+                if is_admin or permissions.get("access_management"):
+                    st.page_link(page_url.access_management_url, label="📌 Access management")
+                for url, label in um_items:
+                    st.page_link(url, label=label)
 
-        with st.sidebar.expander("‎‎ ‎ Utility", icon="🛠️", expanded=(active_menu == "utility")):
-            st.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-            st.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-            st.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-            st.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-            st.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-            st.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-        
+        # ── Utility ───────────────────────────────────────────
+        utility_items = _collect(UTILITY_MAP, permissions)
+        if utility_items:
+            with st.expander("🛠️ Utility", expanded=(active_menu == "utility")):
+                for url, label in utility_items:
+                    st.page_link(url, label=label)
 
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
-
-    if role == "HR":
-        st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
-
-        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-        st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-        st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-        st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-        st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
-   
-    if role == "IT":
-        st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.uarf_url, label="‎‎ ‎ UARF", icon="🪪")
-        st.sidebar.page_link(page_url.create_app_user_url, label="‎‎ ‎ Create App user", icon="➕")
-        st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
-        st.sidebar.page_link(page_url.pay_rec_url, label="‎‎ ‎ Payable & Receivable", icon="💸")
-        st.sidebar.page_link(page_url.bro_targets_and_achievements_url, label="‎‎ ‎ RM Targets & Achievements", icon="🎯")
-        st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-        st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-        st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-        st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
-
-    if role == "VIEWER":
-        st.sidebar.page_link(page_url.dashbord_url, label="‎‎ ‎ Dashboard", icon="🏠")
-        st.sidebar.page_link(page_url.cbr_url, label="‎‎ ‎ Cost Benefit", icon="🌱")
-        st.sidebar.page_link(page_url.client_remarks_url, label="‎‎ ‎ Client Profile", icon="🖊️")
-
-        st.sidebar.page_link(page_url.unverified_trans_url, label="‎‎ ‎ Unverified Transactions", icon="⚠️")
-        st.sidebar.page_link(page_url.live_rm_performance_url, label="‎‎ ‎ Live RM Performance", icon="🟢")
-        st.sidebar.page_link(page_url.dpm_3_url, label="‎‎ ‎ DPM3", icon="📦")
-        st.sidebar.page_link(page_url.due_list_url, label="‎‎ ‎ Due List", icon="📋")
-        st.sidebar.page_link(page_url.top_broker_url, label="‎‎ ‎ Top Brokers", icon="🏦")
-        st.sidebar.page_link(page_url.rm_tag_url, label="‎‎ ‎ RM Tag", icon="🏷️")
-        st.sidebar.page_link(page_url.book_closure_url, label="‎‎ ‎ Book Closure", icon="📫")
-        st.sidebar.page_link(page_url.gallery_url, label="‎‎ ‎ Gallery", icon="📸")
-
-        st.sidebar.page_link(page_url.communication_report_url, label="‎‎ ‎ Communication Report", icon="📢")
-        st.sidebar.page_link(page_url.project_request_url, label="‎‎ ‎ Project Request", icon="🤝🏻")
-        st.sidebar.page_link(page_url.digital_url, label="‎‎ ‎ Digital Vault", icon="🔐")
-        st.sidebar.page_link(page_url.profile_url, label="‎‎ ‎ Profile", icon="💼")
-        st.sidebar.page_link(page_url.feedback_url, label="‎‎ ‎ Feedback", icon="💬")
-        st.sidebar.page_link(page_url.logout_url, label="‎‎ ‎ Logout", icon="🏃")
+        # ── Logout ────────────────────────────────────────────
+        st.page_link(page_url.logout_url, label="🏃 Logout")

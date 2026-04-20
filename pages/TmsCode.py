@@ -1,0 +1,304 @@
+import streamlit as st
+import io
+import hashlib
+import pandas as pd
+from db import db
+import streamlit_bridge.navigation as navigation
+from utils import helper
+from utils.custom_hotkey import activate_client_code_hotkey
+
+from pages.BasePage import BasePage
+
+
+@st.cache_data(ttl=120)
+def get_all_kyc_info():
+    rows = db.get_kyc()
+    return pd.DataFrame(rows, columns=["CLIENT CODE", "CLIENT NAME", "BRANCH", "BOID"])
+
+@st.cache_data(ttl=120)
+def get_all_rm_client():
+    conn = db.get_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT "clientCode", "rmName", "category" FROM client_rm_map')
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return pd.DataFrame(rows, columns=["CLIENT CODE", "RM NAME", "CATEGORY"])
+
+def get_file_hash(file):
+    file.seek(0)
+    hash_md5 = hashlib.md5(file.read()).hexdigest()
+    file.seek(0)
+    return hash_md5
+
+
+class TMSCode(BasePage):
+    def __init__(self):
+        super().__init__()
+        helper.eliminate_top_margin(margin_top="-4rem")
+        st.session_state.active_menu = "kyc"
+        st.set_page_config(page_title="TMS Code", page_icon="🏷️", layout="wide")
+        navigation.render_sidebar()
+        st.title("🔍 Find TMS Code", anchor=False)
+        
+    def process_kyc(self, df, kyc_data):
+        df.columns = df.columns.str.upper()
+        kyc_data.columns = kyc_data.columns.str.upper()
+        df["BOID"] = df["BOID"].astype(str)
+        kyc_data["BOID"] = kyc_data["BOID"].astype(str)
+        
+        result = df.merge(kyc_data[["BOID", "CLIENT CODE"]], on="BOID", how="left")
+        result["CLIENT CODE"] = result["CLIENT CODE"].fillna("N/A")
+        result.index += 1
+        return result
+    
+    def process_branch(self, df, kyc_data):
+        df.columns = df.columns.str.upper()
+        kyc_data.columns = kyc_data.columns.str.upper()
+        df["BOID"] = df["BOID"].astype(str)
+        kyc_data["BOID"] = kyc_data["BOID"].astype(str)
+        
+        result = df.merge(kyc_data[["BOID", "BRANCH"]], on="BOID", how="left")
+        result["BRANCH"] = result["BRANCH"].fillna("N/A")
+        result.index += 1
+        return result
+    
+    def process_rm_tag(self, df, rm_data):
+        df.columns = df.columns.str.upper()
+        rm_data.columns = rm_data.columns.str.upper()
+        
+        client_code_cols = [col for col in df.columns if "CLIENT" in col and "CODE" in col]
+        if not client_code_cols:
+            raise ValueError("Column containing 'CLIENT CODE' not found in uploaded file")
+        client_col = client_code_cols[0]
+        
+        df[client_col] = df[client_col].astype(str)
+        rm_data["CLIENT CODE"] = rm_data["CLIENT CODE"].astype(str)
+        
+        result = df.merge(rm_data[["CLIENT CODE", "RM NAME"]], 
+                          left_on=client_col, right_on="CLIENT CODE", how="left")
+        result["RM TAG"] = result["RM NAME"].fillna("N/A")
+        result.rename(columns={client_col: "CLIENT CODE"}, inplace=True)
+        result.drop(columns=["RM NAME"], inplace=True)
+        result.index += 1
+        return result
+    
+    def download_excel(self, df, filename):
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Result")
+        return output.getvalue()
+    
+    def sample_file_download(self, filename, file_path):
+        with open(file_path, "rb") as f:
+            content = f.read()
+
+        st.download_button(
+            label="📥 Download Sample File",
+            data=content,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    def main(self):
+        option = st.radio("Find", ["💻 Client Code", "🪾Branch","🏷️​RM Tag"] , horizontal=True, key="tms_option")
+
+        if "prev_tms_option" not in st.session_state:
+            st.session_state.prev_tms_option = option
+        
+        if st.session_state.prev_tms_option != option:
+            for key in ["tms_result", "branch_result", "show_result", "show_branch_result"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.prev_tms_option = option
+
+        if option == "💻 Client Code":
+            self.sample_file_download(
+                "sample.xlsx",
+                r"D:\Anjit\project\rms\data\sample.xlsx"
+            )
+            uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx"], key="kyc_upload")
+
+            if uploaded_file:
+                file_hash = get_file_hash(uploaded_file)
+                
+                if "last_kyc_file_hash" in st.session_state:
+                    if st.session_state.last_kyc_file_hash != file_hash:
+                        for key in ["tms_result", "show_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                    else:
+                        for key in ["tms_result", "show_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                
+                st.session_state.last_kyc_file_hash = file_hash
+                
+                try:
+                    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
+                    df.index += 1
+
+                    st.subheader("📊 Uploaded Data", anchor=False)
+                    st.dataframe(df, width="stretch")
+                    
+                    col1, col2 = st.columns([1, 1])
+
+                    with col1:
+                        if st.button("🌐 Find TMS Code"):
+                            kyc_data = get_all_kyc_info()
+                            result = self.process_kyc(df, kyc_data)
+
+                            st.session_state.tms_result = result
+                            st.session_state.show_result = True
+
+                            found = (result["CLIENT CODE"] != "N/A").sum()
+                            not_found = (result["CLIENT CODE"] == "N/A").sum()
+
+                            st.success(f"✅ TMS Code found: {found}")
+                            st.warning(f"⚠️ TMS code not found: {not_found}")
+
+                    if st.session_state.get("show_result"):
+                        with col2:
+                            data = self.download_excel(
+                                st.session_state.tms_result,
+                                "tms_code_result.xlsx"
+                            )
+
+                            st.download_button(
+                                "📥 Download Result",
+                                data,
+                                "tms_code_result.xlsx",
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
+                        with st.expander("📝 Client Code Result Details", expanded=False):
+                            st.subheader("📈 Matched Result", anchor=False)
+                            st.dataframe(st.session_state.tms_result, width="stretch")
+
+                except Exception as e:
+                    st.error(f"Error processing file: {e}")
+        
+        if option == "🪾Branch":
+            uploaded_file = st.file_uploader("Upload Data", type=["csv", "xlsx"], key="branch_upload")
+
+            if uploaded_file:
+                file_hash = get_file_hash(uploaded_file)
+                
+                if "last_branch_file_hash" in st.session_state:
+                    if st.session_state.last_branch_file_hash != file_hash:
+                        for key in ["branch_result", "show_branch_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                    else:
+                        for key in ["branch_result", "show_branch_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                
+                st.session_state.last_branch_file_hash = file_hash
+                
+                try:
+                    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
+                    df.index += 1
+
+                    st.subheader("📊 Uploaded Data", anchor=False)
+                    st.dataframe(df, width="stretch")
+
+                    col1, col2 = st.columns([1, 1])
+
+                    with col1:
+                        if st.button("🌐 Find Branch Code"):
+                            kyc_data = get_all_kyc_info()
+                            result = self.process_branch(df, kyc_data)
+                            st.session_state.branch_result = result
+                            st.session_state.show_branch_result = True
+                            
+                            found = (result["BRANCH"] != "N/A").sum()
+                            not_found = (result["BRANCH"] == "N/A").sum()
+                            st.success(f"✅ Branch found: {found}")
+                            st.warning(f"⚠️ Branch not found: {not_found}")
+
+                    if st.session_state.get("show_branch_result"):
+                        with col2:
+                            data = self.download_excel(
+                                st.session_state.branch_result,
+                                "branch_result.xlsx"
+                            )
+
+                            st.download_button(
+                                "📥 Download Result",
+                                data,
+                                "branch_result.xlsx",
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
+                        with st.expander("🧾 Branch Result Details", expanded=False):
+                            st.subheader("📈 Matched Branch Result", anchor=False)
+                            st.dataframe(st.session_state.branch_result, width="stretch")
+
+                except Exception as e:
+                    st.error(f"Error processing file: {e}")
+                    
+        if option == "🏷️​RM Tag":
+            uploaded_file = st.file_uploader("Upload Data", type=["csv", "xlsx"], key="rm_upload")
+
+            if uploaded_file:
+                file_hash = get_file_hash(uploaded_file)
+                
+                if "last_rm_file_hash" in st.session_state:
+                    if st.session_state.last_rm_file_hash != file_hash:
+                        for key in ["rm_result", "show_rm_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                    else:
+                        for key in ["rm_result", "show_rm_result"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                
+                st.session_state.last_rm_file_hash = file_hash
+                
+                try:
+                    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
+                    df.index += 1
+
+                    st.subheader("📊 Uploaded Data", anchor=False)
+                    st.dataframe(df, width="stretch")
+
+                    col1, col2 = st.columns([1, 1])
+
+                    with col1:
+                        if st.button("🌐 Find RM Tag"):
+                            rm_data = get_all_rm_client()
+                            result = self.process_rm_tag(df, rm_data)
+
+                            st.session_state.rm_result = result
+                            st.session_state.show_rm_result = True
+
+                            found = (result["RM TAG"] != "N/A").sum()
+                            not_found = (result["RM TAG"] == "N/A").sum()
+
+                            st.success(f"✅ RM Tag found: {found}")
+                            st.warning(f"⚠️ RM Tag not found: {not_found}")
+
+                    if st.session_state.get("show_rm_result"):
+                        with col2:
+                            data = self.download_excel(
+                                st.session_state.rm_result,
+                                "rm_result.xlsx"
+                            )
+
+                            st.download_button(
+                                "📥 Download Result",
+                                data,
+                                "rm_result.xlsx",
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
+                        with st.expander("📝 RM Tag Result Details", expanded=False):
+                            st.subheader("📈 Matched Result", anchor=False)
+                            st.dataframe(st.session_state.rm_result, width="stretch")
+
+                except Exception as e:
+                    st.error(f"Error processing file: {e}")
+
+if __name__ == "__main__":
+    page = TMSCode()
+    page.main()

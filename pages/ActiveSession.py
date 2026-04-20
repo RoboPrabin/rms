@@ -10,8 +10,7 @@ from utils import auth_utils, helper
 
 class ActiveSession(BasePage):
     def __init__(self):
-        super().__init__()
-        # helper.eliminate_top_padding()
+        super().__init__(require_auth_check=True, required_role="ADMIN")
         st.session_state.active_menu = "user"
         st.set_page_config(page_title="Active Session", page_icon="🕓", layout="wide")
         # user = auth_utils.ensure_logged_in()

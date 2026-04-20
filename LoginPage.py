@@ -109,7 +109,7 @@ class LoginPage(BasePage):
                 st.write("✅ Redirecting...")
                 # st.write("✅ Creating secure session...")
                 create_session(db_username, sid=encrypted_token)
-        st.switch_page(page_url.otp_url)
+        st.switch_page(page_url.opt_url)
         st.stop()
 
     def handle_failed_login(self, username):
@@ -232,4 +232,3 @@ class LoginPage(BasePage):
 
 if __name__ == "__main__":
     LoginPage().render_page()
-

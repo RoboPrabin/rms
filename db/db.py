@@ -242,15 +242,27 @@ def fetch_clients_category():
 
 def get_latest_holdings_dpm3():
     query = """
-        SELECT d.*,
-               a."closePrice",
-               a.updated_at,
-               COALESCE(c."rmName", 'N/A') AS "rmName"
+        SELECT 
+            COALESCE(k."clientfullname", d."CLIENT NAME", 'N/F') AS "CLIENT NAME",
+            COALESCE(k."clientbranch", d."BRANCH", 'N/F') AS "BRANCH",
+            d."CLIENT CODE",
+            d."SCRIPT",
+            d."FREE BALANCE",
+            d."PLEDGE BALANCE",
+            d."CURRENT BALANCE",
+            COALESCE(d."LOCKIN BALANCE", 0) AS "LOCKIN BALANCE",
+            d."ISIN",
+            d."BOID",
+            a."closePrice",
+            a.updated_at AS "UPDATED AT",
+            COALESCE(c."rmName", 'N/A') AS "rmName"
         FROM dpm3 d
         LEFT JOIN average_price a
                ON d."SCRIPT" = a."symbol"
         LEFT JOIN client_rm_map c
                ON d."CLIENT CODE" = c."clientCode"
+        LEFT JOIN kyc k
+               ON d."CLIENT CODE" = k."clientmembercode"
         WHERE d."FREE BALANCE" != '0'
     """
     
@@ -3699,4 +3711,3 @@ def end_session(username: str):
                 cur.fetchall()
     finally:
         conn.close()
-
