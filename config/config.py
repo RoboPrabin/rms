@@ -20,7 +20,7 @@ login_animation_path = PROJECT_PATH + r"\assets\anim\login.json"
 otp_animation_path = PROJECT_PATH + r"\assets\anim\otp.json"
 sidebar_icon = PROJECT_PATH + r"\assets\img\com_logo.png"
 
-session_expiry_time = 18000   # 5 hours
+session_expiry_time = 25200
 
 # ---------------- CONFIG ----------------
 dg_api_userName = "tri-api"
