@@ -224,7 +224,7 @@ def show_notification(message="hy"):
 # ---------------------------------------------------------
 class Dashboard(BasePage):
     def __init__(self):
-        super().__init__(require_auth_check=True)
+        super().__init__()
         st.set_page_config("Dashboard", page_icon="🏠", layout="wide")
         helper.eliminate_top_margin(margin_top="-8rem")
         st.session_state.active_menu = ""

@@ -533,7 +533,7 @@ def render_sidebar():
 
     with st.sidebar:
 
-        live_clock() 
+        # live_clock() 
         
         # ── Animated header ──────────────────────────────────
         try:
