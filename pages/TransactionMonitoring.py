@@ -256,7 +256,7 @@ class TransactionMonitoring(BasePage):
             st.session_state.count = len(st.session_state.aml_data)
         if 'scripts' not in st.session_state:
             df_scripts = db.get_scripts()
-            st.session_state.scripts = (df_scripts['symbol'] + " - " + df_scripts['securityName']).tolist()
+            st.session_state.scripts = (df_scripts['symbol']).tolist()
 
         if 'client_options' not in st.session_state:
             df = st.session_state.aml_data

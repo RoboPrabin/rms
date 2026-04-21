@@ -17,9 +17,9 @@ class MailCleanup(BasePage):
         super().__init__()
         helper.eliminate_top_margin(margin_top="-4rem")
         st.session_state.active_menu = "kyc"
-        st.set_page_config(page_title="Mail Cleanup Bot", layout="centered")
+        st.set_page_config(page_title= "📧 Mail Cleanup", layout="centered")
         navigation.render_sidebar()
-        st.title("📧 Mail Cleanup Bot", anchor=False)
+        st.title("📧 Mail Cleanup ", anchor=False)
 
 
     def render(self):

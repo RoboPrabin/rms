@@ -114,7 +114,7 @@ class TMSCode(BasePage):
         if option == "💻 Client Code":
             self.sample_file_download(
                 "sample.xlsx",
-                r"D:\Anjit\project\rms\data\sample.xlsx"
+                r"E:\Trishakti\Projects\rms\data\sample.xlsx"
             )
             uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx"], key="kyc_upload")
 
