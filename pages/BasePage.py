@@ -130,7 +130,7 @@ class BasePage:
                         history.pushState(null, '', location.href);
                     }
                 }, 100);
-            });
+});
             </script>
         """)
 
@@ -156,7 +156,6 @@ class BasePage:
         if st.button("Login Again", icon="🔄"):
             st.switch_page(page_url.login_url)
         st.stop()
-
 
     def logout(self):
         self._invalidate_db_session()
