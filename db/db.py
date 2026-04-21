@@ -782,7 +782,7 @@ def get_all_unverified_transaction():
             return df  
 
 def get_scripts():
-    query = """SELECT symbol, "securityName" from average_price ORDER BY symbol ASC;"""
+    query = """SELECT symbol from average_price ORDER BY symbol ASC;"""
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(query)

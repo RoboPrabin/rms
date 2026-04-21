@@ -56,7 +56,7 @@ class ClientCommunication(BasePage):
         if "scripts_df" not in st.session_state:
             df_scripts = db.get_scripts()
             df_scripts['display'] = (
-                df_scripts['symbol'] + " - " + df_scripts['securityName']
+                df_scripts['symbol']
             )
             st.session_state.scripts_df = df_scripts
 
