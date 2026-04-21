@@ -160,6 +160,7 @@ DEFAULT_ROLE_ACCESS = {
         "digital_vault": True,
         "profile": True,
         "feedback": True,
+        "mail_cleaner": True,
     },
 
     "USER": {

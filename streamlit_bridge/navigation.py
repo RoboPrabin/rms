@@ -160,6 +160,7 @@ DEFAULT_ROLE_ACCESS = {
         "digital_vault": True,
         "profile": True,
         "feedback": True,
+        "mail_cleaner": True,
     },
 
     "USER": {
@@ -225,7 +226,7 @@ ALL_MENU_KEYS = {
     "cashin_out",
     "trade_history",
     "tms_code",
-    "mail_cleaner"
+    "mail_cleaner",
 }
 
 
