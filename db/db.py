@@ -719,7 +719,7 @@ def get_restricted_scripts(client_code: str) -> list[str]:
     Returns a list of strings in format "SYMBOL - SecurityName".
     """
     query = """
-        SELECT ap."symbol", ap."securityName"
+        SELECT ap."symbol"
         FROM "transaction_monitor" tm
         JOIN "average_price" ap 
             ON ap."symbol" = ANY(string_to_array(tm."restrict_company", ','))

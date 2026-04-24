@@ -210,7 +210,7 @@ class DPM3(BasePage):
         isin_rows = db.get_isin_data()
         isin_df = pd.DataFrame(isin_rows, columns=["ISIN", "SCRIP"])
         merged = df.merge(isin_df, on="ISIN", how="left")
-        merged["SCRIPT"] = merged["SCRIP"].fillna("N/F")
+        merged["SCRIPT"] = merged["SCRIP"].fillna(merged["SCRIPT"])
         merged = merged.drop(columns=["SCRIP"])
         return merged
 

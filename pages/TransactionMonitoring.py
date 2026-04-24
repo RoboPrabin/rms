@@ -302,10 +302,9 @@ class TransactionMonitoring(BasePage):
                 )
 
         if st.button("Restrict now !", icon="🚫"):
-            symbols = [item.split(" - ", 1)[0] for item in restricted_scripts]
-            if len(symbols) == 0:
-                symbols = None
-            selected_client = str(selected_client.split("-")[0].strip())
+            symbols = restricted_scripts if restricted_scripts else None
+            if selected_client != 'None':
+                selected_client = str(selected_client.split("-")[0].strip())
             db.update_restrict_company(client_code=selected_client, updated_by=self.username, restrict_company=symbols)
             st.success("Data updated successfully.", icon="✅")
             sleep(1)

@@ -207,7 +207,7 @@ def fetch_today_price():
             return
 
         # ── Dynamic today's date ─────────────────────────────────────────────
-        # today = "2026-04-20"
+        # today = "2026-04-22"
         today = datetime.today().strftime("%Y-%m-%d")
 
         # ── Browser still OPEN → token still valid ───────────────────────────

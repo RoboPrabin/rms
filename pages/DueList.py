@@ -44,8 +44,17 @@ def get_due_list_last_updated_ts_bro(bro_name):
 #     return df
 
 
-def load_due_list_data_all():
-    query = """
+def load_due_list_data_all(from_date=None, to_date=None, limit=5000):
+    date_filter = ""
+    params = []
+    if from_date:
+        date_filter = "WHERE d.uploaded_at >= %s"
+        params.append(from_date.strftime("%Y-%m-%d"))
+        if to_date:
+            date_filter += " AND d.uploaded_at <= %s"
+            params.append(to_date.strftime("%Y-%m-%d") + " 23:59:59")
+    
+    query = f"""
         SELECT 
             d.*,
             COALESCE(m."rmName", bm."code", 'N/A') AS "rmName"
@@ -54,22 +63,36 @@ def load_due_list_data_all():
             ON d."clientCode" = m."clientCode"
         LEFT JOIN branch_manager bm 
             ON d."branch" = bm."branch_code"
+        {date_filter}
+        ORDER BY d.uploaded_at DESC
+        LIMIT {limit}
     """
-    df = pd.read_sql(query, intranet_engine)
+    df = pd.read_sql(query, intranet_engine, params=tuple(params) if params else None)
     return df
 
 
 
-def load_due_list_data_bro(alias):
-    query = """
+def load_due_list_data_bro(alias, from_date=None, to_date=None, limit=5000):
+    date_filter = ""
+    params = [alias]
+    if from_date:
+        date_filter = "AND d.uploaded_at >= %s"
+        params.append(from_date.strftime("%Y-%m-%d"))
+        if to_date:
+            date_filter += " AND d.uploaded_at <= %s"
+            params.append(to_date.strftime("%Y-%m-%d") + " 23:59:59")
+    
+    query = f"""
         SELECT d.*,
                COALESCE(m."rmName", 'N/A') AS "rmName"
         FROM due_list d
         LEFT JOIN client_rm_map m ON d."clientCode" = m."clientCode"
         WHERE COALESCE(m."rmName", 'N/A') = %s
+        {date_filter}
+        ORDER BY d.uploaded_at DESC
+        LIMIT {limit}
     """
-    params = (alias,)
-    df = pd.read_sql(query, intranet_engine, params=params)
+    df = pd.read_sql(query, intranet_engine, params=tuple(params))
     return df
 
 # --- Main Class ---
@@ -99,27 +122,31 @@ class DueList(BasePage):
     #         else:
     #             st.session_state["due_list_data"] = load_due_list_data_all()
 
-    def load_data(self):
+    def load_data(self, selected_date=None):
+        # Use cache key based on date to invalidate when date changes
+        cache_key = f"due_list_{selected_date}"
+        
         if self.role == "BRO":
             alias = helper.get_alias_name(self.username.upper())
             latest_ts = get_due_list_last_updated_ts_bro(alias)
 
             if (
-                "due_list_data" not in st.session_state
+                cache_key not in st.session_state
                 or st.session_state.get("due_list_last_ts") != latest_ts
             ):
-                st.session_state["due_list_data"] = load_due_list_data_bro(alias)
+                st.session_state[cache_key] = load_due_list_data_bro(alias, from_date=selected_date)
                 st.session_state["due_list_last_ts"] = latest_ts
-
+                st.session_state["due_list_data"] = st.session_state[cache_key]
         else:
             latest_ts = get_due_list_last_updated_ts_all()
 
             if (
-                "due_list_data" not in st.session_state
+                cache_key not in st.session_state
                 or st.session_state.get("due_list_last_ts") != latest_ts
             ):
-                st.session_state["due_list_data"] = load_due_list_data_all()
+                st.session_state[cache_key] = load_due_list_data_all(from_date=selected_date)
                 st.session_state["due_list_last_ts"] = latest_ts
+                st.session_state["due_list_data"] = st.session_state[cache_key]
 
 
     
@@ -127,9 +154,6 @@ class DueList(BasePage):
 
 
     def render_page(self):
-        with st.spinner("Loading due list data. Please wait...", show_time=True):
-            self.load_data()
-        df: pd.DataFrame = st.session_state["due_list_data"]
         st.title("📋 Due List", anchor=False)
 
         # --- Layout for filters ---
@@ -140,6 +164,12 @@ class DueList(BasePage):
             by_status = st.selectbox("Select Session", ["Morning", "Evening"], index=0)
         with col3:
             filter_by = st.selectbox("Filter By", ["Bro", "Client Code", "Branch", ">=", "<="], index=2)
+        
+        # Load data WITH date filter (only loads data for selected date)
+        with st.spinner("Loading due list data. Please wait...", show_time=True):
+            self.load_data(selected_date)
+        
+        df: pd.DataFrame = st.session_state["due_list_data"]
 
         with col4:
             unique_bros = df["rmName"].dropna().unique().tolist()
@@ -248,11 +278,11 @@ class DueList(BasePage):
         # Drop unnecessary columns including uploaded_at
         df_filtered.drop(columns=[
             'category', 'dueDate', 'dueSinceLastStlDateInDays',
-            'lastSettlementDate', 'lastCrDate', 'billAgeInDays'
+            'boid', 'lastCrDate', 'billAgeInDays','uploaded_by','updated_at','uploaded_at'
         ], inplace=True, errors='ignore')
-        df["Session"] = df["uploaded_at"].astype(str).str.endswith("AM").map(
-            {True: "Morning", False: "Evening"}
-        )
+        # df_filtered["Session"] = df_filtered["uploaded_at"].astype(str).str.endswith("AM").map(
+        #     {True: "Morning", False: "Evening"}
+        # )
 
         # Move Bro column to first position
         if "Bro" in df_filtered.columns:
@@ -268,8 +298,8 @@ class DueList(BasePage):
 
         # Rename and format columns
         df_filtered.rename(columns={"dueSinceInDays": "Due Days"}, inplace=True)
-        df_filtered['boid'] = df_filtered['boid'].apply(lambda x: "IN" if str(x).startswith("13011400") else "OUT")
-        # df_filtered.drop(columns=['uploaded_at_dt'], inplace=True)
+        # df_filtered['boid'] = df_filtered['boid'].apply(lambda x: "IN" if str(x).startswith("13011400") else "OUT")
+        # df_filtered.drop(columns=['Uploaded By'], inplace=True)
         try:
             cols = list(df_filtered.columns)
             # Remove 'Session' from current position
