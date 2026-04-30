@@ -111,7 +111,7 @@ base_url_tms = "https://tms48.nepsetms.com.np"
 
 credentials_tms = {
     "username": "DEV-PROD",
-    "password": "Dev.Prod@319",
+    "password": "Dev.Prod@123",
     "server_id": "105675",
 }
 
