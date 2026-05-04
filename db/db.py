@@ -263,7 +263,11 @@ def get_latest_holdings_dpm3():
                ON d."CLIENT CODE" = c."clientCode"
         LEFT JOIN kyc k
                ON d."CLIENT CODE" = k."clientmembercode"
-        WHERE NOT (d."FREE BALANCE" = '0' AND d."PLEDGE BALANCE" = '0')
+        WHERE NOT (
+            d."FREE BALANCE" = '0' AND 
+            d."PLEDGE BALANCE" = '0' AND 
+            d."LOCKIN BALANCE" = '0'
+        )
     """
     
     try:
