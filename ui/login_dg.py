@@ -174,59 +174,113 @@ def clear_input_fields(driver:webdriver.Chrome, xpath_value:str):
 def login_dg():    
     ensure_session_management_folder()
     show_message("Logging to DG Trade. Expecting CAPTCHA from user.", 'white')
+
     driver = setup_chrome_driver()
     # driver.get(url=url_login)
+
     sleep(3)
+
     try:
-        if driver.find_element(By.XPATH, "//div[@class='modal-dialog modal-sm']//button[@aria-label='Close'][normalize-space()='×']").is_displayed():
-            driver.find_element(By.XPATH, "//div[@class='modal-dialog modal-sm']//button[@aria-label='Close'][normalize-space()='×']").click()
+        if driver.find_element(
+            By.XPATH,
+            "//div[@class='modal-dialog modal-sm']//button[@aria-label='Close'][normalize-space()='×']"
+        ).is_displayed():
+
+            driver.find_element(
+                By.XPATH,
+                "//div[@class='modal-dialog modal-sm']//button[@aria-label='Close'][normalize-space()='×']"
+            ).click()
+
     except Exception as e:
         pass
 
     is_captcha_correct = False
+
     while not is_captcha_correct:
         try:
-            # input_value = get_user_input("DG TRADE")
             is_captcha_request_present(driver=driver)
-            captcha_img = WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'img[alt="captcha"]')))
+
+            captcha_img = WebDriverWait(driver, 8).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, 'img[alt="captcha"]')
+                )
+            )
+
             base64_src = captcha_img.get_attribute("src")
+
             if not base64_src.startswith("data:image"):
                 print("[❌] CAPTCHA image src does not contain base64 data, refreshing page.")
                 driver.refresh()
                 continue
 
-            base64_body = base64_src.split(",")[1]
-            captcha_text = solve_captcha(base64_image=base64_body)
-            # captcha_text = input("Enter CAPTCHA text: ")
+            # ASK USER TO ENTER CAPTCHA
+            captcha_text = input("Enter CAPTCHA shown in DG Trade: ").strip()
+
             clear_input_fields(driver, xpath_input_username)
             clear_input_fields(driver, xpath_input_password)
-            driver.find_element(By.XPATH, xpath_input_username).send_keys(credentials_dg['username'])
-            driver.find_element(By.XPATH, xpath_input_password).send_keys(credentials_dg['password'])
-            driver.find_element(By.XPATH, xpath_input_captcha).send_keys(captcha_text)
-            driver.find_element(By.XPATH, xpath_button_login).click()
-            incorrect_captcha = WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//div[normalize-space()='Invalid Captcha']")))
-            driver.refresh()
-            show_message("Wrong captcha", 'red')
-            sleep(1.3)
-        except Exception as e:
-                try:
-                    show_message(f"Logged in DG.", "green")
-                    WebDriverWait(driver , 3).until(EC.presence_of_element_located((By.XPATH, "//a[@aria-label='Dropdown toggle'][normalize-space()='Setup & Utility']")))
-                    is_captcha_correct = True
-                    cookies = driver.get_cookies()
-                    with open(cookies_management_path_dg, "wb") as f:
-                        pickle.dump(cookies, f)
-                        show_message(f"cookies  saved to {cookies_management_path_dg}", 'white')
+            clear_input_fields(driver, xpath_input_captcha)
 
-                    save_local_storage_data(driver)
-                    show_message("Please Wait . . . .\n\n", 'white')
-                    try:
-                        driver.close()
-                        driver.quit()
-                    except Exception as e:
-                        show_message("Error while closing the driver.", "red")
+            driver.find_element(By.XPATH, xpath_input_username).send_keys(
+                credentials_dg['username']
+            )
+
+            driver.find_element(By.XPATH, xpath_input_password).send_keys(
+                credentials_dg['password']
+            )
+
+            driver.find_element(By.XPATH, xpath_input_captcha).send_keys(
+                captcha_text
+            )
+
+            driver.find_element(By.XPATH, xpath_button_login).click()
+
+            try:
+                incorrect_captcha = WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, "//div[normalize-space()='Invalid Captcha']")
+                    )
+                )
+
+                driver.refresh()
+                show_message("Wrong captcha", 'red')
+                sleep(1.3)
+
+            except:
+                # LOGIN SUCCESS
+                show_message("Logged in DG.", "green")
+
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((
+                        By.XPATH,
+                        "//a[@aria-label='Dropdown toggle'][normalize-space()='Setup & Utility']"
+                    ))
+                )
+
+                is_captcha_correct = True
+
+                cookies = driver.get_cookies()
+
+                with open(cookies_management_path_dg, "wb") as f:
+                    pickle.dump(cookies, f)
+
+                show_message(
+                    f"cookies saved to {cookies_management_path_dg}",
+                    'white'
+                )
+
+                save_local_storage_data(driver)
+
+                show_message("Please Wait . . . .\n\n", 'white')
+
+                try:
+                    driver.close()
+                    driver.quit()
+
                 except Exception as e:
-                    driver.get("https://dgtrade.trishakti.com.np:8080/bom/index.html#/login")
-                    continue
+                    show_message("Error while closing the driver.", "red")
+
+        except Exception as e:
+            driver.get("https://dgtrade.trishakti.com.np:8080/bom/index.html#/login")
+            continue
 if __name__ == "__main__":         
     login_dg()
