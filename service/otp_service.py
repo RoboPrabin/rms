@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 from db.db import get_connection
 from service.email_service import send_email
+from service.whatsapp_services import send_otp
 
 # ---------- Config ----------
 OTP_EXPIRY_MINUTES = 4
@@ -24,6 +25,15 @@ def get_otp_expiry(username: str) -> datetime:
 def generate_otp() -> str:
     """Generate a 6-digit numeric OTP"""
     return str(random.randint(100000, 999999))
+
+
+def get_user_phone(username: str) -> str | None:
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT phone FROM app_user WHERE username = %s;", (username,))
+        row = cur.fetchone()
+    conn.close()
+    return row[0] if row else None
 
 
 async def create_user_otp(username: str, user_email: str) -> str:
@@ -56,7 +66,13 @@ async def create_user_otp(username: str, user_email: str) -> str:
     # Send OTP via email
     subject = "RMS OTP Code"
     send_email(to_email=user_email, subject=subject, username=username, otp_code=otp, minutes=OTP_EXPIRY_MINUTES)
-    return otp
+    
+    # send OTP via WhatsApp
+    
+    # phone = get_user_phone(username)
+    # if phone:
+    #     send_otp(phone=phone, otp_code=otp, username=username, minutes=OTP_EXPIRY_MINUTES)
+    #     return otp
 
 
 def verify_user_otp(username: str, entered_otp: str) -> bool:
