@@ -69,10 +69,10 @@ async def create_user_otp(username: str, user_email: str) -> str:
     
     # send OTP via WhatsApp
     
-    # phone = get_user_phone(username)
-    # if phone:
-    #     send_otp(phone=phone, otp_code=otp, username=username, minutes=OTP_EXPIRY_MINUTES)
-    #     return otp
+    phone = get_user_phone(username)
+    if phone:
+        send_otp(phone=phone, otp_code=otp, username=username, minutes=OTP_EXPIRY_MINUTES)
+        return otp
 
 
 def verify_user_otp(username: str, entered_otp: str) -> bool:

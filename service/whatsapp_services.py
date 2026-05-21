@@ -5,13 +5,13 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-API_URL = "http://192.168.1.177:4000/send"
+API_URL = "https://rms.trishakti.com.np/api/v1/whatsapp/send-message"
 HEADERS = {"Content-Type": "application/json"}
 
 
 def send_message(phone: str, message: str) -> dict[str, Any] | None:
     payload = {
-        "phone": f"977{phone}",
+        "to": f"977{phone}",
         "message": message,
     }
 
