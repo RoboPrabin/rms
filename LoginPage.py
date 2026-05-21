@@ -6,7 +6,7 @@ import datetime
 import streamlit as st
 from assets.lottie_anim import show_login_animation
 # Custom imports - ensuring these match your project structure
-from service.otp_service import create_user_otp
+from service.otp_service import create_user_otp, get_user_phone
 from config import config
 from utils.security import decrypt_data, encrypt_data
 from utils import page_url, security, helper
@@ -17,6 +17,7 @@ from db.db import (
     get_user_by_pin_for_login, 
     update_login_status_by_pin
 )
+
 from pages.BasePage import BasePage
 class LoginPage(BasePage):
     def __init__(self):
@@ -88,18 +89,19 @@ class LoginPage(BasePage):
 
                 # Step 2: Sending OTP
                 status.update(label="Sending OTP...", state="running")
-                st.write("✅ OTP is being sent to your registered email. Please wait...")
+                st.write("✅ OTP is being sent to your registered email and WhatsApp. Please wait...")
 
                 if gateway == "pin":
                     helper.show_message(f"{db_username, db_role ,db_branch, db_email}", color='cyan')
                 else:
                     helper.show_message(f"{db_username, db_role ,db_branch, db_email}", color='green')
 
-
+                phone = get_user_phone(db_username)
                 try:
                     asyncio.run(create_user_otp(db_username, db_email))
                     st.session_state.has_sent_otp = True
-                    st.write(f"✅ OTP successfully sent to `{db_email}`")
+                    st.write(f"✅ OTP successfully sent to `{db_email}`.")
+                    st.write(f"✅ OTP successfully sent to `{phone}`.")
                 except Exception as e:
                     status.update(label="Failed to send OTP", state="error")
                     st.error(f"Error: {e}")
