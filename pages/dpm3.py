@@ -453,13 +453,6 @@ class DPM3(BasePage):
             st.badge(f"Balance:{balance:,.2f} {balance_type}", color="green")
         free_valuation_sum = df['FREE SHARE VALUATION'].sum()
         total_valuation_sum = df['TOTAL VALUATION'].sum()
-        free_status_check = free_valuation_sum - adjusted_balance
-        total_status_check = total_valuation_sum - adjusted_balance
-        col4, col5 = st.columns(2)
-        with col4:
-            st.badge(f"Free Status Check:{free_status_check:,.2f}", color="violet")
-        with col5:
-            st.badge(f"Total Status Check:{total_status_check:,.2f}", color="violet")
 
     def _render_onhold_metrics(self, df_onhold):
         col1, col2, col3 = st.columns(3)
