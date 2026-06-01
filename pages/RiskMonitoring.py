@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from utils import helper
 from utils.formatting import accounting_format, highlight_negative
-from datetime import datetime
 from time import sleep
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
@@ -10,13 +9,35 @@ from pages.BasePage import BasePage
 from db import db
 
 
+STATUS_OPTIONS = ["Active", "Inactive", "Suspended", "Default", "N/A"]
+STATUS_COLORS = {
+    "Active": "#27ae60", "Inactive": "#e74c3c",
+    "Suspended": "#f39c12", "Default": "#c0392b", "N/A": "#95a5a6",
+}
+PREFERRED_COLUMNS = [
+    "Bro", "Branch", "Client Code", "Client Name", "Boid",
+    "Dp In/Out", "Status",
+    "Free Share Valuation", "Pledge Share Valuation",
+    "Onhold Amount", "Due Amount", "Net Valuation",
+]
+FINANCIAL_COLUMNS = [
+    "Free Share Valuation", "Pledge Share Valuation",
+    "Onhold Amount", "Due Amount", "Net Valuation",
+]
+
 intranet_engine = helper.get_holding_engine()
 
 
 @st.cache_data(ttl=300)
 def load_risk_monitoring_data():
-    today_str = datetime.now().strftime("%Y-%m-%d")
     query = """
+        WITH parsed_due AS (
+            SELECT "clientCode", "adjustedBalance",
+                   TO_TIMESTAMP(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM') AS uploaded_ts
+            FROM due_list
+            WHERE uploaded_at IS NOT NULL AND TRIM(uploaded_at) <> ''
+              AND TO_TIMESTAMP(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::date = CURRENT_DATE
+        )
         SELECT r.*, COALESCE(m."rmName", 'N/A') AS "Bro",
                COALESCE(k.clientbranch, 'N/A') AS "Branch",
                COALESCE(k.boid::TEXT, 'N/A') AS "BOID",
@@ -27,19 +48,22 @@ def load_risk_monitoring_data():
         LEFT JOIN kyc k ON r.client_code = k.clientmembercode
         LEFT JOIN (
             SELECT DISTINCT ON ("clientCode") "clientCode", "adjustedBalance"
-            FROM due_list
-            WHERE TO_TIMESTAMP(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM')::DATE = %s
-            ORDER BY "clientCode", TO_TIMESTAMP(uploaded_at, 'YYYY-MM-DD HH12:MI:SS AM') DESC
+            FROM parsed_due
+            ORDER BY "clientCode", uploaded_ts DESC
         ) dl ON r.client_code = dl."clientCode"
         ORDER BY r.client_code
     """
-    df = pd.read_sql(query, intranet_engine, params=(today_str,))
-    return df
+    return pd.read_sql(query, intranet_engine)
 
 
 @st.cache_data(ttl=300)
 def load_dpm3_valuation():
-    df = pd.read_sql("SELECT * FROM dpm3", intranet_engine)
+    df = pd.read_sql(
+        """SELECT "CLIENT CODE", "FREE SHARE VALUATION", "PLEDGE SHARE VALUATION",
+                  "FREE BALANCE", "PLEDGE BALANCE"
+           FROM dpm3""",
+        intranet_engine,
+    )
     if df.empty:
         return df
     df.columns = [c.strip().upper() for c in df.columns]
@@ -62,12 +86,12 @@ def load_dpm3_valuation():
 
 @st.cache_data(ttl=300)
 def load_onhold_valuation():
-    query = """
-        SELECT o.client_code, o.quantity, COALESCE(a."closePrice", 0) AS close_price
-        FROM dpm3_onhold o
-        LEFT JOIN average_price a ON o.symbol = a."symbol"
-    """
-    df = pd.read_sql(query, intranet_engine)
+    df = pd.read_sql(
+        """SELECT o.client_code, o.quantity, COALESCE(a."closePrice", 0) AS close_price
+           FROM dpm3_onhold o
+           LEFT JOIN average_price a ON o.symbol = a."symbol" """,
+        intranet_engine,
+    )
     if df.empty:
         return df
     df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0)
@@ -77,11 +101,38 @@ def load_onhold_valuation():
     return val
 
 
+@st.cache_data(ttl=300)
+def load_merged_risk_data():
+    df = load_risk_monitoring_data()
+    if df.empty:
+        return df
+
+    dpm3 = load_dpm3_valuation()
+    if dpm3 is not None and not dpm3.empty:
+        df = df.merge(dpm3, left_on="client_code", right_on="CLIENT CODE", how="left")
+        df["Free_Share_Valuation"] = df["Free_Share_Valuation"].fillna(0)
+        df["Pledge_Share_Valuation"] = df["Pledge_Share_Valuation"].fillna(0)
+        df.drop(columns=["CLIENT CODE"], inplace=True)
+
+    onhold = load_onhold_valuation()
+    if onhold is not None and not onhold.empty:
+        df = df.merge(onhold, on="client_code", how="left")
+        df["Onhold_Amount"] = df["Onhold_Amount"].fillna(0)
+
+    df["Net_Valuation"] = df["Free_Share_Valuation"] + df["Onhold_Amount"] - df["Due Amount"]
+    df = df.rename(columns=helper.camel_to_title)
+
+    remaining = [c for c in df.columns if c not in PREFERRED_COLUMNS]
+    df = df[PREFERRED_COLUMNS + remaining]
+    df = df.sort_values("Bro", ascending=True)
+    return df
+
+
 @st.dialog("✏️ Edit Risk Monitoring Record", width="large")
 def edit_risk_monitoring_dialog(row):
     client_code = row.get("Client Code", "")
     current_status = row.get("Status", "N/A")
-    status_color = {"Active": "#27ae60", "Inactive": "#e74c3c", "Suspended": "#f39c12", "Default": "#c0392b", "N/A": "#95a5a6"}.get(current_status, "#95a5a6")
+    status_color = STATUS_COLORS.get(current_status, "#95a5a6")
 
     st.markdown(
         f"""
@@ -105,44 +156,37 @@ def edit_risk_monitoring_dialog(row):
     )
 
     client_name = row.get("Client Name", "")
-    overview_keys = ["Bro", "Branch", "Boid", "Dp In/Out", "Due Amount", "Net Valuation",
-                     "Free Share Valuation", "Pledge Share Valuation", "Onhold Amount"]
-    editable_keys = ["Client Name", "Status"]
-    all_keys = ["Client Code"] + overview_keys + editable_keys
+    all_keys = {"Client Code", "Bro", "Branch", "Boid", "Dp In/Out", "Due Amount",
+                "Net Valuation", "Free Share Valuation", "Pledge Share Valuation",
+                "Onhold Amount", "Client Name", "Status"}
     extra_keys = [k for k in row.keys() if k not in all_keys]
 
     col_name, col_status = st.columns([3, 1])
     with col_name:
         client_name_val = st.text_input("👤 Client Name", value=client_name)
     with col_status:
-        status_options = ["Active", "Inactive", "Suspended", "Default", "N/A"]
         try:
-            status_idx = status_options.index(current_status)
+            status_idx = STATUS_OPTIONS.index(current_status)
         except ValueError:
-            status_idx = len(status_options) - 1
-        status_val = st.selectbox("📌 Status", status_options, index=status_idx)
+            status_idx = len(STATUS_OPTIONS) - 1
+        status_val = st.selectbox("📌 Status", STATUS_OPTIONS, index=status_idx)
 
-    row1 = ["Bro", "Branch", "Boid"]
-    row2 = ["Dp In/Out", "Free Share Valuation", "Pledge Share Valuation"]
-    row3 = ["Onhold Amount", "Due Amount", "Net Valuation"]
-
-    for group in [row1, row2, row3]:
+    for group in [["Bro", "Branch", "Boid"],
+                  ["Dp In/Out", "Free Share Valuation", "Pledge Share Valuation"],
+                  ["Onhold Amount", "Due Amount", "Net Valuation"]]:
         cols = st.columns(3)
         for i, key in enumerate(group):
             with cols[i]:
                 val = row.get(key, "")
-                display = str(val) if val not in (None, "", 0) else "N/A"
-                st.text_input(key, value=display, disabled=True)
+                st.text_input(key, value=str(val) if val not in (None, "", 0) else "N/A", disabled=True)
 
-    if extra_keys:
-        for k in extra_keys:
-            v = row.get(k, "")
-            display = str(v) if v is not None else ""
-            st.text_input(k, value=display, disabled=True)
+    for k in extra_keys:
+        v = row.get(k, "")
+        st.text_input(k, value=str(v) if v is not None else "", disabled=True)
 
     msg_box = st.empty()
 
-    col_save, col_del, col_spacer = st.columns([1.5, 1.5, 5])
+    col_save, col_del, _ = st.columns([1.5, 1.5, 5])
     with col_save:
         if st.button("💾 Save Changes", use_container_width=True, type="primary"):
             try:
@@ -192,50 +236,19 @@ class RiskMonitoring(BasePage):
         helper.eliminate_top_padding()
         st.session_state.active_menu = "aml"
 
-        self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
-
         activate_client_code_hotkey()
         navigation.render_sidebar()
 
-        self.holding_engine = helper.get_holding_engine()
         st.header("🚨 Risk Monitoring", anchor=False)
-
         self.render_page()
 
     def render_page(self):
         with st.spinner("Loading risk monitoring data..."):
-            df = load_risk_monitoring_data()
+            df = load_merged_risk_data()
 
         if df is None or df.empty:
             st.warning("No risk monitoring data available.")
             return
-
-        dpm3 = load_dpm3_valuation()
-        if dpm3 is not None and not dpm3.empty:
-            df = df.merge(dpm3, left_on="client_code", right_on="CLIENT CODE", how="left")
-            df["Free_Share_Valuation"] = df["Free_Share_Valuation"].fillna(0)
-            df["Pledge_Share_Valuation"] = df["Pledge_Share_Valuation"].fillna(0)
-            df.drop(columns=["CLIENT CODE"], inplace=True)
-
-        onhold = load_onhold_valuation()
-        if onhold is not None and not onhold.empty:
-            df = df.merge(onhold, on="client_code", how="left")
-            df["Onhold_Amount"] = df["Onhold_Amount"].fillna(0)
-
-        df["Net_Valuation"] = df["Free_Share_Valuation"] + df["Onhold_Amount"] - df["Due Amount"]
-
-        df = df.rename(columns=helper.camel_to_title)
-
-        preferred_order = [
-            "Bro", "Branch", "Client Code", "Client Name", "Boid",
-            "Dp In/Out", "Status",
-            "Free Share Valuation", "Pledge Share Valuation",
-            "Onhold Amount", "Due Amount", "Net Valuation",
-        ]
-        remaining = [c for c in df.columns if c not in preferred_order]
-        df = df[preferred_order + remaining]
-
-        df = df.sort_values("Bro", ascending=True)
 
         col1, col2 = st.columns([1, 3])
         with col1:
@@ -255,7 +268,7 @@ class RiskMonitoring(BasePage):
             elif filter_by == "DP In/Out":
                 filter_val = st.selectbox("", ["All", "In", "Out"], key="fv_dp", label_visibility="collapsed")
 
-        display_df = df.copy()
+        display_df = df
         if filter_by == "Bro" and filter_val != "All":
             display_df = display_df[display_df["Bro"] == filter_val]
         elif filter_by == "Branch" and filter_val != "All":
@@ -265,9 +278,7 @@ class RiskMonitoring(BasePage):
         elif filter_by == "DP In/Out" and filter_val != "All":
             display_df = display_df[display_df["Dp In/Out"] == filter_val]
 
-        financial_cols = ["Free Share Valuation", "Pledge Share Valuation", "Onhold Amount", "Due Amount", "Net Valuation"]
-        existing_financial = [c for c in financial_cols if c in display_df.columns]
-
+        existing_financial = [c for c in FINANCIAL_COLUMNS if c in display_df.columns]
         styled_df = display_df.style.format(accounting_format, subset=existing_financial)
         if existing_financial:
             styled_df = styled_df.map(highlight_negative, subset=existing_financial)
