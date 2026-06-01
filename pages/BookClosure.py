@@ -35,8 +35,7 @@ class BookClosure(BasePage):
         helper.adjust_ui()
 
     def next_working_day(self, date_value, holidays):
-        date_value = date_value 
-        while date_value in holidays:
+        while date_value in holidays or date_value.weekday() >= 5:
             date_value += pd.Timedelta(days=1)
         return date_value
     
@@ -419,7 +418,7 @@ class BookClosure(BasePage):
                     count = 0
                     while count < n:
                         date += timedelta(days=1)
-                        if date.weekday() != 5 and date not in holidays:  # Nepal: Sun-Fri business days
+                        if date.weekday() < 5 and date not in holidays:
                             count += 1
                     return date
 
