@@ -11,7 +11,7 @@ if PROFILE == "PROD":
     GALLERY_PATH = r"E:\Trishakti\Trishakti_Gallery"
 
 else:
-    PROJECT_PATH = r"D:\ANJIT\Anjit\PROJECT 2026\rms"
+    PROJECT_PATH = r"D:\ANJIT\PROJECT 2026\rms"
     chrome_profile_bot_dg = r"D:\Profile\ChromeProfileBot"
     GALLERY_PATH = r"D:\Trishakti_Gallery"
 

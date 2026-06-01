@@ -225,7 +225,8 @@ ALL_MENU_KEYS = {
     "cashin_out",
     "trade_history",
     "tms_code",
-    "mail_cleaner"
+    "mail_cleaner",
+    "risk_monitoring",
 }
 
 MENU_SECTIONS = [
@@ -298,6 +299,7 @@ MENU_SECTIONS = [
                 "items": [
                     ("transaction_monitoring", "🕵️", "Transaction monitoring"),
                     ("trade_history",          "🔎", "Trade history"),
+                    ("risk_monitoring",        "🚨", "Risk monitoring"),
                 ],
             },
         ],

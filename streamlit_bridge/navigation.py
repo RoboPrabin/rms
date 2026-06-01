@@ -227,6 +227,7 @@ ALL_MENU_KEYS = {
     "trade_history",
     "tms_code",
     "mail_cleaner",
+    "risk_monitoring",
 }
 
 
@@ -278,6 +279,7 @@ KYC_MAP = {
 AML_MAP = {
     "transaction_monitoring": (page_url.transaction_monitoring_url, "🕵️ Transaction monitoring"),
     "trade_history":          (page_url.trade_history_url,          "🔎 Trade history"),
+    "risk_monitoring":        (page_url.risk_monitoring_url,        "🚨 Risk monitoring"),
 }
 
 # User Management

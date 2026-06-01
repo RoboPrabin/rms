@@ -58,3 +58,4 @@ logout_url = base_path + "Logout.py"
 
 tms_code_url = base_path + "TmsCode.py"
 mail_cleaner_url = base_path + "MailCleaner.py"
+risk_monitoring_url = base_path + "RiskMonitoring.py"

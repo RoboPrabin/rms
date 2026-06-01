@@ -15,12 +15,12 @@ from utils.custom_hotkey import activate_client_code_hotkey
 from db import db
 from pages.BasePage import BasePage
 
-class Notable(BasePage):
+class RiskMonitoring(BasePage):
     def __init__(self):
         super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "aml"
-        st.set_page_config("Notable Client", page_icon="🪪", layout='wide')
+        st.set_page_config("Risk Monitoring", page_icon="🚨", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
 
@@ -37,4 +37,7 @@ class Notable(BasePage):
 
         # DB Connection
         self.holding_engine = helper.get_holding_engine()
-        st.header(" Notable Client ", anchor=False)
+        st.header("🚨 Risk Monitoring ", anchor=False)
+
+if __name__ == "__main__":
+    page = RiskMonitoring()
