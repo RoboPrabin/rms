@@ -696,6 +696,29 @@ def update_restrict_company(client_code: str, updated_by:str ,restrict_company):
             cursor.execute(query, (companies, updated_by ,client_code))
         conn.commit()
 
+def delete_risk_monitoring(client_code: str):
+    query = "DELETE FROM risk_monitoring WHERE client_code = %s"
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (client_code,))
+        conn.commit()
+
+
+def update_risk_monitoring(client_code: str, client_name: str = None, status: str = None, updated_by: str = None):
+    query = """
+        UPDATE risk_monitoring
+        SET client_name = COALESCE(%s, client_name),
+            status = COALESCE(%s, status),
+            updated_by = %s,
+            updated_at = NOW()
+        WHERE client_code = %s
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (client_name, status, updated_by, client_code))
+        conn.commit()
+
+
 def update_client_info_aml(client_name: str, company:str, occupation:str, updated_by:str, client_code:str):
     query = """
         UPDATE transaction_monitor

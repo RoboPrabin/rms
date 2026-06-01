@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 from utils import helper
+from utils.formatting import accounting_format, highlight_negative
 from datetime import datetime
+from time import sleep
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
 from pages.BasePage import BasePage
+from db import db
 
 
 intranet_engine = helper.get_holding_engine()
@@ -74,6 +77,114 @@ def load_onhold_valuation():
     return val
 
 
+@st.dialog("✏️ Edit Risk Monitoring Record", width="large")
+def edit_risk_monitoring_dialog(row):
+    client_code = row.get("Client Code", "")
+    current_status = row.get("Status", "N/A")
+    status_color = {"Active": "#27ae60", "Inactive": "#e74c3c", "Suspended": "#f39c12", "Default": "#c0392b", "N/A": "#95a5a6"}.get(current_status, "#95a5a6")
+
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; justify-content:space-between;
+                    background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius:12px; padding:18px 22px; margin-bottom:20px;">
+            <div>
+                <span style="color:rgba(255,255,255,0.7); font-size:13px;">CLIENT CODE</span><br>
+                <span style="color:white; font-size:20px; font-weight:700;">{client_code}</span>
+            </div>
+            <div style="text-align:center;">
+                <span style="color:rgba(255,255,255,0.7); font-size:13px;">CURRENT STATUS</span><br>
+                <span style="background:{status_color}; color:white; padding:4px 18px;
+                      border-radius:20px; font-size:14px; font-weight:600;">
+                    ● {current_status}
+                </span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    client_name = row.get("Client Name", "")
+    overview_keys = ["Bro", "Branch", "Boid", "Dp In/Out", "Due Amount", "Net Valuation",
+                     "Free Share Valuation", "Pledge Share Valuation", "Onhold Amount"]
+    editable_keys = ["Client Name", "Status"]
+    all_keys = ["Client Code"] + overview_keys + editable_keys
+    extra_keys = [k for k in row.keys() if k not in all_keys]
+
+    col_name, col_status = st.columns([3, 1])
+    with col_name:
+        client_name_val = st.text_input("👤 Client Name", value=client_name)
+    with col_status:
+        status_options = ["Active", "Inactive", "Suspended", "Default", "N/A"]
+        try:
+            status_idx = status_options.index(current_status)
+        except ValueError:
+            status_idx = len(status_options) - 1
+        status_val = st.selectbox("📌 Status", status_options, index=status_idx)
+
+    row1 = ["Bro", "Branch", "Boid"]
+    row2 = ["Dp In/Out", "Free Share Valuation", "Pledge Share Valuation"]
+    row3 = ["Onhold Amount", "Due Amount", "Net Valuation"]
+
+    for group in [row1, row2, row3]:
+        cols = st.columns(3)
+        for i, key in enumerate(group):
+            with cols[i]:
+                val = row.get(key, "")
+                display = str(val) if val not in (None, "", 0) else "N/A"
+                st.text_input(key, value=display, disabled=True)
+
+    if extra_keys:
+        for k in extra_keys:
+            v = row.get(k, "")
+            display = str(v) if v is not None else ""
+            st.text_input(k, value=display, disabled=True)
+
+    msg_box = st.empty()
+
+    col_save, col_del, col_spacer = st.columns([1.5, 1.5, 5])
+    with col_save:
+        if st.button("💾 Save Changes", use_container_width=True, type="primary"):
+            try:
+                db.update_risk_monitoring(
+                    client_code=client_code,
+                    client_name=client_name_val,
+                    status=status_val,
+                    updated_by=st.session_state.get("username", "system"),
+                )
+                msg_box.success("✅ Record updated successfully!")
+                sleep(0.5)
+                st.rerun()
+            except Exception as e:
+                msg_box.error(f"❌ Update failed: {e}")
+
+    with col_del:
+        if "risk_mon_delete_step" not in st.session_state:
+            st.session_state.risk_mon_delete_step = False
+
+        if not st.session_state.risk_mon_delete_step:
+            if st.button("🗑️ Delete", use_container_width=True):
+                st.session_state.risk_mon_delete_step = True
+                st.rerun()
+        else:
+            st.warning("⚠️ Proceed with deletion?")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("Yes, delete", type="primary", use_container_width=True):
+                    try:
+                        db.delete_risk_monitoring(client_code)
+                        st.session_state.risk_mon_delete_step = False
+                        msg_box.success("✅ Record deleted successfully!")
+                        sleep(0.5)
+                        st.rerun()
+                    except Exception as e:
+                        msg_box.error(f"❌ Delete failed: {e}")
+            with col_no:
+                if st.button("Keep it", use_container_width=True):
+                    st.session_state.risk_mon_delete_step = False
+                    st.rerun()
+
+
 class RiskMonitoring(BasePage):
     def __init__(self):
         st.set_page_config("Risk Monitoring", page_icon="🚨", layout='wide')
@@ -125,23 +236,56 @@ class RiskMonitoring(BasePage):
         df = df[preferred_order + remaining]
 
         df = df.sort_values("Bro", ascending=True)
-        df.index = range(1, len(df) + 1)
 
-        st.badge(f"Total Records: {len(df):,}", color="red")
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            filter_by = st.selectbox("", ["All", "Bro", "Branch", "Client Code", "DP In/Out"], key="filter_by", label_visibility="collapsed")
+        with col2:
+            if filter_by == "All":
+                filter_val = "All"
+                st.text_input("", value="No filter", disabled=True, key="fv_all", label_visibility="collapsed")
+            elif filter_by == "Bro":
+                options = ["All"] + sorted(df["Bro"].dropna().unique().tolist())
+                filter_val = st.selectbox("", options, key="fv_bro", label_visibility="collapsed")
+            elif filter_by == "Branch":
+                options = ["All"] + sorted(df["Branch"].dropna().unique().tolist())
+                filter_val = st.selectbox("", options, key="fv_branch", label_visibility="collapsed")
+            elif filter_by == "Client Code":
+                filter_val = st.text_input("", "", key="fv_client", label_visibility="collapsed").strip()
+            elif filter_by == "DP In/Out":
+                filter_val = st.selectbox("", ["All", "In", "Out"], key="fv_dp", label_visibility="collapsed")
+
+        display_df = df.copy()
+        if filter_by == "Bro" and filter_val != "All":
+            display_df = display_df[display_df["Bro"] == filter_val]
+        elif filter_by == "Branch" and filter_val != "All":
+            display_df = display_df[display_df["Branch"] == filter_val]
+        elif filter_by == "Client Code" and filter_val:
+            display_df = display_df[display_df["Client Code"].astype(str).str.contains(filter_val, case=False, na=False)]
+        elif filter_by == "DP In/Out" and filter_val != "All":
+            display_df = display_df[display_df["Dp In/Out"] == filter_val]
+
+        financial_cols = ["Free Share Valuation", "Pledge Share Valuation", "Onhold Amount", "Due Amount", "Net Valuation"]
+        existing_financial = [c for c in financial_cols if c in display_df.columns]
+
+        styled_df = display_df.style.format(accounting_format, subset=existing_financial)
+        if existing_financial:
+            styled_df = styled_df.map(highlight_negative, subset=existing_financial)
+
+        st.badge(f"Total Records: {len(display_df):,}", color="red")
         selection = st.dataframe(
-            df,
+            styled_df,
             use_container_width=True,
             selection_mode="single-row",
             key="risk_monitoring_table",
             on_select="rerun",
+            hide_index=True,
         )
 
         if selection.selection.rows:
             row_idx = selection.selection.rows[0]
-            selected = df.iloc[row_idx].to_dict()
-            with st.expander("Selected Row Details", expanded=True):
-                for k, v in selected.items():
-                    st.write(f"**{k}:** {v}")
+            selected = display_df.iloc[row_idx].to_dict()
+            edit_risk_monitoring_dialog(selected)
 
 
 if __name__ == "__main__":
