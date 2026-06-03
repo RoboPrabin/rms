@@ -501,7 +501,7 @@ class DPM3(BasePage):
         with col1:
             filter_by = st.selectbox(
                 "Filter by",
-                options=["ALL", "CLIENT CODE", "CLIENT NAME", "SCRIPT", "BRANCH"]
+                options=["ALL", "CLIENT CODE", "SCRIPT", "BRANCH"]
             )
         if filter_by != "ALL":
             unique_values = sorted(df[filter_by].unique())
