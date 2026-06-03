@@ -330,14 +330,26 @@ class CreateAppUser(BasePage):
             if st.button("Delete User"):
                 try:
                     with self.engine.begin() as conn:
-                        conn.execute(
-                            text("DELETE FROM app_user WHERE username = :username"),
-                            {"username": selected_user}
+                        result = conn.execute(
+                            text("DELETE FROM app_user WHERE TRIM(username) = :username"),
+                            {"username": selected_user.strip()}
                         )
-                    st.success(f"User '{selected_user}' deleted successfully.")
-                    st.rerun()
+                    if result.rowcount == 0:
+                        st.warning(f"No user found with username '{selected_user}'. Searching database for similar...")
+                        with self.engine.begin() as conn:
+                            similar = conn.execute(
+                                text("SELECT username FROM app_user WHERE username ILIKE :pattern"),
+                                {"pattern": f"%{selected_user.strip()}%"}
+                            ).fetchall()
+                        if similar:
+                            st.info(f"Found similar usernames: {[row[0] for row in similar]}")
+                    else:
+                        st.success(f"User '{selected_user}' deleted successfully.")
+                        self.app_user = self.get_all_app_users()
                 except Exception as e:
                     st.error(f"Error deleting user: {e}")
+                else:
+                    st.rerun()
 
     def get_all_app_users(self):
         df_users = pd.read_sql(
