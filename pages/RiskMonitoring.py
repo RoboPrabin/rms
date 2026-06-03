@@ -1,12 +1,15 @@
 import streamlit as st
 import pandas as pd
+from datetime import date
 from utils import helper
-from utils.formatting import accounting_format, highlight_negative
-from time import sleep
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
 from pages.BasePage import BasePage
 from db import db
+
+
+VAL_COLS = ["FREE_SHARE_VALUATION", "PLEDGE_SHARE_VALUATION",
+            "ONHOLD_AMOUNT", "TOTAL_VALUATION", "DUE_AMOUNT", "NET_VALUATION"]
 
 
 class RiskMonitoring(BasePage):
@@ -15,10 +18,8 @@ class RiskMonitoring(BasePage):
         super().__init__()
         helper.eliminate_top_padding()
         st.session_state.active_menu = "aml"
-
         activate_client_code_hotkey()
         navigation.render_sidebar()
-
         st.header("🚨 Risk Monitoring", anchor=False)
         self.render_page()
 
@@ -31,19 +32,24 @@ class RiskMonitoring(BasePage):
         df_prices = self._load_average_prices()
         df_rm = self._load_rm_map()
         df_onhold = self._load_onhold_data(df_prices)
+        df_due = self._load_due_list()
 
         merged = self._merge_and_compute(df_dpm3, df_prices)
-        merged = self._enrich_with_bro(merged, df_rm)
-
+        for src, col in [(df_rm, "BRO"), (df_due, "DUE AMOUNT"), (df_onhold, "ONHOLD AMOUNT")]:
+            merged = self._enrich(merged, src, col)
         grouped = self._aggregate_by_client(merged)
 
+        grouped = self._apply_filter(grouped)
+        st.badge(f"Total Clients: {len(grouped):,}", color="green")
         selection = self._display_table(grouped)
 
         if selection and selection.selection.rows:
             row_idx = selection.selection.rows[0]
-            selected_row = grouped.iloc[row_idx]
-            self._show_client_dialog(merged, df_onhold, selected_row)
+            self._show_client_dialog(merged, df_onhold, grouped.iloc[row_idx])
 
+    # ------------------------------------------------------------------
+    # Data loaders (cached)
+    # ------------------------------------------------------------------
     @staticmethod
     @st.cache_data(ttl=1200)
     def _load_dpm3_data():
@@ -63,6 +69,12 @@ class RiskMonitoring(BasePage):
 
     @staticmethod
     @st.cache_data(ttl=1200)
+    def _load_due_list():
+        _, df = db.get_due_list_for_dpm3(date.today())
+        return df
+
+    @staticmethod
+    @st.cache_data(ttl=1200)
     def _load_onhold_data(df_prices):
         df = db.get_dpm3_onhold()
         if df is None or df.empty:
@@ -79,32 +91,46 @@ class RiskMonitoring(BasePage):
             df_prices[['symbol', 'closePrice']],
             left_on="SCRIPT", right_on="symbol", how="left"
         ).drop(columns=['symbol']).rename(columns={'closePrice': 'CLOSE PRICE'})
-        df['QUANTITY'] = pd.to_numeric(df['QUANTITY'], errors="coerce").fillna(0)
-        df['CLOSE PRICE'] = pd.to_numeric(df['CLOSE PRICE'], errors="coerce").fillna(0)
+        for c in ["QUANTITY", "CLOSE PRICE"]:
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
         df['TOTAL VALUATION'] = df['QUANTITY'] * df['CLOSE PRICE']
         return df
 
+    # ------------------------------------------------------------------
+    # Computation helpers
+    # ------------------------------------------------------------------
     @staticmethod
     def _merge_and_compute(df_dpm3, df_prices):
         df_prices = df_prices.rename(columns={"symbol": "SCRIPT"})
         df_prices["closePrice"] = pd.to_numeric(df_prices["closePrice"], errors="coerce").fillna(0.0)
-
         merged = df_dpm3.merge(df_prices, on="SCRIPT", how="left")
-
-        merged["FREE BALANCE"] = pd.to_numeric(merged["FREE BALANCE"], errors="coerce").fillna(0)
-        merged["PLEDGE BALANCE"] = pd.to_numeric(merged["PLEDGE BALANCE"], errors="coerce").fillna(0)
-
+        for c in ["FREE BALANCE", "PLEDGE BALANCE"]:
+            merged[c] = pd.to_numeric(merged[c], errors="coerce").fillna(0)
         merged["CLOSING PRICE"] = merged["closePrice"]
         merged["FREE SHARE VALUATION"] = merged["FREE BALANCE"] * merged["CLOSING PRICE"]
         merged["PLEDGE SHARE VALUATION"] = merged["PLEDGE BALANCE"] * merged["CLOSING PRICE"]
         merged["TOTAL VALUATION"] = merged["FREE SHARE VALUATION"] + merged["PLEDGE SHARE VALUATION"]
-
         return merged
 
     @staticmethod
-    def _enrich_with_bro(df, df_rm):
-        merged = df.merge(df_rm, on="CLIENT CODE", how="left")
-        merged["BRO"] = merged["BRO"].fillna("N/A")
+    def _enrich(df, src_df, col_name):
+        if col_name == "BRO":
+            merged = df.merge(src_df, on="CLIENT CODE", how="left")
+            merged["BRO"] = merged["BRO"].fillna("N/A")
+            return merged
+        default = 0.0
+        if src_df is None or src_df.empty:
+            df[col_name] = default
+            return df
+        if col_name == "DUE AMOUNT":
+            src = src_df.rename(columns={"clientCode": "CLIENT CODE", "adjustedBalance": "DUE AMOUNT"})
+            src["DUE AMOUNT"] = pd.to_numeric(src["DUE AMOUNT"], errors="coerce").fillna(0)
+            merged = df.merge(src[["CLIENT CODE", "DUE AMOUNT"]], on="CLIENT CODE", how="left")
+        else:
+            agg = src_df.groupby("CLIENT CODE", as_index=False)["TOTAL VALUATION"].sum().rename(
+                columns={"TOTAL VALUATION": "ONHOLD AMOUNT"})
+            merged = df.merge(agg[["CLIENT CODE", "ONHOLD AMOUNT"]], on="CLIENT CODE", how="left")
+        merged[col_name] = merged[col_name].fillna(default)
         return merged
 
     @staticmethod
@@ -116,29 +142,48 @@ class RiskMonitoring(BasePage):
             SCRIPTS=("SCRIPT", "count"),
             FREE_SHARE_VALUATION=("FREE SHARE VALUATION", "sum"),
             PLEDGE_SHARE_VALUATION=("PLEDGE SHARE VALUATION", "sum"),
+            ONHOLD_AMOUNT=("ONHOLD AMOUNT", "first"),
+            DUE_AMOUNT=("DUE AMOUNT", "first"),
         )
-        grouped = grouped.sort_values("FREE_SHARE_VALUATION", ascending=False).reset_index(drop=True)
-        return grouped
+        grouped["TOTAL_VALUATION"] = grouped[["FREE_SHARE_VALUATION", "PLEDGE_SHARE_VALUATION", "ONHOLD_AMOUNT"]].sum(axis=1)
+        grouped["NET_VALUATION"] = grouped["TOTAL_VALUATION"] - grouped["DUE_AMOUNT"]
+        mask = grouped["TOTAL_VALUATION"] != 0
+        grouped["PERCENTAGE"] = 0.0
+        grouped.loc[mask, "PERCENTAGE"] = (grouped["NET_VALUATION"] / grouped["TOTAL_VALUATION"] * 100).loc[mask]
+        return grouped.sort_values("FREE_SHARE_VALUATION", ascending=False).reset_index(drop=True)
+
+    @staticmethod
+    def _apply_filter(df):
+        opts = {"BRO": "BRO", "Client Code": "CLIENT CODE", "Branch": "BRANCH"}
+        col1, col2 = st.columns(2)
+        with col1:
+            k = st.selectbox("Filter by", options=["ALL"] + list(opts.keys()), key="risk_filter_by")
+        if k != "ALL":
+            col = opts[k]
+            with col2:
+                v = st.selectbox(f"Select {k}", options=sorted(df[col].dropna().unique()), key="risk_filter_val")
+            df = df[df[col] == v].reset_index(drop=True)
+        return df
 
     @staticmethod
     def _display_table(df):
-        display = df.copy()
-        for col in ["FREE_SHARE_VALUATION", "PLEDGE_SHARE_VALUATION"]:
-            display[col] = display[col].apply(lambda x: f"{x:,.2f}")
+        ORDER = ["BRANCH", "BRO", "CLIENT CODE", "CLIENT_NAME",
+                 "SCRIPTS", "FREE_SHARE_VALUATION", "PLEDGE_SHARE_VALUATION",
+                 "ONHOLD_AMOUNT", "TOTAL_VALUATION", "DUE_AMOUNT", "NET_VALUATION", "PERCENTAGE"]
+        LABELS = ["Branch", "BRO", "Client Code", "Client Name",
+                  "Total Scripts", "Free Share Val", "Pledge Share Val",
+                  "On Hold Amount", "Total Valuation", "Due Amount",
+                  "Net Valuation", "Percentage"]
 
-        bro_col = display.pop("BRO")
-        display.insert(0, "BRO", bro_col)
-
-        display.columns = [
-            "BRO", "Client Code", "Client Name", "Branch",
-            "Total Scripts", "Free Share Val", "Pledge Share Val"
-        ]
+        display = df[ORDER].copy()
+        for c in VAL_COLS:
+            display[c] = display[c].apply(lambda x: f"{x:,.2f}")
+        display["PERCENTAGE"] = display["PERCENTAGE"].apply(lambda x: f"{x:.2f}%")
+        display.columns = LABELS
 
         selection = st.dataframe(
             display, use_container_width=True, hide_index=True,
-            key="risk_monitoring_table",
-            selection_mode="single-row",
-            on_select="rerun"
+            key="risk_monitoring_table", selection_mode="single-row", on_select="rerun"
         )
         return selection
 
@@ -156,35 +201,33 @@ class RiskMonitoring(BasePage):
         with col1:
             st.badge(f"Script Count: {len(detail)}", color="green")
         with col2:
-            st.badge(f"Total Free Balance: {detail['FREE BALANCE'].sum()}", color="blue")
+            st.badge(f"Total Free Balance: {detail['FREE BALANCE'].sum():,.0f}", color="blue")
         with col3:
             st.badge(f"Total Valuation: {detail['TOTAL VALUATION'].sum():,.2f}", color="yellow")
 
         st.subheader("📦 Current Holdings")
-        view_cols = [
+        detail = detail[[c for c in [
             "SCRIPT", "FREE BALANCE", "PLEDGE BALANCE", "CURRENT BALANCE",
             "CLOSING PRICE", "FREE SHARE VALUATION",
             "PLEDGE SHARE VALUATION", "TOTAL VALUATION"
-        ]
-        detail = detail[[c for c in view_cols if c in detail.columns]]
+        ] if c in detail.columns]]
         st.dataframe(detail, use_container_width=True)
 
         if df_onhold is not None and not df_onhold.empty:
-            onhold_client = df_onhold[df_onhold["CLIENT CODE"] == client_code].copy()
-            if not onhold_client.empty:
-                onhold_client.reset_index(drop=True, inplace=True)
-                onhold_client.index += 1
+            oh = df_onhold[df_onhold["CLIENT CODE"] == client_code].copy()
+            if not oh.empty:
+                oh.reset_index(drop=True, inplace=True)
+                oh.index += 1
                 st.subheader("⏳ On Hold Scripts")
-                oh_cols = [
+                oh = oh[[c for c in [
                     "SCRIPT", "QUANTITY", "CLOSE PRICE", "TOTAL VALUATION",
                     "TRANSACTION TYPE", "STATUS", "SETTLEMENT DATE"
-                ]
-                onhold_client = onhold_client[[c for c in oh_cols if c in onhold_client.columns]]
+                ] if c in oh.columns]]
                 for c in ["QUANTITY", "CLOSE PRICE", "TOTAL VALUATION"]:
-                    if c in onhold_client.columns:
-                        onhold_client[c] = onhold_client[c].map(
-                            lambda x: f"{x:,.2f}" if pd.notnull(x) else ""
-                        )
-                st.dataframe(onhold_client, use_container_width=True)
+                    if c in oh.columns:
+                        oh[c] = oh[c].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+                st.dataframe(oh, use_container_width=True)
+
+
 if __name__ == "__main__":
     RiskMonitoring()
