@@ -17,7 +17,7 @@ def send_email(
     username:str,
     password:str,
     full_name:str,
-    url:str = "https://rms.trishakti.com.np:9999",
+    url:str = "https://rms.trishakti.com.np",
     sender_email: str = sender_email,
     sender_password: str = sender_password,
     display_name: str = display_name,
@@ -93,7 +93,7 @@ def send_bulk_email(
                         body
                         + "\n\nUSERNAME: " + str(row["USERNAME"]).lower()
                         + "\nPASSWORD: " + str(row["PASSWORD"])
-                        + "\nURL: " + str("https://rms.trishakti.com.np:9999/"),
+                        + "\nURL: " + str("https://rms.trishakti.com.np/"),
                         "plain"
                     )
                 )
