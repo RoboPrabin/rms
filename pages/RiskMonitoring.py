@@ -34,16 +34,27 @@ class RiskMonitoring(BasePage):
         df_onhold = self._load_onhold_data(df_prices)
         df_due = self._load_due_list()
 
-        if getattr(self, 'role', None) == "BRO":
+        role = getattr(self, 'role', None)
+        if role == "BRO":
             alias = helper.get_alias_name(self.username.upper()).strip()
             bro_clients = df_rm[df_rm["BRO"].str.strip().str.upper() == alias.upper()]["CLIENT CODE"].unique()
             if len(bro_clients) == 0:
-                st.info(f"No clients assigned to your profile.")
+                st.info("No clients assigned to your profile.")
                 return
             df_dpm3 = df_dpm3[df_dpm3["CLIENT CODE"].isin(bro_clients)]
-            if df_dpm3.empty:
-                st.info(f"No risk data found for your clients.")
-                return
+        elif role == "BM":
+            branch_val = (self.branch or "").strip().upper()
+            bm = helper.get_branch_code_mapping()
+            rev_bm = {v.upper(): k for k, v in bm.items()}
+            possible = {branch_val}
+            if branch_val in bm:
+                possible.add(bm[branch_val].upper())
+            if branch_val in rev_bm:
+                possible.add(rev_bm[branch_val])
+            df_dpm3 = df_dpm3[df_dpm3["BRANCH"].str.strip().str.upper().isin(possible)]
+        if role in ("BRO", "BM") and df_dpm3.empty:
+            st.info("No risk data found for your profile.")
+            return
 
         merged = self._merge_and_compute(df_dpm3, df_prices)
         for src, col in [(df_rm, "BRO"), (df_due, "DUE AMOUNT"), (df_onhold, "ONHOLD AMOUNT")]:

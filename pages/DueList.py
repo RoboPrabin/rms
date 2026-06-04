@@ -123,11 +123,9 @@ class DueList(BasePage):
     #             st.session_state["due_list_data"] = load_due_list_data_all()
 
     def load_data(self, selected_date=None):
-        # Use cache key based on date to invalidate when date changes
-        cache_key = f"due_list_{selected_date}"
-        
         if self.role == "BRO":
             alias = helper.get_alias_name(self.username.upper())
+            cache_key = f"due_list_{alias}_{selected_date}"
             latest_ts = get_due_list_last_updated_ts_bro(alias)
 
             if (
@@ -137,7 +135,29 @@ class DueList(BasePage):
                 st.session_state[cache_key] = load_due_list_data_bro(alias, from_date=selected_date)
                 st.session_state["due_list_last_ts"] = latest_ts
                 st.session_state["due_list_data"] = st.session_state[cache_key]
+        elif self.role == "BM":
+            branch_val = (self.branch or "").strip().upper()
+            bm = helper.get_branch_code_mapping()
+            rev_bm = {v.upper(): k for k, v in bm.items()}
+            possible_branches = {branch_val}
+            if branch_val in bm:
+                possible_branches.add(bm[branch_val].upper())
+            if branch_val in rev_bm:
+                possible_branches.add(rev_bm[branch_val])
+            cache_key = f"due_list_bm_{branch_val}_{selected_date}"
+            latest_ts = get_due_list_last_updated_ts_all()
+
+            if (
+                cache_key not in st.session_state
+                or st.session_state.get("due_list_last_ts") != latest_ts
+            ):
+                df = load_due_list_data_all(from_date=selected_date)
+                df = df[df["branch"].str.strip().str.upper().isin(possible_branches)]
+                st.session_state[cache_key] = df
+                st.session_state["due_list_last_ts"] = latest_ts
+                st.session_state["due_list_data"] = st.session_state[cache_key]
         else:
+            cache_key = f"due_list_{selected_date}"
             latest_ts = get_due_list_last_updated_ts_all()
 
             if (
