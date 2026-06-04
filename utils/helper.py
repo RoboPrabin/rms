@@ -222,7 +222,7 @@ def get_employee_types():
             "FRO",
             "GENERAL STAFF",
             "INTERN",
-            "MANAGER",]
+            "BM",]
 
 def get_work_locations():
     return  [
