@@ -87,6 +87,55 @@ def get_dpm3_grouped_data():
     return df_grouped, df
 
 
+@st.cache_data(ttl=3600)
+def get_processed_holdings():
+    """Fully processed holdings DataFrame with valuations computed (cached)."""
+    df = get_latest_holdings()
+    if df is None or df.empty:
+        return pd.DataFrame()
+    cols_to_drop = [col for col in ['STATUS', 'BOID'] if col in df.columns]
+    df = df.drop(columns=cols_to_drop)
+    df = df.rename(columns={'closePrice': 'CLOSE PRICE', 'rmName': 'BRO'})
+    if 'BRO' not in df.columns:
+        df['BRO'] = 'N/A'
+    if 'LOCKIN BALANCE' not in df.columns:
+        df['LOCKIN BALANCE'] = 0
+    for col in ['FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE']:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    df['CLOSE PRICE'] = df['CLOSE PRICE'].astype(float)
+    compute_valuations(df)
+    return df
+
+
+@st.cache_data(ttl=3600)
+def get_close_price_date_str():
+    df = get_latest_holdings()
+    if df is None or df.empty:
+        return ""
+    dt = pd.to_datetime(df['UPDATED AT'].head(1).values[0])
+    return dt.strftime("%Y-%m-%d %I:%M %p")
+
+
+@st.cache_data(ttl=3600)
+def get_merged_onhold():
+    df = get_dpm3_onhold()
+    if df is None or df.empty:
+        return pd.DataFrame()
+    return merge_onhold_with_closing_price(df)
+
+
+@st.cache_data(ttl=3600)
+def get_detailed_view_data():
+    _, df_uploaded = get_dpm3_grouped_data()
+    desired_cols = [
+        "BRO", "SCRIPT", "CLIENT CODE", "CLIENT NAME", "BRANCH",
+        "FREE BALANCE", "CLOSING PRICE", "FREE SHARE VALUATION",
+        "PLEDGE SHARE VALUATION", "TOTAL VALUATION", "PLEDGE BALANCE",
+        "CURRENT BALANCE",
+    ]
+    return df_uploaded[[c for c in desired_cols if c in df_uploaded.columns]].copy()
+
+
 # ---------------------------------------------------------------------------
 # Reusable helpers
 # ---------------------------------------------------------------------------
@@ -98,10 +147,12 @@ def compute_valuations(df):
 
 
 def format_numeric_columns(df, columns):
-    for col in columns:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            df[col] = df[col].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+    present = [c for c in columns if c in df.columns]
+    if not present:
+        return df
+    for col in present:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    df[present] = df[present].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
     return df
 
 
@@ -353,15 +404,7 @@ class DPM3(BasePage):
     # ------------------------------------------------------------------ #
     def render_detailed_view_mode(self):
         with st.spinner("Loading detailed holdings. Please wait...", show_time=True):
-            _, df_uploaded = get_dpm3_grouped_data()
-        desired_cols = [
-            "BRO", "SCRIPT", "CLIENT CODE", "CLIENT NAME", "BRANCH",
-            "FREE BALANCE", "CLOSING PRICE", "FREE SHARE VALUATION",
-            "PLEDGE SHARE VALUATION", "TOTAL VALUATION", "PLEDGE BALANCE",
-            "CURRENT BALANCE", "STATUS", "uploaded_at", "BOID", "ISIN",
-        ]
-        df_all = df_uploaded[desired_cols].copy()
-        df_all.drop(columns=["uploaded_at", "ISIN", "STATUS", "BOID"], inplace=True)
+            df_all = get_detailed_view_data()
         with st.expander("Filters", expanded=True):
             col1, col2 = st.columns(2)
             with col1:
@@ -389,19 +432,14 @@ class DPM3(BasePage):
         with col3:
             st.badge(f"Total Valuation: {filtered['TOTAL VALUATION'].sum():,.2f}", color="yellow")
         max_elements = int(pd.get_option("styler.render.max_elements"))
-        if filtered.size <= max_elements:
-            numeric_cols = filtered.select_dtypes(include="number").columns
-            view_df = filtered.sort_values(by="CLIENT NAME").copy()
-            for col in numeric_cols:
-                view_df[col] = view_df[col].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
-            view_df.reset_index(drop=True, inplace=True)
-            view_df.index = view_df.index + 1
-            st.dataframe(view_df, width='stretch')
-        else:
-            filtered.sort_values(by="CLIENT NAME", inplace=True)
-            filtered.reset_index(drop=True, inplace=True)
-            filtered.index = filtered.index + 1
-            st.dataframe(filtered, width='stretch')
+        view_df = filtered.sort_values(by="CLIENT NAME")
+        if view_df.size <= max_elements:
+            numeric_cols = view_df.select_dtypes(include="number").columns.tolist()
+            if numeric_cols:
+                view_df[numeric_cols] = view_df[numeric_cols].applymap(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
+        view_df.reset_index(drop=True, inplace=True)
+        view_df.index = view_df.index + 1
+        st.dataframe(view_df, width='stretch')
 
     # ------------------------------------------------------------------ #
     # Insert Thursday floorsheet into DB
@@ -472,31 +510,20 @@ class DPM3(BasePage):
         df_onhold = df_onhold[col_order]
         self._render_onhold_metrics(df_onhold)
         format_cols = ['QUANTITY', 'CLOSE PRICE', 'TOTAL VALUATION']
-        for col in format_cols:
-            df_onhold[col] = df_onhold[col].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+        present_fmt = [c for c in format_cols if c in df_onhold.columns]
+        if present_fmt:
+            df_onhold[present_fmt] = df_onhold[present_fmt].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
         st.dataframe(df_onhold, width='stretch')
 
     def _render_latest_holdings(self):
         with st.spinner("Loading latest holdings. Please wait...", show_time=True):
-            df = get_latest_holdings()
-            if df is None or df.empty:
+            df = get_processed_holdings()
+            if df.empty:
                 st.warning("No holdings data available.")
                 return
-            close_price_date = df['UPDATED AT'].head(1).values[0]
-            close_price_date = pd.to_datetime(close_price_date)
-            formatted_date = close_price_date.strftime("%Y-%m-%d %I:%M %p")
-            st.caption(f"Note: Close Price updated on: {formatted_date}")
-            cols_to_drop = [col for col in ['STATUS', 'BOID'] if col in df.columns]
-            df.drop(columns=cols_to_drop, inplace=True)
-            df.rename(columns={'closePrice': 'CLOSE PRICE', 'rmName': 'BRO'}, inplace=True)
-            if 'BRO' not in df.columns:
-                df["BRO"] = 'N/A'
-            if 'LOCKIN BALANCE' not in df.columns:
-                df['LOCKIN BALANCE'] = 0
-            for col in ['FREE BALANCE', 'PLEDGE BALANCE', 'LOCKIN BALANCE']:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-            df['CLOSE PRICE'] = df['CLOSE PRICE'].astype(float)
-            compute_valuations(df)
+            formatted_date = get_close_price_date_str()
+            if formatted_date:
+                st.caption(f"Note: Close Price updated on: {formatted_date}")
         col1, col2 = st.columns(2)
         with col1:
             filter_by = st.selectbox(
@@ -513,9 +540,9 @@ class DPM3(BasePage):
         with st.container(border=True):
             if filter_by in ["CLIENT CODE", "CLIENT NAME"]:
                 filter_point = True
-                df_onhold = get_dpm3_onhold()
-                df_onhold = merge_onhold_with_closing_price(df_onhold)
-                df_onhold = df_onhold[df_onhold[filter_by] == selected_value].reset_index(drop=True)
+                df_onhold = get_merged_onhold()
+                if not df_onhold.empty and filter_by in df_onhold.columns:
+                    df_onhold = df_onhold[df_onhold[filter_by] == selected_value].reset_index(drop=True)
                 if not df_onhold.empty:
                     self.total_valuation_all = df_onhold['TOTAL VALUATION'].sum() + df['FREE SHARE VALUATION'].sum()
                     self.total_scripts_all = len(df_onhold) + len(df)
@@ -564,9 +591,11 @@ class DPM3(BasePage):
 
     def _render_onhold_mode(self):
         with st.spinner("Loading on hold. Please wait...", show_time=True):
-            df_onhold = get_dpm3_onhold()
+            df_onhold = get_merged_onhold()
+            if df_onhold.empty:
+                st.warning("No on-hold data available.")
+                return
             df_rm_map = get_client_rm_map()
-            df_onhold = merge_onhold_with_closing_price(df_onhold)
             df_onhold = df_onhold.merge(df_rm_map, on="CLIENT CODE", how="left")
             df_onhold['BRO'] = df_onhold['BRO'].fillna("N/A")
         col1, col2 = st.columns(2)
@@ -580,20 +609,20 @@ class DPM3(BasePage):
             with col2:
                 selected_value = st.selectbox(f"Select {filter_by}", options=unique_values)
             df_onhold = df_onhold[df_onhold[filter_by] == selected_value].reset_index(drop=True)
-        df_onhold.sort_values(
+        df_onhold = df_onhold.sort_values(
             by=["SETTLEMENT DATE", "TOTAL VALUATION"],
-            ascending=[False, False],
-            inplace=True
-        )
-        df_onhold.reset_index(drop=True, inplace=True)
+            ascending=[False, False]
+        ).reset_index(drop=True)
         col_order = [
             'BRO', 'CLIENT CODE', 'CLIENT NAME', 'BRANCH', 'SCRIPT', 'QUANTITY',
             'CLOSE PRICE', 'TOTAL VALUATION', 'TRANSACTION TYPE', 'STATUS', 'SETTLEMENT DATE'
         ]
         df_onhold = df_onhold[col_order]
         self._render_onhold_metrics(df_onhold)
-        for col in ['QUANTITY', 'CLOSE PRICE', 'TOTAL VALUATION']:
-            df_onhold[col] = df_onhold[col].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+        format_cols = ['QUANTITY', 'CLOSE PRICE', 'TOTAL VALUATION']
+        present_fmt = [c for c in format_cols if c in df_onhold.columns]
+        if present_fmt:
+            df_onhold[present_fmt] = df_onhold[present_fmt].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
         st.dataframe(df_onhold, width='stretch')
 
     def render_page(self):
