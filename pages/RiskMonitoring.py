@@ -145,7 +145,7 @@ class RiskMonitoring(BasePage):
             ONHOLD_AMOUNT=("ONHOLD AMOUNT", "first"),
             DUE_AMOUNT=("DUE AMOUNT", "first"),
         )
-        grouped["TOTAL_VALUATION"] = grouped[["FREE_SHARE_VALUATION", "PLEDGE_SHARE_VALUATION", "ONHOLD_AMOUNT"]].sum(axis=1)
+        grouped["TOTAL_VALUATION"] = grouped[["FREE_SHARE_VALUATION", "ONHOLD_AMOUNT"]].sum(axis=1)
         grouped["NET_VALUATION"] = grouped["TOTAL_VALUATION"] - grouped["DUE_AMOUNT"]
         mask = grouped["TOTAL_VALUATION"] != 0
         grouped["PERCENTAGE"] = 0.0
