@@ -34,6 +34,17 @@ class RiskMonitoring(BasePage):
         df_onhold = self._load_onhold_data(df_prices)
         df_due = self._load_due_list()
 
+        if getattr(self, 'role', None) == "BRO":
+            alias = helper.get_alias_name(self.username.upper()).strip()
+            bro_clients = df_rm[df_rm["BRO"].str.strip().str.upper() == alias.upper()]["CLIENT CODE"].unique()
+            if len(bro_clients) == 0:
+                st.info(f"No clients assigned to your profile.")
+                return
+            df_dpm3 = df_dpm3[df_dpm3["CLIENT CODE"].isin(bro_clients)]
+            if df_dpm3.empty:
+                st.info(f"No risk data found for your clients.")
+                return
+
         merged = self._merge_and_compute(df_dpm3, df_prices)
         for src, col in [(df_rm, "BRO"), (df_due, "DUE AMOUNT"), (df_onhold, "ONHOLD AMOUNT")]:
             merged = self._enrich(merged, src, col)
