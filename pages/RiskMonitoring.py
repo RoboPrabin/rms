@@ -194,6 +194,7 @@ class RiskMonitoring(BasePage):
         st.subheader(f"👨🏻‍💻 {client_label} - {client_code}")
 
         detail = merged[merged["CLIENT CODE"] == client_code].copy()
+        detail = detail[~((detail["FREE BALANCE"] == 0) & (detail["PLEDGE BALANCE"] == 0) & (detail.get("LOCKIN BALANCE", 0) == 0))]
         detail.reset_index(drop=True, inplace=True)
         detail.index += 1
 
