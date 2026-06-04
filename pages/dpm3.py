@@ -481,8 +481,15 @@ class DPM3(BasePage):
                 return None
             df = df[df["CLIENT CODE"].isin(codes)]
         elif self.role == "BM":
-            branch = (self.branch or "").strip().upper()
-            df = df[df["BRANCH"].str.strip().str.upper() == branch]
+            branch_val = (self.branch or "").strip().upper()
+            bm = helper.get_branch_code_mapping()
+            rev_bm = {v.upper(): k for k, v in bm.items()}
+            possible = {branch_val}
+            if branch_val in bm:
+                possible.add(bm[branch_val].upper())
+            if branch_val in rev_bm:
+                possible.add(rev_bm[branch_val])
+            df = df[df["BRANCH"].str.strip().str.upper().isin(possible)]
         if df.empty:
             st.info("No data found for your profile.")
             return None

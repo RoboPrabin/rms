@@ -43,8 +43,15 @@ class RiskMonitoring(BasePage):
                 return
             df_dpm3 = df_dpm3[df_dpm3["CLIENT CODE"].isin(bro_clients)]
         elif role == "BM":
-            branch = (self.branch or "").strip().upper()
-            df_dpm3 = df_dpm3[df_dpm3["BRANCH"].str.strip().str.upper() == branch]
+            branch_val = (self.branch or "").strip().upper()
+            bm = helper.get_branch_code_mapping()
+            rev_bm = {v.upper(): k for k, v in bm.items()}
+            possible = {branch_val}
+            if branch_val in bm:
+                possible.add(bm[branch_val].upper())
+            if branch_val in rev_bm:
+                possible.add(rev_bm[branch_val])
+            df_dpm3 = df_dpm3[df_dpm3["BRANCH"].str.strip().str.upper().isin(possible)]
         if role in ("BRO", "BM") and df_dpm3.empty:
             st.info("No risk data found for your profile.")
             return
