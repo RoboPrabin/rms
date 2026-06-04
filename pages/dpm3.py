@@ -377,13 +377,11 @@ class DPM3(BasePage):
     def render_latest_holdings_mode(self):
         with st.spinner("Loading latest holdings. Please wait...", show_time=True):
             df_grouped, df_uploaded = get_dpm3_grouped_data()
-            bro_clients = self._get_bro_client_codes()
-            if bro_clients is not None:
-                df_grouped = df_grouped[df_grouped["CLIENT CODE"].isin(bro_clients)]
-                df_uploaded = df_uploaded[df_uploaded["CLIENT CODE"].isin(bro_clients)]
-                if df_grouped.empty:
-                    st.info("No holdings data found for your clients.")
+            if self.role in ("BRO", "BM"):
+                df_grouped = self._apply_role_filter(df_grouped)
+                if df_grouped is None:
                     return
+                df_uploaded = self._apply_role_filter(df_uploaded)
         st.badge(f"Total rows: {len(df_grouped):,}", color="green")
         selection = st.dataframe(
             df_grouped,
@@ -412,11 +410,9 @@ class DPM3(BasePage):
     def render_detailed_view_mode(self):
         with st.spinner("Loading detailed holdings. Please wait...", show_time=True):
             df_all = get_detailed_view_data()
-            bro_clients = self._get_bro_client_codes()
-            if bro_clients is not None:
-                df_all = df_all[df_all["CLIENT CODE"].isin(bro_clients)]
-                if df_all.empty:
-                    st.info("No detailed holdings found for your clients.")
+            if self.role in ("BRO", "BM"):
+                df_all = self._apply_role_filter(df_all)
+                if df_all is None:
                     return
         with st.expander("Filters", expanded=True):
             col1, col2 = st.columns(2)
@@ -474,17 +470,23 @@ class DPM3(BasePage):
     # ------------------------------------------------------------------ #
     # Role-based filtering
     # ------------------------------------------------------------------ #
-    def _get_bro_client_codes(self):
-        """Returns client codes for the logged-in BRO, or None if not BRO role."""
-        if self.role != "BRO":
+    def _apply_role_filter(self, df):
+        """Filter DataFrame based on user role. Returns filtered df or None if empty."""
+        if self.role == "BRO":
+            alias = helper.get_alias_name(self.username.upper()).strip()
+            rm_map = get_client_rm_map()
+            codes = rm_map[rm_map["BRO"].str.strip().str.upper() == alias.upper()]["CLIENT CODE"].unique()
+            if len(codes) == 0:
+                st.info("No clients assigned to your profile.")
+                return None
+            df = df[df["CLIENT CODE"].isin(codes)]
+        elif self.role == "BM":
+            branch = (self.branch or "").strip().upper()
+            df = df[df["BRANCH"].str.strip().str.upper() == branch]
+        if df.empty:
+            st.info("No data found for your profile.")
             return None
-        alias = helper.get_alias_name(self.username.upper()).strip()
-        rm_map = get_client_rm_map()
-        codes = rm_map[rm_map["BRO"].str.strip().str.upper() == alias.upper()]["CLIENT CODE"].unique()
-        if len(codes) == 0:
-            st.info("No clients assigned to your profile.")
-            st.stop()
-        return codes
+        return df
 
     # ------------------------------------------------------------------ #
     # Main page
@@ -549,11 +551,9 @@ class DPM3(BasePage):
             if df.empty:
                 st.warning("No holdings data available.")
                 return
-            bro_clients = self._get_bro_client_codes()
-            if bro_clients is not None:
-                df = df[df["CLIENT CODE"].isin(bro_clients)]
-                if df.empty:
-                    st.info("No holdings data found for your clients.")
+            if self.role in ("BRO", "BM"):
+                df = self._apply_role_filter(df)
+                if df is None:
                     return
             formatted_date = get_close_price_date_str()
             if formatted_date:
@@ -629,11 +629,9 @@ class DPM3(BasePage):
             if df_onhold.empty:
                 st.warning("No on-hold data available.")
                 return
-            bro_clients = self._get_bro_client_codes()
-            if bro_clients is not None:
-                df_onhold = df_onhold[df_onhold["CLIENT CODE"].isin(bro_clients)]
-                if df_onhold.empty:
-                    st.info("No on-hold data found for your clients.")
+            if self.role in ("BRO", "BM"):
+                df_onhold = self._apply_role_filter(df_onhold)
+                if df_onhold is None:
                     return
             df_rm_map = get_client_rm_map()
             df_onhold = df_onhold.merge(df_rm_map, on="CLIENT CODE", how="left")
