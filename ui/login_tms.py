@@ -1,103 +1,102 @@
 import os
+import shutil
+from my_captcha.extract_captcha import extract_captcha
 from time import sleep
-from utils.helper import show_message, ensure_session_management_folder
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from utils.helper import show_message, get_user_input, ensure_session_management_folder
+from utils.helper import save_cookies_data, update_cookies
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from config.config import base_url_tms, credentials_tms, chrome_profile_bot_dg
-from .xpaths import *
+from seleniumwire import webdriver
+from .xpaths import *   
 import pickle
-from config.config import session_management_path_tms_cookies, session_management_path_tms_session_id_path
-import ddddocr
-import base64
-from playwright.sync_api import sync_playwright
-
-ocr = ddddocr.DdddOcr()
-captured_session_ids = set()
+from config.config import session_management_path_tms_cookies,session_management_path_tms_session_id_path
 
 
-def handle_response(response):
-    headers = response.headers
-    if 'host-session-id' in headers:
-        captured_session_ids.add(headers['host-session-id'])
-
-
-def save_cookies(page):
-    cookies = page.context.cookies()
+# Save cookies to a pickle file
+def save_cookies(driver):
+    cookies = driver.get_cookies()
     with open(session_management_path_tms_cookies, "wb") as f:
         pickle.dump(cookies, f)
     show_message(f"Cookies saved to {session_management_path_tms_cookies}.")
 
+def extract_session_ids(driver):
+    session_ids = set()
+    for request in driver.requests:
+        if request.response:
+            if 'host-session-id' in request.headers:
+                session_ids.add(request.headers['host-session-id'])
+            if 'host-session-id' in request.response.headers:
+                session_ids.add(request.response.headers['host-session-id'])
 
-def extract_session_ids():
-    if captured_session_ids:
+    if session_ids:
         with open(session_management_path_tms_session_id_path, "w") as f:
-            for sid in captured_session_ids:
+            for sid in session_ids:
                 f.write(sid + "\n")
         show_message(f"Host-Session-IDs saved to {session_management_path_tms_session_id_path}.")
     else:
-        show_message("⚠ No Host-Session-IDs found.")
+        show_message("⚠️ No Host-Session-IDs found.")
 
 
-def setup_chrome_driver(playwright):
+def setup_chrome_driver():
+    # script_dir = os.path.abspath(os.path.dirname(__file__))
+    # temp_profile = os.path.join(script_dir, "ChromeProfile")
     temp_profile = chrome_profile_bot_dg
-    os.makedirs(temp_profile, exist_ok=True)
-
-    context = playwright.chromium.launch_persistent_context(
-        user_data_dir=temp_profile,
-        headless=False,
-        args=['--start-maximized'],
-    )
-    page = context.pages[0] if context.pages else context.new_page()
-    page.on("response", handle_response)
-    page.goto("https://tms48.nepsetms.com.np/tms/dashboard")
-    return page, context
+    os.makedirs(temp_profile, exist_ok=True)  # Just create an empty dir
 
 
-def clear_input_fields(page, xpath_value):
-    page.locator(xpath_value).fill("")
+    chrome_options = Options()
+    chrome_options.add_argument(f"--user-data-dir={temp_profile}")
+    chrome_options.add_argument("--start-maximized")
+    chrome_options.add_experimental_option("excludeSwitches", ['enable-automation', 'enable-logging'])
+    chrome_options.add_experimental_option("useAutomationExtension", False)
+
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.maximize_window()
+    driver.get("https://tms48.nepsetms.com.np/tms/dashboard")
+    return driver
+
+
+def clear_input_fields(driver:webdriver.Chrome, xpath_value:str):
+    driver.find_element(By.XPATH, xpath_value).send_keys(Keys.CONTROL + "a")
+    driver.find_element(By.XPATH, xpath_value).send_keys(Keys.DELETE)
+
+def extract_host_session_id()->str:
+    for request in driver.requests:
+        if request.response and "host-session-id" in request.headers:
+            host_session_id = request.headers['host-session-id']
+            if host_session_id:
+                # show_message(f"Found host-session-id: {host_session_id}")
+                return host_session_id
+    return None
+
 
 
 def login_tms():   
     ensure_session_management_folder()
+    global driver
     show_message("EXECUTE TMS . . . . .")
-    
-    playwright = sync_playwright().start()
-    page, context = setup_chrome_driver(playwright)
-    page.goto(url=base_url_tms)
+    driver = setup_chrome_driver()
+    driver.get(url=base_url_tms)
     is_captcha_correct = False
     while True:
         try:
-            page.locator("//a[normalize-space()='Forgot Password?']").wait_for(timeout=3000)
+            WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//a[normalize-space()='Forgot Password?']")))
             show_message("Please provide CAPTCHA")
-            
-            captcha_element = page.locator('img.captcha-image-dimension')
-            captcha_url = captcha_element.get_attribute('src')
-            show_message(f"Captcha URL: {captcha_url}")
-            
-            base64_image = page.evaluate("""
-                async (blobUrl) => {
-                    const res = await fetch(blobUrl);
-                    const blob = await res.blob();
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
-                }
-            """, captcha_url)
-            
-            base64_data = base64_image.split(",")[1]
-            img_bytes = base64.b64decode(base64_data)
-            captcha_text = ocr.classification(img_bytes)
-            show_message(f"Captcha Text: {captcha_text}")
-            
-            clear_input_fields(page, xpath_input_username)
-            clear_input_fields(page, xpath_input_password)
-            page.locator(xpath_input_username).fill(credentials_tms['username'])
-            page.locator(xpath_input_password).fill(credentials_tms['password'])
-            page.locator(xpath_input_captcha).fill(captcha_text)
-            page.locator(xpath_button_login).click()
+            # input_value = get_user_input("TMS")
+            input_value = extract_captcha(driver=driver)
+            clear_input_fields(driver, xpath_input_username)
+            clear_input_fields(driver, xpath_input_password)
+            driver.find_element(By.XPATH, xpath_input_username).send_keys(credentials_tms['username'])
+            driver.find_element(By.XPATH, xpath_input_password).send_keys(credentials_tms['password'])
+            driver.find_element(By.XPATH, xpath_input_captcha).send_keys(input_value)
+            driver.find_element(By.XPATH, xpath_button_login).click()
             try:
-                page.locator("//span[@class='toast-title']").wait_for(timeout=3000)
-                page.reload()
+                WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//span[@class='toast-title']")))
+                driver.refresh()
                 show_message("Wrong captcha", 'red')
             except Exception as e:
                 is_captcha_correct = True
@@ -107,15 +106,55 @@ def login_tms():
             pass
 
         if is_captcha_correct:
-                page.locator("//span[contains(text(),'Search Client')]").wait_for(timeout=100000)
-                save_cookies(page=page)
-                extract_session_ids()
+                WebDriverWait(driver , 100).until(EC.presence_of_element_located((By.XPATH, "//span[contains(text(),'Search Client')]")))
+                save_cookies(driver=driver)
+                extract_session_ids(driver=driver)
                 show_message("Please Wait . . . .\n\n", 'white')
                 try:
-                    page.context.close()
+                    driver.close()
+                    driver.quit()
                     break
                 except Exception as e:
                     show_message("Error while closing the driver.", "red")
+
+
+# def login_tms():   
+#     ensure_session_management_folder()
+#     global driver
+#     show_message("EXECUTE TMS . . . . .")
+#     driver = setup_chrome_driver()
+#     driver.get(url=base_url_tms)
+#     while True:
+#         show_message("Please provide CAPTCHA")
+#         # input_value = get_user_input("TMS")
+#         input_value = extract_captcha(driver=driver)
+#         clear_input_fields(driver, xpath_input_username)
+#         clear_input_fields(driver, xpath_input_password)
+#         driver.find_element(By.XPATH, xpath_input_username).send_keys(credentials_tms['username'])
+#         driver.find_element(By.XPATH, xpath_input_password).send_keys(credentials_tms['password'])
+#         driver.find_element(By.XPATH, xpath_input_captcha).send_keys(input_value)
+#         driver.find_element(By.XPATH, xpath_button_login).click()
+#         try:
+#             WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//span[@class='toast-title']")))
+#             driver.refresh()
+#             show_message("Wrong captcha", 'red')
+#         except Exception as e:
+#                 WebDriverWait(driver , 10).until(EC.presence_of_element_located((By.XPATH, "//span[contains(text(),'Search Client')]")))
+#                 save_cookies(driver=driver)
+#                 extract_session_ids(driver=driver)
+#                 # save_cookies_data(driver)
+#                 # sleep(0.6)
+#                 # show_message("Extracting host-session-id .....")
+#                 # host_session_id = extract_host_session_id()
+#                 # update_cookies(session_id=host_session_id)
+#                 show_message("Please Wait . . . .\n\n", 'white')
+#                 try:
+#                     driver.close()
+#                     driver.quit()
+#                     break
+#                 except Exception as e:
+#                     show_message("Error while closing the driver.", "red")
+
 
 if __name__ == "__main__":         
     login_tms()
