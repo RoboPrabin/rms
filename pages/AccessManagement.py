@@ -7,7 +7,6 @@ from streamlit_bridge.permissions import DEFAULT_ROLE_ACCESS, ALL_MENU_KEYS
 from utils.custom_hotkey import activate_client_code_hotkey
 from pages.BasePage import BasePage
 from db.db import get_connection
-import time
 
 
 MENU_SECTIONS = [
@@ -213,6 +212,10 @@ def _save_permissions(username: str, permissions: dict):
 # Permission resolution
 # ==========================================================
 
+def _normalize_role(role: str) -> str:
+    return str(role).upper().strip()
+
+
 def _resolve_permissions(role: str, db_perms: dict) -> dict:
     """
     Merge role defaults with DB overrides.
@@ -220,7 +223,7 @@ def _resolve_permissions(role: str, db_perms: dict) -> dict:
       DB False   → fall back to role default (DB cannot revoke a role default)
       DB missing → use role default
     """
-    role_key = str(role).upper().strip()
+    role_key = _normalize_role(role)
     role_defaults = DEFAULT_ROLE_ACCESS.get(role_key, DEFAULT_ROLE_ACCESS["DEFAULT"])
 
     merged = {}
@@ -234,7 +237,7 @@ def _resolve_permissions(role: str, db_perms: dict) -> dict:
 
 
 def _is_role_default(key: str, role: str) -> bool:
-    role_key = str(role).upper().strip()
+    role_key = _normalize_role(role)
     return bool(DEFAULT_ROLE_ACCESS.get(role_key, {}).get(key, False))
 
 
@@ -250,7 +253,7 @@ def _clear_widget_state(username: str):
     prefix = f"acm__{username}__"
     for k in list(st.session_state.keys()):
         if isinstance(k, str) and k.startswith(prefix):
-            del st.session_state[k]
+            st.session_state.pop(k, None)
 
 
 def _seed_widget_state(username: str, effective: dict):
@@ -265,21 +268,7 @@ def _seed_widget_state(username: str, effective: dict):
 # Section renderer helpers
 # ==========================================================
 
-def _render_section_header(label: str, badge: str, badge_color: str, badge_text: str):
-    """Render a colored badge + section title."""
-    st.markdown(
-        f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:6px;'>"
-        f"<span style='background:{badge_color};color:{badge_text};"
-        f"font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500;"
-        f"'>{badge}</span>"
-        f"<span style='font-size:13px;font-weight:500;'>{label}</span>"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-
-
 def _render_toggles(items: list, username: str, user_role: str):
-    """Render a list of toggle rows for the given items."""
     for menu_key, icon, label in items:
         wk        = _widget_key(menu_key, username)
         is_locked = _is_role_default(menu_key, user_role)
@@ -290,37 +279,20 @@ def _render_toggles(items: list, username: str, user_role: str):
         st.toggle(
             display,
             key=wk,
-            # disabled=is_locked,
-            help="Granted by role default — cannot be revoked here." if is_locked else None,
+            help="Granted by role default." if is_locked else None,
         )
+
+
+def _render_section(section: dict, username: str, user_role: str, expanded: bool = False):
+    title = f"`{section['badge']}`  {section['label']}"
+    with st.expander(title, expanded=expanded):
+        _render_toggles(section["items"], username, user_role)
 
 
 def _render_column(section: dict, username: str, user_role: str):
-    """
-    Render one full column: the primary section header + toggles,
-    then any sub-sections separated by a divider.
-    """
-    _render_section_header(
-        section["label"],
-        section["badge"],
-        section["badge_color"],
-        section["badge_text"],
-    )
-    _render_toggles(section["items"], username, user_role)
-
+    _render_section(section, username, user_role, expanded=False)
     for sub in section.get("sub", []):
-        st.markdown(
-            "<hr style='margin:10px 0 8px 0;border:none;"
-            "border-top:0.5px solid var(--color-border-tertiary);'>",
-            unsafe_allow_html=True,
-        )
-        _render_section_header(
-            sub["label"],
-            sub["badge"],
-            sub["badge_color"],
-            sub["badge_text"],
-        )
-        _render_toggles(sub["items"], username, user_role)
+        _render_section(sub, username, user_role, expanded=False)
 
 
 # ==========================================================
@@ -373,32 +345,31 @@ class AccessManagement(BasePage):
 
         username, full_name, email, user_role = user_detail
 
-        st.subheader("User details", anchor=False)
-        c1, c2, c3, c4 = st.columns(4)
-        c1.text_input("Username",  username,    disabled=True)
-        c2.text_input("Full name", full_name,   disabled=True)
-        c3.text_input("Email",     email or "", disabled=True)
-        c4.text_input("Role",      user_role,   disabled=True)
+        with st.container(border=True):
+            st.markdown("##### User details")
+            r1, r2 = st.columns(2), st.columns(2)
+            r1[0].text_input("Username",  username,    disabled=True)
+            r1[1].text_input("Full name", full_name,   disabled=True)
+            r2[0].text_input("Email",     email or "", disabled=True)
+            r2[1].text_input("Role",      user_role,   disabled=True)
 
         # ── Resolve & seed permissions ──────────────────────
         db_perms  = _load_db_permissions(username)
         effective = _resolve_permissions(user_role, db_perms)
         _seed_widget_state(username, effective)
 
-        # ── Organized 3-column toggle grid ──────────────────
-        with st.container(border=True):
-            st.markdown("#### Access details")
+        # ── 3-column expander grid ─────────────────────────
+        st.markdown("#### Access details")
+        col1, col2, col3 = st.columns(3)
 
-            col1, col2, col3 = st.columns(3)
+        with col1:
+            _render_column(MENU_SECTIONS[0], username, user_role)
 
-            with col1:
-                _render_column(MENU_SECTIONS[0], username, user_role)
+        with col2:
+            _render_column(MENU_SECTIONS[1], username, user_role)
 
-            with col2:
-                _render_column(MENU_SECTIONS[1], username, user_role)
-
-            with col3:
-                _render_column(MENU_SECTIONS[2], username, user_role)
+        with col3:
+            _render_column(MENU_SECTIONS[2], username, user_role)
 
         # ── Save button ─────────────────────────────────────
         if st.button("💾 Save permissions", type="primary"):
