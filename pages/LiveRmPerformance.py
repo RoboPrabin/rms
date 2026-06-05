@@ -84,7 +84,8 @@ def get_city_code(full_name: str) -> str:
         "POKHARA": "PKR",
         "HETAUDA": "HTD",
         "BUTWAL": "BTL",
-        "BANEPA": "BNP"
+        "BANEPA": "BNP",
+        "DHANGADHI": "DHI",
     }
     
     # Convert input to uppercase to make it case-insensitive
