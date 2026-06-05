@@ -45,3 +45,22 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE cache
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
