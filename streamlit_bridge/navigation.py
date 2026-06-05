@@ -81,6 +81,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "cashin_out": True,
         "trade_history": True,
+        "risk_monitoring": True,
     },
 
     "BM": {
@@ -114,6 +115,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "cashin_out": True,
         "trade_history": True,
+        "risk_monitoring": True,
     },
 
     "RM": {
@@ -141,6 +143,7 @@ DEFAULT_ROLE_ACCESS = {
         "profile": True,
         "feedback": True,
         "trade_history": True,
+        "risk_monitoring": True,
     },
 
     "HR": {

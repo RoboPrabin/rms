@@ -81,6 +81,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "cashin_out": True,
         "trade_history": True,
+        "risk_monitoring": True,
     },
 
     "BM": {
@@ -105,6 +106,7 @@ DEFAULT_ROLE_ACCESS = {
         "rm_tag": True,
         "kyc_modify": True,
         "demat_records": True,
+        "transaction_monitoring": True,
         "profile": True,
         "communication_report": True,
         "project_request": True,
@@ -114,6 +116,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "cashin_out": True,
         "trade_history": True,
+        "risk_monitoring": True,
     },
 
     "RM": {
@@ -141,6 +144,7 @@ DEFAULT_ROLE_ACCESS = {
         "profile": True,
         "feedback": True,
         "trade_history": True,
+        "risk_monitoring": True,
     },
 
     "HR": {
