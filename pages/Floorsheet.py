@@ -55,6 +55,12 @@ def compute_branch_summary(df: pd.DataFrame):
     if "branch" not in df.columns:
         return pd.DataFrame()
 
+    # Normalize any Dhangadhi/DHI branch to "Dhangadhi(DHI)" and deduplicate
+    df = df.copy()
+    dhangadhi_mask = df["branch"].astype(str).str.contains(r"Dhangadhi|^DHI$", case=False, na=False)
+    if dhangadhi_mask.any():
+        df.loc[dhangadhi_mask, "branch"] = "Dhangadhi(DHI)"
+
     def branch_summary_func(g):
         buy = g["transaction_type"] == "Buy"
         sell = g["transaction_type"] == "Sell"
@@ -67,13 +73,20 @@ def compute_branch_summary(df: pd.DataFrame):
             "total": g["amount"].sum(),
         })
 
-    # df2 = df.groupby("branch", group_keys=False).apply(branch_summary_func).reset_index()
     df2 = (
             df.groupby("branch", group_keys=False, observed=True)
             .apply(lambda g: branch_summary_func(g), include_groups=False)
             .reset_index()
         )
 
+    # Ensure Dhangadhi(DHI) always appears (zero row if no data)
+    if "Dhangadhi(DHI)" not in df2["branch"].values:
+        zero_row = pd.DataFrame([{
+            "branch": "DHI",
+            "buyer_count": 0, "seller_count": 0, "both_traders": 0,
+            "purchase_turnover": 0, "sales_turnover": 0, "total": 0,
+        }])
+        df2 = pd.concat([df2, zero_row], ignore_index=True)
 
     total_turnover = df2["total"].sum()
     df2["%"] = (df2["total"] / total_turnover * 100).round(2)
