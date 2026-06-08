@@ -4,6 +4,7 @@ from datetime import date
 from utils import helper
 import streamlit_bridge.navigation as navigation
 from utils.custom_hotkey import activate_client_code_hotkey
+from streamlit_autorefresh import st_autorefresh
 from pages.BasePage import BasePage
 from db import db
 
@@ -24,6 +25,7 @@ class RiskMonitoring(BasePage):
         self.render_page()
 
     def render_page(self):
+        st_autorefresh(interval=300_000, key="risk_monitoring_refresh")
         df_dpm3 = self._load_dpm3_data()
         if df_dpm3 is None or df_dpm3.empty:
             st.info("No DPM3 data available.")
