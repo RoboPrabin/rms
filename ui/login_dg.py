@@ -9,7 +9,7 @@
 # from utils.helper import show_message, ensure_session_management_folder
 # import json
 # from selenium.webdriver.support import expected_conditions as EC
-# from config.config import session_management_path_dg, url_login_dgtrade, credentials_dg, cookies_management_path_dg, chrome_profile_bot_dg
+# from config.config import session_management_path_dg, url_login_dgtrade, credentials_dg, cookies_management_path_dg
 # import capsolver
 # import pickle
 # import os
@@ -51,12 +51,7 @@
 # #  https://dgtrade.trishakti.com.np:8080/bom/index.html#/dashboard
 # def setup_chrome_driver():
 #     # script_dir = os.path.abspath(os.path.dirname(__file__))
-#     # temp_profile = os.path.join(script_dir, "ChromeProfileMis")
-#     temp_profile = chrome_profile_bot_dg
-#     os.makedirs(temp_profile, exist_ok=True)  # Just create an empty dir
-
 #     chrome_options = Options()
-#     chrome_options.add_argument(f"--user-data-dir={temp_profile}")
 #     chrome_options.add_argument("--start-maximized")
 #     chrome_options.add_experimental_option("excludeSwitches", ['enable-automation', 'enable-logging'])
 #     chrome_options.add_experimental_option("useAutomationExtension", False)
@@ -207,11 +202,12 @@ from time import sleep
 from playwright.sync_api import sync_playwright
 from utils.helper import show_message, ensure_session_management_folder
 import json
-from config.config import session_management_path_dg, url_login_dgtrade, credentials_dg, cookies_management_path_dg, chrome_profile_bot_dg
+from config.config import session_management_path_dg, url_login_dgtrade, credentials_dg, cookies_management_path_dg
 import ddddocr
 import base64
 import pickle
-import os
+import asyncio
+import threading
 
 xpath_button_login = "//button[@type='submit']"
 xpath_input_username = "//input[@placeholder='Enter your username']"
@@ -220,8 +216,7 @@ xpath_popup_msg = "//div[@class='toast-text']"
 xpath_input_captcha = "//input[@placeholder='Enter Captcha']"
 url_login = url_login_dgtrade
 
-
-ocr = ddddocr.DdddOcr()
+ocr = ddddocr.DdddOcr(show_ad=False)
 
 
 def solve_captcha(image_bytes: bytes) -> str:
@@ -245,15 +240,20 @@ def save_local_storage_data(page):
 
 
 def setup_chrome_page():
-    temp_profile = chrome_profile_bot_dg
-    os.makedirs(temp_profile, exist_ok=True)
-
     p = sync_playwright().start()
-    context = p.chromium.launch_persistent_context(
-        user_data_dir=temp_profile,
-        headless=False,
-        no_viewport=True,
-    )
+    try:
+        browser = p.chromium.launch(
+            headless=False,
+            args=[
+                "--disable-gpu",
+                "--disable-software-rasterizer",
+            ],
+        )
+        context = browser.new_context(no_viewport=True)
+    except Exception:
+        p.stop()
+        raise
+
     page = context.pages[0] if context.pages else context.new_page()
     page.goto("https://dgtrade.trishakti.com.np:8080/bom/index.html#/dashboard")
     return p, context, page
@@ -272,7 +272,7 @@ def clear_input_fields(page, xpath_value: str):
     page.locator(xpath_value).fill("")
 
 
-def login_dg():    
+def _login_dg_sync():    
     ensure_session_management_folder()
     show_message("Logging to DG Trade. Solving CAPTCHA automatically.", 'white')
 
@@ -374,6 +374,32 @@ def login_dg():
         except Exception as e:
             page.goto("https://dgtrade.trishakti.com.np:8080/bom/index.html#/login")
             continue
+
+
+def _run_login_dg_in_thread():
+    result = {"error": None}
+
+    def target():
+        try:
+            _login_dg_sync()
+        except Exception as e:
+            result["error"] = e
+
+    thread = threading.Thread(target=target, name="DGPlaywrightLogin")
+    thread.start()
+    thread.join()
+
+    if result["error"]:
+        raise result["error"]
+
+
+def login_dg():
+    # try:
+    #     asyncio.get_running_loop()
+    # except RuntimeError:
+    # _login_dg_sync()
+    # else:
+    _run_login_dg_in_thread()
 
 
 if __name__ == "__main__":         

@@ -98,8 +98,8 @@ session_management_path_global_ime = (
 
 url_login_dgtrade = "https://dgtrade.trishakti.com.np:8080/bom/index.html#/login"
 # DG CREDENTIALS
-credentials_dg = {"username": "AUTOBOT", "password": "Autom@ti0n"}
-# credentials_dg = {"username": "PRABIN", "password": "Trishakti@48"}
+# credentials_dg = {"username": "AUTOBOT", "password": "Autom@ti0n"}
+credentials_dg = {"username": "PRABIN", "password": "Trishakti@48"}
 
 
 
