@@ -1,7 +1,7 @@
 from time import sleep
 from ui.login_dg import login_dg
 import pandas as pd
-from api.dg.shared_api_dg import get_headers
+from api.dg.shared_api_dg import get_cookies, get_headers
 from utils.helper import get_today_date, show_message
 import requests
 
@@ -24,6 +24,7 @@ def get_rm_clients_total_pages(rm_id, branch_id):
                 'https://dgtrade.trishakti.com.np:8080/bom/api/customer/customer-registration/relation-officer-wise-detail',
                 params=params,
                 headers=get_headers(),
+                cookies=get_cookies(),
             )
 
             if response.status_code == 200:
@@ -62,6 +63,7 @@ def get_clients_of_rm(rm_df:pd.DataFrame, working_dir:str):
                         'https://dgtrade.trishakti.com.np:8080/bom/api/customer/customer-registration/relation-officer-wise-detail',
                         params=params,
                         headers=get_headers(),
+                        cookies=get_cookies(),
                     )
 
                     if response.status_code == 200:
@@ -115,6 +117,7 @@ def fetch_all_rms(working_dir:str):
                     params=params,
                     # cookies=cookies,
                     headers=get_headers(),
+                    cookies=get_cookies(),
                 )
 
                 if response.status_code == 200:

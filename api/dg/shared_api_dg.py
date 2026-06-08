@@ -1,25 +1,38 @@
-from utils.helper import get_session_data
-from config.config import session_management_path_dg
+from config.config import cookies_management_path_dg, session_management_path_dg
 import pickle
 import json
 
 
-def get_headers():
-    with open(session_management_path_dg, 'rb') as f:
-        local_storage = json.load(f)
+def get_cookies():
+    try:
+        with open(cookies_management_path_dg, 'rb') as f:
+            cookies = pickle.load(f)
+    except FileNotFoundError:
+        return {}
 
-        # local_storage = pickle.load(f) 
+    return {
+        cookie['name']: cookie['value']
+        for cookie in cookies
+        if cookie.get('name') and cookie.get('value')
+    }
+
+
+def get_headers():
+    with open(session_management_path_dg, 'r') as f:
+        local_storage = json.load(f)
 
         bom_session_id = local_storage.get('bom-sessionId', '')
         em = local_storage.get('em', '')
         
-        # tempem is a stringified list, so we parse it with json
-        tempem_raw = local_storage.get('tempem', '[]')
-        try:
-            tempem_list = json.loads(tempem_raw)
-            pn = tempem_list[2] if len(tempem_list) > 2 else ''
-        except json.JSONDecodeError:
-            pn = ''
+        pn = local_storage.get('pn', '')
+        if not pn:
+            # Older DG sessions stored Pn inside tempem.
+            tempem_raw = local_storage.get('tempem', '[]')
+            try:
+                tempem_list = json.loads(tempem_raw)
+                pn = tempem_list[2] if len(tempem_list) > 2 else ''
+            except json.JSONDecodeError:
+                pn = ''
 
         token = local_storage.get('token', '')
 
