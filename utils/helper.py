@@ -245,7 +245,7 @@ def get_branch_code_mapping():
             "LTP":"LALITPUR",
             "MHN":"MAHENDRANAGAR",
             "PKR":"POKHARA",
-            "DHD":"DHANGADHI",
+            "DHI":"DHANGADHI",
     }
 
 def eliminate_top_padding(padding_top: str = "0rem"):

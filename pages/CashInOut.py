@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 import re
-from time import sleep
 import pandas as pd
 import requests
 import streamlit as st
@@ -16,65 +15,88 @@ from utils import auth_utils, helper
 @st.cache_data(ttl=3600)
 def fetch_client_rm_map_cached():
     query = """SELECT "clientName", "clientCode", "rmName" FROM client_rm_map"""
-    
     try:
-        # Establish connection
         conn = db.get_connection()
-        
         with conn.cursor() as cur:
             cur.execute(query)
-            # Fetch all rows as a list of DictRow objects
             results = cur.fetchall()
-            df = pd.DataFrame(results, columns=["Client Name", "Client Code", "BRO"])
-            return df
+            return pd.DataFrame(results, columns=["Client Name", "Client Code", "BRO"])
         conn.close()
-        
     except Exception as e:
         print(f"Error connecting to database: {e}")
+
+
 @st.cache_data(ttl=3600)
 def fetch_kyc_cached():
     query = """SELECT clientfullname, clientmembercode, clientbranch from kyc"""
-    
     try:
-        # Establish connection
         conn = db.get_connection()
-        
         with conn.cursor() as cur:
             cur.execute(query)
-            # Fetch all rows as a list of DictRow objects
             results = cur.fetchall()
-            df = pd.DataFrame(results, columns=["Client Name", "Client Code", "Branch"])
-            return df
-           
-                
+            return pd.DataFrame(results, columns=["Client Name", "Client Code", "Branch"])
         conn.close()
-        
     except Exception as e:
         print(f"Error connecting to database: {e}")
 
 
-def get_ledger(token, ac_code, date_from, date_to):
+@st.cache_data(ttl=600)
+def get_jwt_token_cached():
+    return db.get_jwt_token()
+
+
+@st.cache_data(ttl=3600)
+def get_ledger_cached(token, ac_code, date_from, date_to):
     resp = requests.get(
         config.LEDGER_API,
         headers={"Authorization": f"Bearer {token}"},
-        params={
-            "acCode": ac_code,
-            "dateFrom": date_from,
-            "dateTo": date_to
-        },
+        params={"acCode": ac_code, "dateFrom": date_from, "dateTo": date_to},
         timeout=30
     )
     resp.raise_for_status()
     return resp.json()
 
 
-@st.cache_data(ttl=3600)
-def get_jwt_token_cached():
-    token = db.get_jwt_token()
-    return token
+def extract_entries(entries, keyword):
+    extracted = []
+    total = 0
+    with_code = 0
+    for entry in entries:
+        particulars = entry.get("particulars", "")
+        if keyword in particulars.lower():
+            total += 1
+            m = re.search(r'\[(.*?)\]', particulars)
+            code = m.group(1) if m else None
+            if code:
+                with_code += 1
+                extracted.append({
+                    "Client Code": code,
+                    "drAmount": entry.get("drAmount"),
+                    "Clearance Date": entry.get("clearanceDate"),
+                    "Transaction Date": entry.get("transactionDate")
+                })
+    return extracted, total, with_code
 
 
-token = db.get_jwt_token()
+def build_summary(df, df_kyc, df_rm_map, amount_label):
+    df = df.merge(df_rm_map[['Client Code', 'Client Name', 'BRO']], on="Client Code", how="left")
+    df[['Client Name', 'BRO']] = df[['Client Name', 'BRO']].fillna("N/A")
+    df = df.drop(columns=['Client Name']).merge(
+        df_kyc[['Client Code', 'Client Name', 'Branch']], on="Client Code", how="left"
+    )
+    df['BRO'] = df['BRO'].fillna("N/A")
+    df['Branch'] = df['Branch'].str.upper().str.strip()
+    df['Client Name'] = df['Client Name'].str.upper().str.strip()
+    df.rename(columns={'drAmount': amount_label}, inplace=True)
+    df.drop(columns=['Clearance Date', 'Transaction Date'], inplace=True)
+    cols = ['BRO', 'Client Code', 'Client Name', 'Branch', amount_label]
+    df = df[cols].sort_values(by="BRO")
+
+    bro = df.groupby('BRO')[amount_label].sum().reset_index().sort_values(by=amount_label, ascending=False)
+    branch = df.groupby('Branch')[amount_label].sum().reset_index().sort_values(by=amount_label, ascending=False)
+    return df, bro, branch
+
+
 class CashInOut(BasePage):
     def __init__(self):
         super().__init__()
@@ -82,149 +104,77 @@ class CashInOut(BasePage):
         st.session_state.active_menu = "account"
         st.set_page_config(page_title="Cash In/Out", page_icon="📖", layout="wide")
         st.header("📖 Cash In/Out", anchor=False)
-
         render_sidebar()
         self.holding_engine = create_engine(helper.get_holding_engine())
-        self.session_ids = None
-
 
     def show_expander_with_date_range(self):
-        st.session_state.from_str =   date.today() - timedelta(days=1)
-        st.session_state.to_str = date.today()
+        today = date.today()
+        yesterday = today - timedelta(days=1)
         with st.expander("Filter Date Range", expanded=True):
             col1, col2 = st.columns(2)
             with col1:
-                # Default from_date = yesterday
-                default_from = date.today() - timedelta(days=1)
-                from_date = st.date_input("From Date", value=default_from)
+                from_date = st.date_input("From Date", value=yesterday)
             with col2:
-                # Default to_date = today
-                default_to = date.today()
-                to_date = st.date_input("To Date", value=default_to)
+                to_date = st.date_input("To Date", value=today)
 
             if st.button("Fetch Data", icon="🧲"):
-                # Format dates as YYYY-MM-DD
                 from_str = from_date.strftime("%Y-%m-%d")
                 to_str = to_date.strftime("%Y-%m-%d")
-                st.session_state.from_str = from_str
-                st.session_state.to_str = to_str
-        with st.container(border=True):
-            self.fetch_data_logic(from_date=st.session_state.from_str, to_date=st.session_state.to_str)
-        st.toast("Data fetched successfully.", icon="✅")
+                with st.container(border=True):
+                    self.fetch_data_logic(from_date=from_str, to_date=to_str)
+                st.toast("Data fetched successfully.", icon="✅")
 
-    
     def fetch_data_logic(self, from_date, to_date):
-        # token = "fasdfsyfadsofjasdm"
-        # token = get_jwt_token_cached()
-        # try:
-        ledger_data = get_ledger(token=token, ac_code="1020201", date_from=from_date, date_to=to_date)
-        # except Exception as e:
-        #     st.error(f"Error fetching data: {e}", icon="❌")
-        #     st.error(f"Token Expired", icon="❌")
-        #     if st.button("Get New Token", icon="🛬"):
-        #        helper.get_and_store_new_token()
-        #     st.stop()
-        extracted_list = []
-
-        for entry in ledger_data.get("data", []):
-            particulars = entry.get("particulars", "")
-            
-            # Check for keyword 'received' (case-insensitive)
-            if "received" in particulars.lower():
-                # Regex to extract content inside square brackets
-                client_code_match = re.search(r'\[(.*?)\]', particulars)
-                client_code = client_code_match.group(1) if client_code_match else None
-                
-                extracted_list.append({
-                    "Client Code": client_code,
-                    "drAmount": entry.get("drAmount"),
-                    "Clearance Date": entry.get("clearanceDate"),
-                    "Transaction Date": entry.get("transactionDate")
-                })
-        # Create DataFrame and save to Excel
-        df_client_transaction = pd.DataFrame(extracted_list)
-        # get Client Code which is not null
-        # 1. Filter to ensure we only have rows where 'Client Code' is not null
-        df_client_transaction = df_client_transaction[df_client_transaction['Client Code'].notna()]
-
-        # 2. If you want to ensure it's not an empty string (common in messy data)
-        df_client_transaction = df_client_transaction[df_client_transaction['Client Code'] != ""]
+        token = get_jwt_token_cached()
+        ledger_data = get_ledger_cached(token=token, ac_code="1020201", date_from=from_date, date_to=to_date)
+        entries = ledger_data.get("data", [])
 
         df_kyc = fetch_kyc_cached()
-        df_client_rm_map = fetch_client_rm_map_cached()
+        df_rm_map = fetch_client_rm_map_cached()
 
+        cash_entries, _, _ = extract_entries(entries, "received")
+        if cash_entries:
+            df_cash, bro_cash, branch_cash = build_summary(
+                pd.DataFrame(cash_entries), df_kyc, df_rm_map, "Cash In Amount"
+            )
+            self.show_tabbed_dataframes(df_cash, bro_cash, branch_cash, "Cash In", "Cash In Amount")
 
-        # 2. Perform the merge
-        # We specify only the necessary columns from df_rm_map to keep the dataframe clean
-        df_merged = df_client_transaction.merge(
-            df_client_rm_map[['Client Code', 'Client Name', 'BRO']], 
-            on="Client Code", 
-            how="left"
+        st.markdown("---")
+        cheque_entries, total_cheque, with_code = extract_entries(entries, "cheque")
+        st.info(
+            f"Total entries with 'cheque': {total_cheque} | "
+            f"With client code: {with_code} | Without client code: {total_cheque - with_code}"
         )
-        # 3. Fill missing matches with "N/A"
-        df_merged[['Client Name', 'BRO']] = df_merged[['Client Name', 'BRO']].fillna("N/A")
+        if cheque_entries:
+            df_cheque, bro_cheque, branch_cheque = build_summary(
+                pd.DataFrame(cheque_entries), df_kyc, df_rm_map, "Cheque Amount"
+            )
+            self.show_tabbed_dataframes(df_cheque, bro_cheque, branch_cheque, "Cheque Clearing", "Cheque Amount")
+        else:
+            st.info("No cheque clearing entries found for the selected date range.", icon="ℹ️")
 
-        # 4. Optional: Reorder columns for a cleaner look
-        cols = ["Client Code", "Client Name", "BRO", "drAmount", "Clearance Date", "Transaction Date"]
-        df_final = df_merged[cols]
-
-        # Drop Client Name before merge to avoid duplicates
-        df_final = df_final.drop(columns=['Client Name'])
-
-        df_final = df_final.merge(
-            df_kyc[['Client Code', 'Client Name', 'Branch']],
-            on="Client Code",
-            how="left"
-        )
-        df_final['BRO'] = df_final['BRO'].fillna("N/A")
-        df_final.sort_values(by="BRO", inplace=True)
-        df_final['Branch'] = df_final['Branch'].str.upper().str.strip()
-        df_final['Client Name'] = df_final['Client Name'].str.upper().str.strip()
-        column_order = ['BRO', 'Client Code', 'Client Name', 'Branch', 'drAmount', 'Clearance Date', 'Transaction Date']
-        df_final = df_final[column_order]
-        df_final.rename(columns={'drAmount': 'Cash In Amount'}, inplace=True)
-        df_final.drop(columns=['Clearance Date', 'Transaction Date'], inplace=True)
-        bro_summary = df_final.groupby('BRO')['Cash In Amount'].sum().reset_index()
-        bro_summary.sort_values(by='Cash In Amount', ascending=False, inplace=True)
-        branch_summary = df_final.groupby('Branch')['Cash In Amount'].sum().reset_index()
-        branch_summary.sort_values(by='Cash In Amount', ascending=False, inplace=True)
-
-        self.show_tabbed_dataframes(df_final, bro_summary, branch_summary)
-
-
-
-    def show_tabbed_dataframes(self, df_final: pd.DataFrame, bro_summary: pd.DataFrame, branch_summary: pd.DataFrame):
-        # Metric with formatted sum
-        st.metric("Total Cash In", value=f"Rs. {df_final['Cash In Amount'].sum():,.2f}")
-
+    def show_tabbed_dataframes(self, df_final, bro_summary, branch_summary, label, amount_col):
+        st.metric(f"Total {label}", value=f"Rs. {df_final[amount_col].sum():,.2f}")
         tabs = st.tabs(["BRANCH", "BRO", "ALL"])
 
         with tabs[0]:
             branch_summary = branch_summary.reset_index(drop=True)
             branch_summary.index += 1
-            st.dataframe(
-                branch_summary.style.format({"Cash In Amount": "{:,.2f}"}),
-                use_container_width=True
-            )
+            st.dataframe(branch_summary.style.format({amount_col: "{:,.2f}"}), use_container_width=True)
 
         with tabs[1]:
             bro_summary = bro_summary.reset_index(drop=True)
             bro_summary.index += 1
-            st.dataframe(
-                bro_summary.style.format({"Cash In Amount": "{:,.2f}"}),
-                use_container_width=True
-            )
+            st.dataframe(bro_summary.style.format({amount_col: "{:,.2f}"}), use_container_width=True)
 
         with tabs[2]:
             df_final = df_final.reset_index(drop=True)
             df_final.index += 1
-            st.dataframe(
-                df_final.style.format({"Cash In Amount": "{:,.2f}"}),
-                use_container_width=True
-            )
+            st.dataframe(df_final.style.format({amount_col: "{:,.2f}"}), use_container_width=True)
 
     def render_page(self):
         self.show_expander_with_date_range()
+
 
 if __name__ == "__main__":
     CashInOut().render_page()
