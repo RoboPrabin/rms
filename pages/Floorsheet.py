@@ -59,7 +59,7 @@ def compute_branch_summary(df: pd.DataFrame):
     df = df.copy()
     dhangadhi_mask = df["branch"].astype(str).str.contains(r"Dhangadhi|^DHI$", case=False, na=False)
     if dhangadhi_mask.any():
-        df.loc[dhangadhi_mask, "branch"] = "Dhangadhi(DHI)"
+        df.loc[dhangadhi_mask, "branch"] = "DHI"
 
     def branch_summary_func(g):
         buy = g["transaction_type"] == "Buy"
@@ -80,7 +80,7 @@ def compute_branch_summary(df: pd.DataFrame):
         )
 
     # Ensure Dhangadhi(DHI) always appears (zero row if no data)
-    if "Dhangadhi(DHI)" not in df2["branch"].values:
+    if "DHI" not in df2["branch"].values:
         zero_row = pd.DataFrame([{
             "branch": "DHI",
             "buyer_count": 0, "seller_count": 0, "both_traders": 0,
