@@ -7,7 +7,7 @@ from typing import Optional
 
 # ---------- Config ----------
 SENDER_EMAIL = "support@trishakti.com.np"
-SENDER_PASSWORD = "Support.Trishakti@123"   
+SENDER_PASSWORD = "123@Support.Trishakti"   
 DISPLAY_NAME = "RMS - Trishakti"
 SMTP_SERVER = "mail.trishakti.com.np"
 SMTP_PORT = 587  # Using 587 as per your previous requirement for TLS
