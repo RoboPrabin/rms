@@ -40,6 +40,11 @@ Thumbs.db
 htmlcov/
 
 # =========================
+# Streamlit cache
+# =========================
+.streamlit/cache/
+
+# =========================
 # Build / packaging
 # =========================
 build/

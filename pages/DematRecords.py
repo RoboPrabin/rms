@@ -364,7 +364,7 @@ class DematRecords(BasePage):
         if selected_rows:
             try:
                 selected_index = selected_rows[0]
-                selected_row = filtered_df.iloc[selected_index].to_dict()
+                selected_row = filtered_df.loc[selected_index].to_dict()
                 self.edit_record_dialog(selected_row)
             except (IndexError, KeyError) as e:
                 st.error(f"Error selecting row: {e}")
@@ -448,7 +448,7 @@ class DematRecords(BasePage):
         if selected_rows:
             try:
                 selected_index = selected_rows[0]
-                selected_row = filtered_df.iloc[selected_index].to_dict()
+                selected_row = filtered_df.loc[selected_index].to_dict()
                 self.edit_tms_record_dialog(selected_row)
             except (IndexError, KeyError) as e:
                 st.error(f"Error selecting row: {e}")
@@ -559,6 +559,7 @@ class DematRecords(BasePage):
 
             if success:
                 st.success("Record updated successfully!")
+                st.cache_data.clear()
                 sleep(1)
                 st.rerun()
             else:
@@ -572,6 +573,7 @@ class DematRecords(BasePage):
                     cursor.execute("DELETE FROM tms_record WHERE client_code = %s", (client_code,))
                     conn.commit()
                 st.success(f"Record '{client_code}' deleted successfully.")
+                st.cache_data.clear()
                 sleep(1)
                 st.rerun()
             except Exception as e:
