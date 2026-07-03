@@ -52,7 +52,7 @@ RM_MAP = {
 # KYC
 KYC_MAP = {
     "kyc_modify":    (page_url.kyc_modify,        "📚 KYC modification"),
-    "demat_records": (page_url.demat_records_url, "🧾 Demat records"),
+    "demat_records": (page_url.demat_records_url, "🧾 TMS and Demat records"),
     "tms_code":      (page_url.tms_code_url,      "🏷️ TMS code"),
 }
 

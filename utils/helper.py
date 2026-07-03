@@ -227,6 +227,7 @@ def get_employee_types():
 def get_work_locations():
     return  [
             "BANEPA",
+            "BHAKTAPUR",
             "BUTWAL",
             "HETAUDA",
             "KATHMANDU",
@@ -239,6 +240,7 @@ def get_work_locations():
 def get_branch_code_mapping():
     return  {
             "BNP":"BANEPA",
+            "BKT":"BHAKTAPUR",
             "BTL":"BUTWAL",
             "HTD":"HETAUDA",
             "KTM":"KATHMANDU",

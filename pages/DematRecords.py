@@ -1,24 +1,26 @@
 from datetime import date, datetime
 from io import BytesIO
-from nepali_datetime import date as nepali_date
 from time import sleep
 import pandas as pd
 import streamlit as st
 from streamlit_bridge.navigation import render_sidebar
-import streamlit_bridge.app_state as app_state
 from db import db
-from sqlalchemy import create_engine, text
-from utils import auth_utils, helper
+from sqlalchemy import create_engine
+from utils import helper
 from decimal import Decimal, InvalidOperation
 from pages.BasePage import BasePage
+import streamlit.components.v1 as components
 
 
 
 
-@st.cache_data(show_spinner=True, ttl=3600)
+@st.cache_data(ttl=300)
 def fetch_demat_records_with_branch_df_cached():
-    df = db.fetch_demat_records_with_branch_df()
-    return df
+    return db.fetch_demat_records_with_branch_df()
+
+@st.cache_data(ttl=300)
+def fetch_tms_records_with_branch_df_cached():
+    return db.fetch_tms_records_with_branch_df()
 
 
 
@@ -36,11 +38,11 @@ class DematRecords(BasePage):
         super().__init__()
         helper.eliminate_top_margin(margin_top="-4rem")
         st.session_state.active_menu = "kyc"
-        st.set_page_config(page_title="Demat Records", page_icon="🧾", layout="wide")
+        st.set_page_config(page_title="TMS and Demat Records", page_icon="🧾", layout="wide")
        
         col1, col2 = st.columns(2)
         with col1:
-            st.header("🧾 Demat Records", anchor=False)
+            st.header("🧾 TMS and Demat Records", anchor=False)
         with col2:
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("‎", icon="🧹", help="Clear Cache. This operation shows latest updated data."):
@@ -48,17 +50,27 @@ class DematRecords(BasePage):
                 st.rerun()
 
         render_sidebar()
-        self.holding_engine = create_engine(helper.get_holding_engine())
+        try:
+            self.holding_engine = create_engine(helper.get_holding_engine())
+        except Exception:
+            self.holding_engine = None
         if 'bro_data' not in st.session_state:
-            self.app_users = db.get_all_app_user()
+            try:
+                self.app_users = db.get_all_app_user() or []
+            except Exception:
+                self.app_users = []
             self.all_user_options = [
                 f"{user['username']} - {user['full_name']}"
                 for user in sorted(self.app_users, key=lambda u: u["username"].lower())
             ]
+            self._username_to_option = {
+                user["username"]: (user["username"] if user["username"] == "SELF"
+                                else f"{user['username']} - {user['full_name']}")
+                for user in [{"username": "SELF", "full_name": "SELF"}] + self.app_users
+            }
 
 
     def entry_ui(self):
-        # ---------- Defaults ----------
         defaults = {
             "client_name": "",
             "boid": "",
@@ -68,9 +80,8 @@ class DematRecords(BasePage):
             "rm_name": "N/A",
             "payment_amount": "",
             "eng_date": date.today(),
-            "nep_date": helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d")),
-            "remarks":"",
-            "client_code":""
+            "remarks": "",
+            "client_code": ""
         }
 
         # ---------- Initialize session state ----------
@@ -94,7 +105,12 @@ class DematRecords(BasePage):
             st.session_state.payment_amount = str(total_payment)
 
             # ---------- Convert eng_date to nep_date ----------
-            st.session_state.nep_date = helper.convert_ad_to_bs(st.session_state.eng_date.strftime("%Y-%m-%d"))
+            try:
+                st.session_state.nep_date = helper.convert_ad_to_bs(
+                    st.session_state.eng_date.strftime("%Y-%m-%d")
+                ) or helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d"))
+            except Exception:
+                st.session_state.nep_date = helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d"))
             with col1:
                 st.text_input("Client Name", key="client_name")
                 st.text_input("TSL-Number", key="tsl_number")
@@ -112,7 +128,7 @@ class DematRecords(BasePage):
                     key="renew_type"
                 )
                 st.selectbox("BRO", ["N/A", "SELF"] + self.all_user_options, key="rm_name")
-                st.text_input("Created Date (B.S.)   -  (Auto-Generate)", key="nep_date", value=defaults['nep_date'])
+                st.text_input("Created Date (B.S.)   -  (Auto-Generate)", key="nep_date")
                 st.text_input("Open By", value=self.username, disabled=True)
                 st.markdown("<br>", unsafe_allow_html=True)
                 # st.write(bo_to_bo)
@@ -160,32 +176,111 @@ class DematRecords(BasePage):
                     return
 
                 # ---------- Insert to DB ----------
-                record_id = db.insert_demat_record(
-                    client_name=st.session_state.client_name.upper(),
-                    boid=st.session_state.boid,
-                    tsl_number=st.session_state.tsl_number,
-                    payment_amount=payment_amount_decimal,
-                    gateway=st.session_state.gateway,
-                    renew_type=",".join(st.session_state.renew_type),
-                    rm_name=st.session_state.rm_name.split("-")[0].strip(),
-                    open_by=self.username,
-                    created_at_bs=st.session_state.nep_date,
-                    remarks=remarks,
-                    bo_to_bo=bo_to_bo,
-                    client_code= st.session_state.client_code
-
-                )
+                try:
+                    record_id = db.insert_demat_record(
+                        client_name=st.session_state.client_name.upper(),
+                        boid=st.session_state.boid,
+                        tsl_number=st.session_state.tsl_number,
+                        payment_amount=payment_amount_decimal,
+                        gateway=st.session_state.gateway,
+                        renew_type=",".join(st.session_state.renew_type),
+                        rm_name=st.session_state.rm_name.split("-")[0].strip() if st.session_state.rm_name else "",
+                        open_by=self.username,
+                        created_at_bs=st.session_state.nep_date,
+                        remarks=remarks,
+                        bo_to_bo=bo_to_bo,
+                        client_code=st.session_state.client_code
+                    )
+                except Exception as e:
+                    st.error(f"Failed to save record: {e}")
+                    return
 
                 if record_id:
-                    st.success(f"Record saved successfully.")
-                    # st.success(f"Record saved successfully (ID: {record_id})")
+                    st.success("Record saved successfully.")
                     sleep(1)
-                    # ---------- Reset form safely ----------
                     st.session_state["reset_form"] = True
                     st.rerun()
                 else:
                     st.warning("BOID already exists.", icon="⚠️")
 
+
+    def tms_entry_ui(self):
+        defaults = {
+            "tms_client_code": "",
+            "tms_client_name": "",
+            "tms_boid": "",
+            "tms_eng_date": date.today(),
+        }
+
+        for key, value in defaults.items():
+            st.session_state.setdefault(key, value)
+
+        if st.session_state.get("tms_reset_form", False):
+            for key in defaults:
+                st.session_state[key] = defaults[key]
+            st.session_state["tms_reset_form"] = False
+
+        try:
+            tms_nep_date = helper.convert_ad_to_bs(
+                st.session_state.tms_eng_date.strftime("%Y-%m-%d")
+            ) or helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d"))
+        except Exception:
+            tms_nep_date = helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d"))
+
+        container = st.container(border=True)
+        with container:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.text_input("Client Code (TMS)", key="tms_client_code")
+                st.text_input("Client Name", key="tms_client_name")
+                st.date_input("Created Date (A.D.)", key="tms_eng_date", min_value=date(1920,1,1), max_value=date.today())
+            with col2:
+                st.text_input("BOID", key="tms_boid")
+                st.text_input("Created Date (B.S.)", value=tms_nep_date, disabled=True)
+                st.text_input("Open By", value=self.username, disabled=True, key="tms_open_by")
+
+            if st.button("ᯓ➤ Submit", key="tms_submit"):
+                errors = []
+
+                if not st.session_state.tms_client_code.strip():
+                    errors.append("Client Code is required")
+                if not st.session_state.tms_client_name.strip():
+                    errors.append("Client Name is required")
+                boid_value = st.session_state.tms_boid.strip()
+                if not boid_value:
+                    errors.append("BOID is required")
+                elif not boid_value.isdigit():
+                    errors.append("BOID must contain only numbers")
+                elif len(boid_value) != 16:
+                    errors.append("BOID must be exactly 16 digits")
+                if not tms_nep_date:
+                    errors.append("Created Date (B.S.) conversion failed")
+
+                if errors:
+                    for err in errors:
+                        st.error(err)
+                    return
+
+                try:
+                    record_id = db.insert_tms_record(
+                        client_code=st.session_state.tms_client_code,
+                        client_name=st.session_state.tms_client_name.upper(),
+                        boid=st.session_state.tms_boid,
+                        created_at_bs=tms_nep_date,
+                        opened_by=self.username
+                    )
+                except Exception as e:
+                    if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
+                        st.warning("Client Code already exists.", icon="⚠️")
+                    else:
+                        st.error(f"Failed to save: {e}")
+                    return
+
+                if record_id:
+                    st.success("Record saved successfully.")
+                    sleep(1)
+                    st.session_state["tms_reset_form"] = True
+                    st.rerun()
 
     def view_records(self):
         df = fetch_demat_records_with_branch_df_cached()
@@ -222,8 +317,8 @@ class DematRecords(BasePage):
             with col2:
                 filter_values = (
                     filtered_df[selected_filter_column]
-                    .replace({None: "None"})     # optional (covers explicit None)
-                    .fillna("None")              # 👈 main fix for NaN
+                    .replace({None: "None"})
+                    .fillna("None")
                     .astype(str)
                     .sort_values()
                     .unique()
@@ -267,73 +362,279 @@ class DematRecords(BasePage):
         selected_rows = selection.get("rows", [])
 
         if selected_rows:
-            selected_index = selected_rows[0]
-            selected_row = filtered_df.iloc[selected_index].to_dict()
-            self.edit_record_dialog(selected_row)
+            try:
+                selected_index = selected_rows[0]
+                selected_row = filtered_df.iloc[selected_index].to_dict()
+                self.edit_record_dialog(selected_row)
+            except (IndexError, KeyError) as e:
+                st.error(f"Error selecting row: {e}")
 
 
+    def view_tms_records(self):
+        df = fetch_tms_records_with_branch_df_cached()
 
-    @st.dialog("Edit / Delete Demat Records", width='medium')
-    def edit_record_dialog(self, selected_row):
-        """
-        Opens a dialog to edit a selected demat record.
-        `selected_row` should be a dict or pandas row.
-        """
+        if self.branch != "KATHMANDU":
+            df = df[df["Branch"] == self.branch]
+
+        if df.empty:
+            st.warning("Records not found.", icon="⚠️")
+            st.stop()
+
+        filtered_df = df.copy()
+
+        filter_options = {
+            "Branch": "Branch",
+            "Client Code": "client_code",
+            "Opened By": "opened_by",
+            "Created At Bs": "created_at_bs"
+        }
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            selected_filter_label = st.selectbox(
+                "Filter By",
+                ["All"] + list(filter_options.keys()),
+                index=0,
+                key="tms_filter"
+            )
+
+        if selected_filter_label != "All":
+            selected_filter_column = filter_options[selected_filter_label]
+
+            with col2:
+                filter_values = (
+                    filtered_df[selected_filter_column]
+                    .replace({None: "None"})
+                    .fillna("None")
+                    .astype(str)
+                    .sort_values()
+                    .unique()
+                    .tolist()
+                )
+
+                selected_filter_value = st.selectbox(
+                    f"Select {selected_filter_label}",
+                    ["All"] + filter_values,
+                    index=0,
+                    key="tms_filter_val"
+                )
+
+            if selected_filter_value != "All":
+                if selected_filter_value == "None":
+                    filtered_df = filtered_df[filtered_df[selected_filter_column].isna()]
+                else:
+                    filtered_df = filtered_df[
+                        filtered_df[selected_filter_column].astype(str) == selected_filter_value
+                    ]
+
+        filtered_df = filtered_df.rename(columns=helper.camel_to_title)
+        filtered_df.index = filtered_df.index + 1
+
+        st.badge(f"Total: {len(filtered_df):,}", color="green")
+
+        st.dataframe(
+            filtered_df,
+            selection_mode="single-row",
+            width="stretch",
+            key="tms_record",
+            on_select="rerun",
+            hide_index=True
+        )
+
+        selection = st.session_state.get("tms_record", {}).get("selection", {})
+        selected_rows = selection.get("rows", [])
+
+        if selected_rows:
+            try:
+                selected_index = selected_rows[0]
+                selected_row = filtered_df.iloc[selected_index].to_dict()
+                self.edit_tms_record_dialog(selected_row)
+            except (IndexError, KeyError) as e:
+                st.error(f"Error selecting row: {e}")
+
+
+    def view_branch_summary(self):
+        dp_df = db.fetch_demat_records_with_branch_df()
+        tms_df = db.fetch_tms_records_with_branch_df()
+
+        all_dates = set()
+        if not dp_df.empty:
+            all_dates.update(dp_df["created_at_bs"].dropna().unique())
+        if not tms_df.empty:
+            all_dates.update(tms_df["created_at_bs"].dropna().unique())
+
+        today_bs = helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d"))
+        sorted_dates = sorted(all_dates, reverse=True)
+        date_options = ["All"] + sorted_dates
+        default_idx = 0
+        if today_bs in sorted_dates:
+            default_idx = sorted_dates.index(today_bs) + 1
+
+        selected_date = st.selectbox("Filter by Date (B.S.)", date_options, index=default_idx, key="summary_date_filter")
+
+        if not dp_df.empty:
+            dp_df = dp_df if selected_date == "All" else dp_df[dp_df["created_at_bs"] == selected_date]
+        if not tms_df.empty:
+            tms_df = tms_df if selected_date == "All" else tms_df[tms_df["created_at_bs"] == selected_date]
+
+        all_branches = helper.get_work_locations()
+        base = pd.DataFrame({"Branch": all_branches})
+
+        dp_summary = dp_df[dp_df["boid"].astype(str).str.startswith("130114")].groupby("Branch").size().reset_index(name="DP Open") if not dp_df.empty else pd.DataFrame(columns=["Branch", "DP Open"])
+        tms_summary = tms_df.groupby("Branch").size().reset_index(name="TMS Open") if not tms_df.empty else pd.DataFrame(columns=["Branch", "TMS Open"])
+
+        summary = base.merge(dp_summary, on="Branch", how="left").merge(tms_summary, on="Branch", how="left")
+        summary = summary.fillna(0)
+        summary["DP Open"] = summary["DP Open"].astype(int)
+        summary["TMS Open"] = summary["TMS Open"].astype(int)
+        summary["Total Account Open"] = summary["DP Open"] + summary["TMS Open"]
+        summary = summary.sort_values("Total Account Open", ascending=False).reset_index(drop=True)
+
+        code_to_name = helper.get_branch_code_mapping()
+        name_to_code = {v: k for k, v in code_to_name.items()}
+        summary["Branch"] = summary["Branch"].map(name_to_code).fillna(summary["Branch"])
+
+        total_row = pd.DataFrame([{
+            "Branch": "TOTAL",
+            "DP Open": summary["DP Open"].sum(),
+            "TMS Open": summary["TMS Open"].sum(),
+            "Total Account Open": summary["Total Account Open"].sum()
+        }])
+        summary = pd.concat([summary, total_row], ignore_index=True)
+
+        st.badge(f"Total Branches: {len(summary) - 1:,}", color="green")
+        summary.index += 1
+        st.dataframe(summary, width="stretch", use_container_width=True)
+
+
+    @st.dialog("Edit TMS Record", width='medium')
+    def edit_tms_record_dialog(self, selected_row):
         if selected_row is None:
             st.info("Select a row to edit first.")
             return
 
-        # record_id = selected_row["Id"]
+        client_code = selected_row.get("Client Code", "")
+        col1, col2 = st.columns(2)
+        with col1:
+            client_name = st.text_input("Client Name", value=selected_row.get("Client Name", ""))
+            created_bs = st.text_input("Created Date (B.S.)", value=selected_row.get("Created At Bs", ""))
+        with col2:
+            boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
+            opened_by = st.text_input("Opened By", value=selected_row.get("Opened By", ""), key="tms_edit_opened")
 
-        # ---------- Open Dialog ----------
+        col1, spcr, col2 = st.columns([1, 4.1, 1])
+        with col1:
+            update_btn = st.button("Update", icon="🔄")
+        with col2:
+            delete_btn = st.button("Delete", icon="🗑️")
+
+        if update_btn:
+            errors = []
+            if not client_name.strip():
+                errors.append("Client Name is required")
+            if not boid or not boid.strip():
+                errors.append("BOID is required")
+            elif not boid.isdigit() or len(boid) != 16:
+                errors.append("BOID must be exactly 16 digits and numeric")
+            if not created_bs or not created_bs.strip():
+                errors.append("Created Date (B.S.) is required")
+
+            if errors:
+                for err in errors:
+                    st.error(err)
+                return
+
+            try:
+                success = db.update_tms_record(
+                    client_code=client_code,
+                    client_name=client_name,
+                    boid=boid,
+                    created_at_bs=created_bs,
+                    opened_by=opened_by
+                )
+            except Exception as e:
+                st.error(f"Failed to update: {e}")
+                return
+
+            if success:
+                st.success("Record updated successfully!")
+                sleep(1)
+                st.rerun()
+            else:
+                st.error("Something went wrong. Please contact IT.")
+
+        if delete_btn:
+            conn = None
+            try:
+                conn = db.get_connection()
+                with conn.cursor() as cursor:
+                    cursor.execute("DELETE FROM tms_record WHERE client_code = %s", (client_code,))
+                    conn.commit()
+                st.success(f"Record '{client_code}' deleted successfully.")
+                sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Delete failed: {e}")
+            finally:
+                if conn:
+                    conn.close()
+
+
+    @st.dialog("Edit / Delete TMS and Demat Records", width='medium')
+    def edit_record_dialog(self, selected_row):
+        if selected_row is None:
+            st.info("Select a row to edit first.")
+            return
+
         col1, col2 = st.columns(2)
 
         with col1:
-            client_name = st.text_input("Client Name", value=selected_row["Client Name"])
-            tsl_number = st.text_input("TSL Number", value=selected_row["Tsl Number"])
-            selected_gateway = selected_row["Gateway"]
+            client_name = st.text_input("Client Name", value=selected_row.get("Client Name", ""))
+            tsl_number = st.text_input("TSL Number", value=selected_row.get("Tsl Number", ""))
+            selected_gateway = selected_row.get("Gateway", "")
             options = helper.get_demat_gateways()
-            gateway = st.selectbox("Gateway",options,index=options.index(selected_gateway))
+            try:
+                gw_index = options.index(selected_gateway)
+            except ValueError:
+                gw_index = 0
+            gateway = st.selectbox("Gateway", options, index=gw_index)
 
             bro_options = ["N/A", "SELF"] + self.all_user_options
-            rm_value = selected_row.get("Rm Name", "N/A").strip()
-            
-            username_to_option = {
-                user["username"]: (user["username"] if user["username"] == "SELF"
-                                else f"{user['username']} - {user['full_name']}")
-                for user in [{"username": "SELF", "full_name": "SELF"}] + self.app_users
-            }
-            rm_value_mapped = username_to_option.get(rm_value, "N/A")
+            rm_value = str(selected_row.get("Rm Name", "N/A")).strip()
+            rm_value_mapped = self._username_to_option.get(rm_value, "N/A")
             bro_options_clean = [opt.strip() for opt in bro_options]
-            rm_index = (bro_options_clean.index(rm_value_mapped) if rm_value_mapped in bro_options_clean else 0)
-            rm_name = st.selectbox("BRO",bro_options,index=rm_index)
-            st.text_input("Open By", value=selected_row["Open By"], disabled=True)
+            try:
+                rm_index = bro_options_clean.index(rm_value_mapped)
+            except ValueError:
+                rm_index = 0
+            rm_name = st.selectbox("BRO", bro_options, index=rm_index)
+            st.text_input("Open By", value=selected_row.get("Open By", ""), disabled=True)
         with col2:
-            client_code = st.text_input("Client Code", value=selected_row["Client Code"])
-            boid = st.text_input("BOID", value=selected_row["Boid"], disabled=True)
-            renew_type_list = selected_row['Renew Type'].split(",")  # → ["BO OPEN", "LIFETIME MEROSHARE"]
+            client_code = st.text_input("Client Code", value=selected_row.get("Client Code", ""))
+            boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
+            renew_type_raw = selected_row.get("Renew Type", "")
+            renew_type_list = str(renew_type_raw).split(",") if pd.notna(renew_type_raw) else []
             renew_type = st.multiselect(
                 "Renew Type",
                 options=list(get_renew_values().keys()),
                 default=renew_type_list
             )
 
-
-            # Calculate payment amount based on selected renew types
             renew_values = get_renew_values()
             total_payment = sum(renew_values[rt] for rt in renew_type)
 
             payment_amount = st.text_input(
                 "Payment Amount",
-                value=str(total_payment),  # must be string
+                value=str(total_payment),
                 disabled=True
             )
 
             st.markdown("<br>", unsafe_allow_html=True)
-            is_bo_to_bo_val = selected_row['Is Bo To Bo']
+            is_bo_to_bo_val = selected_row.get("Is Bo To Bo", False)
             bo_to_bo = st.checkbox("Is BO-To-BO", value=is_bo_to_bo_val)
 
-        col1, spcr, col2 = st.columns([1,4.1,1])
+        col1, spcr, col2 = st.columns([1, 4.1, 1])
         with col1:
             update_btn = st.button("Update", icon="🔄")
         with col2:
@@ -342,11 +643,10 @@ class DematRecords(BasePage):
         if update_btn:
             errors = []
 
-            # ---------- Validation ----------
             if not client_name.strip():
                 errors.append("Client Name is required")
 
-            if not boid.strip():
+            if not boid or not boid.strip():
                 errors.append("BOID is required")
             elif not boid.isdigit() or len(boid) != 16:
                 errors.append("BOID must be exactly 16 digits and numeric")
@@ -372,45 +672,79 @@ class DematRecords(BasePage):
                     st.error(err)
                 return
 
-            # ---------- Call DB Update ----------
-            success = db.update_demat_record(
-                # record_id,
-                client_name=client_name,
-                boid=boid,
-                tsl_number=tsl_number,
-                payment_amount=payment_amount_decimal,
-                gateway=gateway,
-                renew_type=",".join(renew_type),
-                # renew_type=str(renew_type),
-                rm_name=rm_name.split("-")[0].strip(),
-                updated_by=self.username,
-                bo_to_bo=bo_to_bo,
-                client_code=client_code
-            )
+            try:
+                success = db.update_demat_record(
+                    client_name=client_name,
+                    boid=boid,
+                    tsl_number=tsl_number,
+                    payment_amount=payment_amount_decimal,
+                    gateway=gateway,
+                    renew_type=",".join(renew_type),
+                    rm_name=rm_name.split("-")[0].strip(),
+                    updated_by=self.username,
+                    bo_to_bo=bo_to_bo,
+                    client_code=client_code
+                )
+            except Exception as e:
+                st.error(f"Failed to update: {e}")
+                return
 
             if success:
                 st.success("Record updated successfully!")
                 sleep(1)
                 st.rerun()
             else:
-                st.error(f"Something went wrong. Please contact IT.")
-                st.stop()
+                st.error("Something went wrong. Please contact IT.")
 
         if delete_btn:
-            status = db.delete_demat_records(boid=boid)
+            try:
+                status = db.delete_demat_records(boid=boid)
+            except Exception as e:
+                st.error(f"Failed to delete: {e}")
+                return
             if status:
                 st.success(f"Record with boid '{boid}' deleted successfully.")
                 sleep(1)
                 st.rerun()
             else:
-                st.error(f"Something went wrong. Please contact IT.")
+                st.error("Something went wrong. Please contact IT.")
     
     def render_page(self):
+        components.html(
+            """
+            <script>
+            setTimeout(function() {
+                window.location.reload();
+            }, 5000);
+            </script>
+            """,
+            height=0,
+        )
+
         mode = st.radio("Mode", ['Entry', 'View/Edit', 'File Upload', 'Bulk Update (Client Code)'], horizontal=True)
         if mode == "Entry":
-            self.entry_ui()
+            entry_tab = st.segmented_control("", ["DP Entry", "TMS"], default="DP Entry", key="entry_tab")
+            if entry_tab == "DP Entry":
+                self.entry_ui()
+            else:
+                self.tms_entry_ui()
         elif mode=='View/Edit':
-            self.view_records()
+            role = str(getattr(self, "role", "")).upper()
+            can_view_report = role in ("ADMIN", "MANAGER")
+            if can_view_report:
+                view_tab1, view_tab2, view_tab3 = st.tabs(["DP Records", "TMS Records", "TMS and DP Report"])
+                with view_tab1:
+                    self.view_records()
+                with view_tab2:
+                    self.view_tms_records()
+                with view_tab3:
+                    self.view_branch_summary()
+            else:
+                view_tab1, view_tab2 = st.tabs(["DP Records", "TMS Records"])
+                with view_tab1:
+                    self.view_records()
+                with view_tab2:
+                    self.view_tms_records()
         elif mode == 'File Upload':
             self.file_upload()
         elif mode == 'Bulk Update (Client Code)':
@@ -593,8 +927,12 @@ class DematRecords(BasePage):
                 ['2082-09-26' ,'1301140000294543','RAM ALI KHAN', '', 'TSL 17888','200',	'CASH',	'BO OPEN',	'SANGITA', 'UMESH', '']]
         df = pd.DataFrame(data=data,columns=required_columns)
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Template')
+        try:
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=False, sheet_name='Template')
+        except ImportError:
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Template')
         data = output.getvalue()
 
         st.download_button(
@@ -632,11 +970,16 @@ class DematRecords(BasePage):
 
             if uploaded_file:
                 st.divider()
-                df = pd.read_excel(uploaded_file)
+                try:
+                    df = pd.read_excel(uploaded_file)
+                except Exception as e:
+                    st.error(f"Failed to read Excel file: {e}")
+                    st.stop()
                 st.write("Preview of Uploaded Data:")
                 df.index = df.index + 1
                 df['BRANCH'] = self.branch
-                df['OPEN BY'] = df['OPEN BY'].str.upper().str.strip()
+                if 'OPEN BY' in df.columns:
+                    df['OPEN BY'] = df['OPEN BY'].astype(str).str.upper().str.strip()
                 # --- Step 1: Required columns check ---
                 missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
                 if missing_cols:
@@ -710,16 +1053,20 @@ class DematRecords(BasePage):
 
                 # --- Step 7: Submit button ---
                 if st.button("ᯓ➤ Submit"):
-                    inserted_count, skipped_count = db.dump_demat_records(df, self.username)
+                    try:
+                        inserted_count, skipped_count = db.dump_demat_records(df, self.username)
+                    except Exception as e:
+                        st.error(f"Failed to import data: {e}")
+                        st.stop()
 
                     if inserted_count == 0 and skipped_count == 0:
-                        st.error("Something went wrong. Please contact IT.")
+                        st.error("No records were inserted or skipped. Check your data.")
                         st.stop()
-                    else:
-                        st.success(f"Data import completed! Inserted: {inserted_count}")
+
+                    st.success(f"Data import completed! Inserted: {inserted_count}")
+                    if skipped_count > 0:
                         st.warning(f"Skipped (BOID exists): {skipped_count}")
 
-                    # Reset uploader
                     st.session_state.uploader_reset += 1
                     sleep(2.5)
                     st.rerun()

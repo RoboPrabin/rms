@@ -30,12 +30,12 @@ class DematRecords(BasePage):
         super().__init__()
         # helper.eliminate_top_padding()
         st.session_state.active_menu = "kyc"
-        st.set_page_config(page_title="Demat Records", page_icon="🧾", layout="wide")
+        st.set_page_config(page_title="TMS and Demat Records", page_icon="🧾", layout="wide")
         # user = auth_utils.ensure_logged_in()
         # self.username= user['username']
         # self.role= user['role']
         # self.branch = user['branch']
-        st.header("🧾 Demat Records", anchor=False)
+        st.header("🧾 TMS and Demat Records", anchor=False)
 
         render_sidebar()
         self.holding_engine = create_engine(helper.get_holding_engine())
@@ -232,7 +232,7 @@ class DematRecords(BasePage):
 
 
 
-    @st.dialog("Edit / Delete Demat Records", width='medium')
+    @st.dialog("Edit / Delete TMS and Demat Records", width='medium')
     def edit_record_dialog(self, selected_row):
         """
         Opens a dialog to edit a selected demat record.

@@ -67,7 +67,7 @@ MENU_SECTIONS = [
                 "badge_text": "#3C3489",
                 "items": [
                     ("kyc_modify",    "📚", "KYC modification"),
-                    ("demat_records", "🧾", "Demat records"),
+                    ("demat_records", "🧾", "TMS and Demat records"),
                     ("tms_code",      "🏷️", "TMS code"),
                 ],
             },

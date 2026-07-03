@@ -8,7 +8,7 @@ from typing import Optional
 
 
 sender_email: str = "support@trishakti.com.np"
-sender_password: str = "Support.Trishakti@123"
+sender_password: str = "123@Support.Trishakti"
 display_name: str = "RMS - Trishakti"
 subject: str = "RMS - Credentials 🔐"
 mail_server:str = "mail.trishakti.com.np"

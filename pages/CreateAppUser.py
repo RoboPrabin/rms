@@ -76,7 +76,7 @@ class CreateAppUser(BasePage):
                     roles = [r for r in roles if r not in ("ADMIN", "SYSTEM")]
                     role = st.selectbox("Role", roles)
             with col10:
-                branch = st.selectbox("Branch", ['None'] + helper.get_work_locations())
+                branch = st.selectbox("Branch", helper.get_work_locations())
             
             submitted = st.form_submit_button("Create App User", icon="➕")
 
@@ -89,8 +89,6 @@ class CreateAppUser(BasePage):
                     st.warning("Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.")
                 elif not helper.validate_phone(phone=phone):
                     st.warning("Invalid phone number format.")  
-                elif branch=="None":
-                    st.warning("Invalid Branch")  
                 else:
                     try:
                         encrypted_pw = password
@@ -221,7 +219,8 @@ class CreateAppUser(BasePage):
             alias_index = options.index(alias_display)
             onboarded_by_index = options.index(onboarded_by_display)
             role_index = self.user_roles.index(role_display)
-            branch_index = self.branch.index(branch_display)
+            update_branches = [b for b in self.branch if b != "OTHER"]
+            branch_index = update_branches.index(branch_display) if branch_display in update_branches else 0
             # --- Status options ---
             status_options = ["ACTIVE", "BLOCKED"]
             status_index = status_options.index(db_status) if db_status in status_options else 0
@@ -290,7 +289,7 @@ class CreateAppUser(BasePage):
                         index=alias_index
                     )
 
-                branch = st.selectbox("Branch", self.branch, index=branch_index)
+                branch = st.selectbox("Branch", update_branches, index=branch_index)
 
                 if st.form_submit_button("Update User", icon="🔄"):
                     try:

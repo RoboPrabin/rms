@@ -1154,6 +1154,89 @@ def insert_demat_record(
         return record_id
 
 
+def insert_tms_record(
+    *,
+    client_code: str,
+    client_name: str,
+    boid: str,
+    created_at_bs: str,
+    opened_by: str
+):
+    conn = get_connection()
+    query = """
+        INSERT INTO tms_record (client_code, client_name, boid, created_at_bs, opened_by)
+        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s)
+        RETURNING client_code;
+    """
+    params = {
+        "client_code": client_code.strip(),
+        "client_name": client_name.strip().upper(),
+        "boid": boid.strip(),
+        "created_at_bs": created_at_bs,
+        "opened_by": opened_by.strip().upper()
+    }
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            conn.commit()
+            return result["client_code"] if result else None
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def update_tms_record(
+    *,
+    client_code: str,
+    client_name: str,
+    boid: str,
+    created_at_bs: str,
+    opened_by: str
+):
+    conn = get_connection()
+    query = """
+        UPDATE tms_record
+        SET client_name = %(client_name)s,
+            boid = %(boid)s,
+            created_at_bs = %(created_at_bs)s,
+            opened_by = %(opened_by)s
+        WHERE client_code = %(client_code)s
+        RETURNING client_code;
+    """
+    params = {
+        "client_code": client_code.strip(),
+        "client_name": client_name.strip().upper(),
+        "boid": boid.strip(),
+        "created_at_bs": created_at_bs,
+        "opened_by": opened_by.strip().upper()
+    }
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            conn.commit()
+            return result is not None
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def fetch_tms_records_df():
+    query = "SELECT * FROM tms_record ORDER BY created_at_bs DESC;"
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            if not rows:
+                return pd.DataFrame()
+            return pd.DataFrame([dict(row) for row in rows])
+
+
 # def fetch_all_demat_records():
 #     """
 #     Fetches all records from demat_records table.
@@ -1242,6 +1325,28 @@ def fetch_demat_records_with_branch_df():
         cols.insert(0, cols.pop(cols.index("Branch")))
         df = df[cols]
     return df
+
+def fetch_tms_records_with_branch_df():
+    df_records = fetch_tms_records_df()
+    if df_records.empty:
+        return df_records
+
+    query = "SELECT username, branch FROM app_user;"
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            df_users = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame(columns=["username", "branch"])
+
+    df = df_records.merge(df_users, how="left", left_on="opened_by", right_on="username")
+    df.rename(columns={"branch": "Branch"}, inplace=True)
+    df.drop(columns=["username"], inplace=True, errors="ignore")
+    cols = df.columns.tolist()
+    if "Branch" in cols:
+        cols.insert(0, cols.pop(cols.index("Branch")))
+        df = df[cols]
+    return df
+
 
 def save_transactions_to_db(transactions, created_by):
     """
