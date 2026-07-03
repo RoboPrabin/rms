@@ -693,6 +693,7 @@ class DematRecords(BasePage):
 
             if success:
                 st.success("Record updated successfully!")
+                st.cache_data.clear()
                 sleep(1)
                 st.rerun()
             else:
@@ -706,6 +707,7 @@ class DematRecords(BasePage):
                 return
             if status:
                 st.success(f"Record with boid '{boid}' deleted successfully.")
+                st.cache_data.clear()
                 sleep(1)
                 st.rerun()
             else:
