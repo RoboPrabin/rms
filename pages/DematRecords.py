@@ -263,8 +263,6 @@ class DematRecords(BasePage):
                 tms_client_code_val = st.session_state.tms_client_code.strip()
                 if not tms_client_code_val:
                     errors.append("Client Code is required")
-                elif not tms_client_code_val.isdigit():
-                    errors.append("Client Code must contain only numbers")
                 tms_client_name_val = st.session_state.tms_client_name.strip()
                 if not tms_client_name_val:
                     errors.append("Client Name is required")
@@ -554,7 +552,7 @@ class DematRecords(BasePage):
         st.dataframe(summary, width="stretch", use_container_width=True)
 
 
-    @st.dialog("Edit TMS Record", width='medium')
+    @st.dialog("Edit TMS Record", width='large')
     def edit_tms_record_dialog(self, selected_row):
         if selected_row is None:
             st.info("Select a row to edit first.")
