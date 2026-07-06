@@ -1161,12 +1161,16 @@ def insert_tms_record(
     boid: str,
     created_at_bs: str,
     opened_by: str,
-    rm_name: str = ""
+    rm_name: str = "",
+    bro: str = "",
+    account_opening_date: str = "",
+    branch: str = "",
+    account_type: str = ""
 ):
     conn = get_connection()
     query = """
-        INSERT INTO tms_record (client_code, client_name, boid, created_at_bs, opened_by, rm_name)
-        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s, %(rm_name)s)
+        INSERT INTO tms_record (client_code, client_name, boid, created_at_bs, opened_by, rm_name, bro, account_opening_date, branch, account_type)
+        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s, %(rm_name)s, %(bro)s, %(account_opening_date)s, %(branch)s, %(account_type)s)
         RETURNING client_code;
     """
     params = {
@@ -1175,7 +1179,11 @@ def insert_tms_record(
         "boid": boid.strip(),
         "created_at_bs": created_at_bs,
         "opened_by": opened_by.strip().upper(),
-        "rm_name": rm_name.strip().upper() if rm_name else ""
+        "rm_name": rm_name.strip().upper() if rm_name else "",
+        "bro": bro.strip().upper() if bro else "",
+        "account_opening_date": account_opening_date,
+        "branch": branch.strip().upper() if branch else "",
+        "account_type": account_type.strip().upper() if account_type else ""
     }
     try:
         with conn.cursor() as cursor:
@@ -1344,8 +1352,12 @@ def fetch_tms_records_with_branch_df():
             df_users = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame(columns=["username", "branch"])
 
     df = df_records.merge(df_users, how="left", left_on="opened_by", right_on="username")
-    df.rename(columns={"branch": "Branch"}, inplace=True)
-    df.drop(columns=["username"], inplace=True, errors="ignore")
+    if "branch" in df_records.columns:
+        df.rename(columns={"branch_x": "Branch"}, inplace=True)
+        df.drop(columns=["branch_y", "username"], inplace=True, errors="ignore")
+    else:
+        df.rename(columns={"branch": "Branch"}, inplace=True)
+        df.drop(columns=["username"], inplace=True, errors="ignore")
     cols = df.columns.tolist()
     if "Branch" in cols:
         cols.insert(0, cols.pop(cols.index("Branch")))

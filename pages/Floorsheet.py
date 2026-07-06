@@ -28,7 +28,7 @@ def get_floorsheet_by_date(selected_date: date):
     return pd.read_sql(query, intranet_engine, params=(selected_date,))
 
 # ✔ Cache client summary per date
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=120, hash_funcs={pd.DataFrame: lambda df: df.to_json()})
 def compute_client_summary(df: pd.DataFrame):
     def client_summary_func(x):
         buy = x["transaction_type"] == "Buy"
@@ -50,7 +50,7 @@ def compute_client_summary(df: pd.DataFrame):
 
 
 # ✔ Cache branch summary per date
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=120, hash_funcs={pd.DataFrame: lambda df: df.to_json()})
 def compute_branch_summary(df: pd.DataFrame):
     if "branch" not in df.columns:
         return pd.DataFrame()
@@ -93,7 +93,7 @@ def compute_branch_summary(df: pd.DataFrame):
     return df2
 
 # ✔ Cache piechart summary per date
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=120, hash_funcs={pd.DataFrame: lambda df: df.to_json()})
 def compute_pie_summary(df: pd.DataFrame):
     if "branch" not in df.columns:
         return pd.DataFrame()
@@ -206,8 +206,6 @@ class Floorsheet(BasePage):
 
             st.badge(f"**Total rows :** {len(display_df):,}", color="green")
 
-            # ----- EVERYTHING BELOW IS LITERALLY YOUR SAME UI -----
-            # (No UI or logic changed — only data source is cached above)
 
             # --- Floorsheet View ---
             if view_mode == "Floorsheet":
@@ -364,7 +362,7 @@ class Floorsheet(BasePage):
 
                     # Index starts from 1
                     df2.index = df2.index + 1   
-                    df2.loc[df2["Branch"] == "TOTAL", "Branch Contribution %"] = 100
+                    df2.loc[df2["Branch"] == "TOTAL", "Branch Contribution %"] = "100"
                     df2.index = df2.index.astype(str)
                     df2.iloc[-1, df2.columns.get_loc("Branch")] = "TOTAL"
                     df2.index = list(df2.index[:-1]) + [""]

@@ -210,6 +210,8 @@ class DematRecords(BasePage):
             "tms_client_name": "",
             "tms_boid": "",
             "tms_eng_date": date.today(),
+            "tms_branch": self.branch or "KATHMANDU",
+            "tms_account_type": "NEW",
         }
 
         for key, value in defaults.items():
@@ -227,6 +229,17 @@ class DematRecords(BasePage):
         except Exception:
             tms_nep_date = helper.convert_ad_to_bs(date.today().strftime("%Y-%m-%d"))
 
+        tms_account_open_date = st.session_state.get("tms_account_open_date")
+        if tms_account_open_date:
+            try:
+                tms_account_open_nep = helper.convert_ad_to_bs(
+                    tms_account_open_date.strftime("%Y-%m-%d")
+                ) or ""
+            except Exception:
+                tms_account_open_nep = ""
+        else:
+            tms_account_open_nep = ""
+
         container = st.container(border=True)
         with container:
             col1, col2 = st.columns(2)
@@ -234,19 +247,29 @@ class DematRecords(BasePage):
                 st.text_input("Client Code (TMS)", key="tms_client_code")
                 st.text_input("Client Name", key="tms_client_name")
                 st.date_input("Created Date (A.D.)", key="tms_eng_date", min_value=date(1920,1,1), max_value=date.today())
+                st.selectbox("Branch", helper.get_work_locations(), key="tms_branch")
                 st.selectbox("BRO", ["N/A", "SELF"] + self.all_user_options, key="tms_rm_name")
+                
             with col2:
                 st.text_input("BOID", key="tms_boid")
                 st.text_input("Created Date (B.S.)", value=tms_nep_date, disabled=True)
+                st.selectbox("Account Type", ["NEW", "Update"], key="tms_account_type")
                 st.text_input("Open By", value=self.username, disabled=True, key="tms_open_by")
+                st.date_input("Account Opening Date", value=None, key="tms_account_open_date", min_value=date(1920,1,1), max_value=date.today())
 
             if st.button("ᯓ➤ Submit", key="tms_submit"):
                 errors = []
 
-                if not st.session_state.tms_client_code.strip():
+                tms_client_code_val = st.session_state.tms_client_code.strip()
+                if not tms_client_code_val:
                     errors.append("Client Code is required")
-                if not st.session_state.tms_client_name.strip():
+                elif not tms_client_code_val.isdigit():
+                    errors.append("Client Code must contain only numbers")
+                tms_client_name_val = st.session_state.tms_client_name.strip()
+                if not tms_client_name_val:
                     errors.append("Client Name is required")
+                elif not tms_client_name_val.replace(" ", "").isalpha():
+                    errors.append("Client Name must contain only alphabets")
                 boid_value = st.session_state.tms_boid.strip()
                 if not boid_value:
                     errors.append("BOID is required")
@@ -258,6 +281,10 @@ class DematRecords(BasePage):
                     errors.append("Created Date (B.S.) conversion failed")
                 if st.session_state.tms_rm_name == "N/A":
                     errors.append("Please select a valid BRO")
+                if not st.session_state.get("tms_branch"):
+                    errors.append("Branch is required")
+                if not st.session_state.get("tms_account_type"):
+                    errors.append("Account Type is required")
 
                 if errors:
                     for err in errors:
@@ -265,13 +292,20 @@ class DematRecords(BasePage):
                     return
 
                 try:
+                    tms_account_open_date_val = st.session_state.tms_account_open_date
+                    account_opening_date_str = tms_account_open_date_val.strftime("%Y-%m-%d") if tms_account_open_date_val else ""
+
                     record_id = db.insert_tms_record(
                         client_code=st.session_state.tms_client_code,
                         client_name=st.session_state.tms_client_name.upper(),
                         boid=st.session_state.tms_boid,
                         created_at_bs=tms_nep_date,
                         opened_by=self.username,
-                        rm_name=st.session_state.tms_rm_name.split("-")[0].strip() if st.session_state.tms_rm_name else ""
+                        rm_name=st.session_state.tms_rm_name.split("-")[0].strip() if st.session_state.tms_rm_name else "",
+                        bro=st.session_state.tms_rm_name.split("-")[0].strip() if st.session_state.tms_rm_name else "",
+                        account_opening_date=account_opening_date_str,
+                        branch=self.branch,
+                        account_type=st.session_state.tms_account_type
                     )
                 except Exception as e:
                     if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
@@ -433,6 +467,7 @@ class DematRecords(BasePage):
                         filtered_df[selected_filter_column].astype(str) == selected_filter_value
                     ]
 
+        filtered_df = filtered_df.drop(columns=["bro", "id", "created_at", "updated_at", "updated_by"], errors="ignore")
         filtered_df = filtered_df.rename(columns=helper.camel_to_title)
         filtered_df.rename(columns={"Rm Name": "Bro"}, inplace=True)
         cols = filtered_df.columns.tolist()
@@ -751,7 +786,7 @@ class DematRecords(BasePage):
                 height=0,
             )
         if mode == "Entry":
-            entry_tab = st.segmented_control("", ["DP Entry", "TMS"], default="DP Entry", key="entry_tab")
+            entry_tab = st.segmented_control("", ["DP Entry", "TMS Entry"], default="TMS Entry", key="entry_tab")
             if entry_tab == "DP Entry":
                 self.entry_ui()
             else:
