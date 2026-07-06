@@ -234,6 +234,7 @@ class DematRecords(BasePage):
                 st.text_input("Client Code (TMS)", key="tms_client_code")
                 st.text_input("Client Name", key="tms_client_name")
                 st.date_input("Created Date (A.D.)", key="tms_eng_date", min_value=date(1920,1,1), max_value=date.today())
+                st.selectbox("BRO", ["N/A", "SELF"] + self.all_user_options, key="tms_rm_name")
             with col2:
                 st.text_input("BOID", key="tms_boid")
                 st.text_input("Created Date (B.S.)", value=tms_nep_date, disabled=True)
@@ -255,6 +256,8 @@ class DematRecords(BasePage):
                     errors.append("BOID must be exactly 16 digits")
                 if not tms_nep_date:
                     errors.append("Created Date (B.S.) conversion failed")
+                if st.session_state.tms_rm_name == "N/A":
+                    errors.append("Please select a valid BRO")
 
                 if errors:
                     for err in errors:
@@ -267,7 +270,8 @@ class DematRecords(BasePage):
                         client_name=st.session_state.tms_client_name.upper(),
                         boid=st.session_state.tms_boid,
                         created_at_bs=tms_nep_date,
-                        opened_by=self.username
+                        opened_by=self.username,
+                        rm_name=st.session_state.tms_rm_name.split("-")[0].strip() if st.session_state.tms_rm_name else ""
                     )
                 except Exception as e:
                     if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
@@ -386,6 +390,7 @@ class DematRecords(BasePage):
             "Branch": "Branch",
             "Client Code": "client_code",
             "Opened By": "opened_by",
+            "RM Name": "rm_name",
             "Created At Bs": "created_at_bs"
         }
 
@@ -429,6 +434,12 @@ class DematRecords(BasePage):
                     ]
 
         filtered_df = filtered_df.rename(columns=helper.camel_to_title)
+        filtered_df.rename(columns={"Rm Name": "Bro"}, inplace=True)
+        cols = filtered_df.columns.tolist()
+        if "Created At Bs" in cols:
+            cols.remove("Created At Bs")
+            cols.insert(0, "Created At Bs")
+        filtered_df = filtered_df[cols]
         filtered_df.index = filtered_df.index + 1
 
         st.badge(f"Total: {len(filtered_df):,}", color="green")
@@ -519,6 +530,15 @@ class DematRecords(BasePage):
         with col1:
             client_name = st.text_input("Client Name", value=selected_row.get("Client Name", ""))
             created_bs = st.text_input("Created Date (B.S.)", value=selected_row.get("Created At Bs", ""))
+            rm_value = str(selected_row.get("Bro", "N/A")).strip()
+            rm_value_mapped = self._username_to_option.get(rm_value, "N/A")
+            bro_options = ["N/A", "SELF"] + self.all_user_options
+            bro_options_clean = [opt.strip() for opt in bro_options]
+            try:
+                rm_index = bro_options_clean.index(rm_value_mapped)
+            except ValueError:
+                rm_index = 0
+            rm_name = st.selectbox("Bro", bro_options, index=rm_index)
         with col2:
             boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
             opened_by = st.text_input("Opened By", value=selected_row.get("Opened By", ""), key="tms_edit_opened")
@@ -539,6 +559,8 @@ class DematRecords(BasePage):
                 errors.append("BOID must be exactly 16 digits and numeric")
             if not created_bs or not created_bs.strip():
                 errors.append("Created Date (B.S.) is required")
+            if rm_name == "N/A":
+                errors.append("Please select a valid BRO")
 
             if errors:
                 for err in errors:
@@ -551,7 +573,8 @@ class DematRecords(BasePage):
                     client_name=client_name,
                     boid=boid,
                     created_at_bs=created_bs,
-                    opened_by=opened_by
+                    opened_by=opened_by,
+                    rm_name=rm_name.split("-")[0].strip() if rm_name else ""
                 )
             except Exception as e:
                 st.error(f"Failed to update: {e}")

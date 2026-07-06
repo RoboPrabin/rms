@@ -1160,12 +1160,13 @@ def insert_tms_record(
     client_name: str,
     boid: str,
     created_at_bs: str,
-    opened_by: str
+    opened_by: str,
+    rm_name: str = ""
 ):
     conn = get_connection()
     query = """
-        INSERT INTO tms_record (client_code, client_name, boid, created_at_bs, opened_by)
-        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s)
+        INSERT INTO tms_record (client_code, client_name, boid, created_at_bs, opened_by, rm_name)
+        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s, %(rm_name)s)
         RETURNING client_code;
     """
     params = {
@@ -1173,7 +1174,8 @@ def insert_tms_record(
         "client_name": client_name.strip().upper(),
         "boid": boid.strip(),
         "created_at_bs": created_at_bs,
-        "opened_by": opened_by.strip().upper()
+        "opened_by": opened_by.strip().upper(),
+        "rm_name": rm_name.strip().upper() if rm_name else ""
     }
     try:
         with conn.cursor() as cursor:
@@ -1194,7 +1196,8 @@ def update_tms_record(
     client_name: str,
     boid: str,
     created_at_bs: str,
-    opened_by: str
+    opened_by: str,
+    rm_name: str = ""
 ):
     conn = get_connection()
     query = """
@@ -1202,7 +1205,8 @@ def update_tms_record(
         SET client_name = %(client_name)s,
             boid = %(boid)s,
             created_at_bs = %(created_at_bs)s,
-            opened_by = %(opened_by)s
+            opened_by = %(opened_by)s,
+            rm_name = %(rm_name)s
         WHERE client_code = %(client_code)s
         RETURNING client_code;
     """
@@ -1211,7 +1215,8 @@ def update_tms_record(
         "client_name": client_name.strip().upper(),
         "boid": boid.strip(),
         "created_at_bs": created_at_bs,
-        "opened_by": opened_by.strip().upper()
+        "opened_by": opened_by.strip().upper(),
+        "rm_name": rm_name.strip().upper() if rm_name else ""
     }
     try:
         with conn.cursor() as cursor:
