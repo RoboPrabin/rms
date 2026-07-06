@@ -1205,7 +1205,11 @@ def update_tms_record(
     boid: str,
     created_at_bs: str,
     opened_by: str,
-    rm_name: str = ""
+    rm_name: str = "",
+    bro: str = "",
+    branch: str = "",
+    account_type: str = "",
+    account_opening_date: str = ""
 ):
     conn = get_connection()
     query = """
@@ -1214,7 +1218,11 @@ def update_tms_record(
             boid = %(boid)s,
             created_at_bs = %(created_at_bs)s,
             opened_by = %(opened_by)s,
-            rm_name = %(rm_name)s
+            rm_name = %(rm_name)s,
+            bro = %(bro)s,
+            branch = %(branch)s,
+            account_type = %(account_type)s,
+            account_opening_date = %(account_opening_date)s
         WHERE client_code = %(client_code)s
         RETURNING client_code;
     """
@@ -1224,7 +1232,11 @@ def update_tms_record(
         "boid": boid.strip(),
         "created_at_bs": created_at_bs,
         "opened_by": opened_by.strip().upper(),
-        "rm_name": rm_name.strip().upper() if rm_name else ""
+        "rm_name": rm_name.strip().upper() if rm_name else "",
+        "bro": bro.strip().upper() if bro else "",
+        "branch": branch.strip().upper() if branch else "",
+        "account_type": account_type.strip().upper() if account_type else "",
+        "account_opening_date": account_opening_date
     }
     try:
         with conn.cursor() as cursor:

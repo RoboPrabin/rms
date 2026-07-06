@@ -565,6 +565,13 @@ class DematRecords(BasePage):
         with col1:
             client_name = st.text_input("Client Name", value=selected_row.get("Client Name", ""))
             created_bs = st.text_input("Created Date (B.S.)", value=selected_row.get("Created At Bs", ""))
+            branch_value = selected_row.get("Branch", "")
+            branch_options = helper.get_work_locations()
+            try:
+                branch_idx = branch_options.index(branch_value)
+            except ValueError:
+                branch_idx = 0
+            branch = st.selectbox("Branch", branch_options, index=branch_idx)
             rm_value = str(selected_row.get("Bro", "N/A")).strip()
             rm_value_mapped = self._username_to_option.get(rm_value, "N/A")
             bro_options = ["N/A", "SELF"] + self.all_user_options
@@ -577,7 +584,14 @@ class DematRecords(BasePage):
         with col2:
             boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
             opened_by = st.text_input("Opened By", value=selected_row.get("Opened By", ""), key="tms_edit_opened")
-
+            account_type_value = selected_row.get("Account Type", "NEW")
+            account_type = st.selectbox("Account Type", ["NEW", "Update"], index=0 if account_type_value == "NEW" else 1)
+            account_opening_date_str = selected_row.get("Account Opening Date", "")
+            try:
+                account_opening_date = datetime.strptime(account_opening_date_str, "%Y-%m-%d").date() if account_opening_date_str else None
+            except (ValueError, TypeError):
+                account_opening_date = None
+            account_opening_date = st.date_input("Account Opening Date", value=account_opening_date, min_value=date(1920,1,1), max_value=date.today())
         col1, spcr, col2 = st.columns([1, 4.1, 1])
         with col1:
             update_btn = st.button("Update", icon="🔄")
@@ -596,6 +610,8 @@ class DematRecords(BasePage):
                 errors.append("Created Date (B.S.) is required")
             if rm_name == "N/A":
                 errors.append("Please select a valid BRO")
+            if not branch:
+                errors.append("Branch is required")
 
             if errors:
                 for err in errors:
@@ -609,7 +625,10 @@ class DematRecords(BasePage):
                     boid=boid,
                     created_at_bs=created_bs,
                     opened_by=opened_by,
-                    rm_name=rm_name.split("-")[0].strip() if rm_name else ""
+                    rm_name=rm_name.split("-")[0].strip() if rm_name else "",
+                    branch=branch,
+                    account_type=account_type,
+                    account_opening_date=account_opening_date.strftime("%Y-%m-%d") if account_opening_date else ""
                 )
             except Exception as e:
                 st.error(f"Failed to update: {e}")
