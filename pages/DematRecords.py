@@ -714,18 +714,19 @@ class DematRecords(BasePage):
                 st.error("Something went wrong. Please contact IT.")
     
     def render_page(self):
-        components.html(
-            """
-            <script>
-            setTimeout(function() {
-                window.location.reload();
-            }, 5000);
-            </script>
-            """,
-            height=0,
-        )
-
         mode = st.radio("Mode", ['Entry', 'View/Edit', 'File Upload', 'Bulk Update (Client Code)'], horizontal=True)
+
+        if mode == "View/Edit":
+            components.html(
+                """
+                <script>
+                setTimeout(function() {
+                    window.location.reload();
+                }, 5000);
+                </script>
+                """,
+                height=0,
+            )
         if mode == "Entry":
             entry_tab = st.segmented_control("", ["DP Entry", "TMS"], default="DP Entry", key="entry_tab")
             if entry_tab == "DP Entry":
@@ -965,115 +966,96 @@ class DematRecords(BasePage):
 
         key = f"demat_uploader_{st.session_state.uploader_reset}"
 
-        with st.spinner("Loading data...", show_time=True):
-            uploaded_file = st.file_uploader(
-                "Upload Filled Template",
-                type=".xlsx",
-                key=key
-            )
+        uploaded_file = st.file_uploader(
+            "Upload Filled Template",
+            type=".xlsx",
+            key=key
+        )
 
-            if uploaded_file:
-                st.divider()
+        if uploaded_file:
+            st.divider()
+            try:
+                df = pd.read_excel(uploaded_file)
+            except Exception as e:
+                st.error(f"Failed to read Excel file: {e}")
+                st.stop()
+            st.write("Preview of Uploaded Data:")
+            df.index = df.index + 1
+            df['BRANCH'] = self.branch
+            if 'OPEN BY' in df.columns:
+                df['OPEN BY'] = df['OPEN BY'].astype(str).str.upper().str.strip()
+
+            missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+            if missing_cols:
+                st.error(f"The following required columns are missing: {', '.join(missing_cols)}")
+                st.stop()
+
+            df_required = df[REQUIRED_COLUMNS].fillna("").astype(str).apply(lambda x: x.str.strip())
+            empty_cells = df_required == ""
+            rows_with_missing = empty_cells.any(axis=1)
+            if rows_with_missing.any():
+                st.error(f"Found {rows_with_missing.sum()} rows with empty required fields. Please fill them.")
+                st.dataframe(df[rows_with_missing])
+                st.stop()
+
+            gateway_invalid = ~df_required['GATEWAY'].isin(GATEWAY_ALLOWED)
+            if gateway_invalid.any():
+                st.error(f"Found {gateway_invalid.sum()} rows with invalid GATEWAY. Allowed: {GATEWAY_ALLOWED}")
+                st.dataframe(df[gateway_invalid])
+                st.stop()
+
+            renew_invalid = ~df_required['RENEW TYPE'].apply(is_renew_type_valid)
+            if renew_invalid.any():
+                st.error(f"Found {renew_invalid.sum()} rows with invalid RENEW TYPE values. Allowed: {RENEW_TYPE_ALLOWED}")
+                st.dataframe(df[renew_invalid])
+                st.stop()
+
+            def validate_open_by(df_open_by):
+                conn = db.get_connection()
                 try:
-                    df = pd.read_excel(uploaded_file)
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT username FROM app_user")
+                        valid_users = {row[0] for row in cur.fetchall()}
+                    df_open_by_clean = df_open_by.fillna("").astype(str).str.strip()
+                    invalid_open_by = ~df_open_by_clean.isin(valid_users)
+                    return invalid_open_by
+                finally:
+                    conn.close()
+
+            open_by_invalid = validate_open_by(df_required['OPEN BY'])
+            if open_by_invalid.any():
+                st.error(f"Found {open_by_invalid.sum()} rows where 'OPEN BY' username is not registered in RMS. Please contact IT (9848094698).")
+                st.dataframe(df[open_by_invalid])
+                st.stop()
+
+            if 'DATE' in df.columns:
+                df['is_valid_bs'] = df['DATE'].apply(helper.is_valid_bs_date)
+                invalid_count = (~df['is_valid_bs']).sum()
+                if invalid_count > 0:
+                    st.error(f"Found {invalid_count} invalid BS dates. Please correct them before submitting.")
+                    st.dataframe(df[df['is_valid_bs'] == False])
+                    st.stop()
+
+            df = st.data_editor(df, num_rows="dynamic", hide_index=False)
+
+            if st.button("ᯓ➤ Submit"):
+                try:
+                    inserted_count, skipped_count = db.dump_demat_records(df, self.username)
                 except Exception as e:
-                    st.error(f"Failed to read Excel file: {e}")
-                    st.stop()
-                st.write("Preview of Uploaded Data:")
-                df.index = df.index + 1
-                df['BRANCH'] = self.branch
-                if 'OPEN BY' in df.columns:
-                    df['OPEN BY'] = df['OPEN BY'].astype(str).str.upper().str.strip()
-                # --- Step 1: Required columns check ---
-                missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
-                if missing_cols:
-                    st.error(f"The following required columns are missing: {', '.join(missing_cols)}")
+                    st.error(f"Failed to import data: {e}")
                     st.stop()
 
-                # --- Step 2: Required cells check ---
-                df_required = df[REQUIRED_COLUMNS].fillna("").astype(str).apply(lambda x: x.str.strip())
-                empty_cells = df_required == ""
-                rows_with_missing = empty_cells.any(axis=1)
-                if rows_with_missing.any():
-                    st.error(f"Found {rows_with_missing.sum()} rows with empty required fields. Please fill them.")
-                    st.dataframe(df[rows_with_missing])
+                if inserted_count == 0 and skipped_count == 0:
+                    st.error("No records were inserted or skipped. Check your data.")
                     st.stop()
 
-                # --- Step 3: GATEWAY validation ---
-                gateway_invalid = ~df_required['GATEWAY'].isin(GATEWAY_ALLOWED)
-                if gateway_invalid.any():
-                    st.error(f"Found {gateway_invalid.sum()} rows with invalid GATEWAY. Allowed: {GATEWAY_ALLOWED}")
-                    st.dataframe(df[gateway_invalid])
-                    st.stop()
+                st.success(f"Data import completed! Inserted: {inserted_count}")
+                if skipped_count > 0:
+                    st.warning(f"Skipped (BOID exists): {skipped_count}")
 
-                # --- Step 4: RENEW TYPE validation ---
-                renew_invalid = ~df_required['RENEW TYPE'].apply(is_renew_type_valid)
-                if renew_invalid.any():
-                    st.error(f"Found {renew_invalid.sum()} rows with invalid RENEW TYPE values. Allowed: {RENEW_TYPE_ALLOWED}")
-                    st.dataframe(df[renew_invalid])
-                    st.stop()
-
-                # --- Step 5: OPEN BY validation ---
-                def validate_open_by(df_open_by):
-                    """
-                    Checks if all OPEN BY usernames exist in app_user table
-                    """
-                    conn = db.get_connection()  # your psycopg2 connection
-                    try:
-                        with conn.cursor() as cur:
-                            # fetch all usernames
-                            cur.execute("SELECT username FROM app_user")
-                            valid_users = {row[0] for row in cur.fetchall()}
-
-                        # Strip spaces in OPEN BY
-                        df_open_by_clean = df_open_by.fillna("").astype(str).str.strip()
-
-                        # Find invalid rows
-                        invalid_open_by = ~df_open_by_clean.isin(valid_users)
-                        return invalid_open_by
-
-                    finally:
-                        conn.close()
-
-                # Usage:
-                open_by_invalid = validate_open_by(df_required['OPEN BY'])
-                if open_by_invalid.any():
-                    st.error(f"Found {open_by_invalid.sum()} rows where 'OPEN BY' username is not registered in RMS. Please contact IT (9848094698).")
-                    st.dataframe(df[open_by_invalid])
-                    st.stop()
-                    
-
-                # --- Step 5: Optional BS date validation ---
-                if 'DATE' in df.columns:
-                    df['is_valid_bs'] = df['DATE'].apply(helper.is_valid_bs_date)
-                    invalid_count = (~df['is_valid_bs']).sum()
-                    if invalid_count > 0:
-                        st.error(f"Found {invalid_count} invalid BS dates. Please correct them before submitting.")
-                        st.dataframe(df[df['is_valid_bs'] == False])
-                        st.stop()
-
-                # --- Step 6: Data editor to allow user corrections ---
-                df = st.data_editor(df, num_rows="dynamic", hide_index=False)
-
-                # --- Step 7: Submit button ---
-                if st.button("ᯓ➤ Submit"):
-                    try:
-                        inserted_count, skipped_count = db.dump_demat_records(df, self.username)
-                    except Exception as e:
-                        st.error(f"Failed to import data: {e}")
-                        st.stop()
-
-                    if inserted_count == 0 and skipped_count == 0:
-                        st.error("No records were inserted or skipped. Check your data.")
-                        st.stop()
-
-                    st.success(f"Data import completed! Inserted: {inserted_count}")
-                    if skipped_count > 0:
-                        st.warning(f"Skipped (BOID exists): {skipped_count}")
-
-                    st.session_state.uploader_reset += 1
-                    sleep(2.5)
-                    st.rerun()
+                st.session_state.uploader_reset += 1
+                sleep(2.5)
+                st.rerun()
 
 
 
