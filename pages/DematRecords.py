@@ -473,6 +473,7 @@ class DematRecords(BasePage):
             cols.remove("Created At Bs")
             cols.insert(0, "Created At Bs")
         filtered_df = filtered_df[cols]
+        filtered_df = filtered_df.reset_index(drop=True)
         filtered_df.index = filtered_df.index + 1
 
         st.badge(f"Total: {len(filtered_df):,}", color="green")
@@ -492,7 +493,7 @@ class DematRecords(BasePage):
         if selected_rows:
             try:
                 selected_index = selected_rows[0]
-                selected_row = filtered_df.loc[selected_index].to_dict()
+                selected_row = filtered_df.iloc[selected_index].to_dict()
                 self.edit_tms_record_dialog(selected_row)
             except (IndexError, KeyError) as e:
                 st.error(f"Error selecting row: {e}")
@@ -582,8 +583,7 @@ class DematRecords(BasePage):
         with col2:
             boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
             opened_by = st.text_input("Opened By", value=selected_row.get("Opened By", ""), key="tms_edit_opened")
-            account_type_value = selected_row.get("Account Type", "NEW")
-            account_type = st.selectbox("Account Type", ["NEW", "Update"], index=0 if account_type_value == "NEW" else 1)
+            account_type = st.selectbox("Account Type", ["NEW", "Update"], index=0)
             account_opening_date_str = selected_row.get("Account Opening Date", "")
             try:
                 account_opening_date = datetime.strptime(account_opening_date_str, "%Y-%m-%d").date() if account_opening_date_str else None
