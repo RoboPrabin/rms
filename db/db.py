@@ -909,8 +909,6 @@ def dump_demat_records(df:pd.DataFrame, loggedin_username:str):
         'DATE': 'created_at_bs',
         'BOID': 'boid',
         'NAME': 'client_name',
-        'CLIENT CODE': 'client_code',
-        'TSL': 'tsl_number',
         'AMOUNT': 'payment_amount',
         'GATEWAY': 'gateway',
         'RENEW TYPE': 'renew_type',
@@ -943,15 +941,13 @@ def dump_demat_records(df:pd.DataFrame, loggedin_username:str):
             # Prepare insert statement
             insert_query = """
                 INSERT INTO demat_records
-                (client_name, client_code, boid, tsl_number, payment_amount,
+                (client_name, boid, payment_amount,
                  gateway, renew_type, open_by, created_at_bs, remarks, rm_name, updated_by)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor.execute(insert_query, (
                 row.get('client_name'),
-                '' if pd.isna(row.get('client_code')) else row.get('client_code'),
                 boid,
-                row.get('tsl_number'),
                 row.get('payment_amount'),
                 row.get('gateway'),
                 str(row.get('renew_type')).strip(),
@@ -1065,7 +1061,6 @@ def insert_demat_record(
     *,
     client_name: str,
     boid: str,
-    tsl_number: str,
     payment_amount,
     gateway: str,
     renew_type: str,
@@ -1074,7 +1069,6 @@ def insert_demat_record(
     created_at_bs:str,
     remarks:str,
     bo_to_bo:bool,
-    client_code:str
 ):
     """
     Inserts a demat record if BOID does not already exist.
@@ -1097,7 +1091,6 @@ def insert_demat_record(
         INSERT INTO demat_records (
             client_name,
             boid,
-            tsl_number,
             payment_amount,
             gateway,
             renew_type,
@@ -1106,13 +1099,11 @@ def insert_demat_record(
             created_at_bs,
             updated_by,
             remarks,
-            is_bo_to_bo,
-            client_code
+            is_bo_to_bo
         )
         VALUES (
             %(client_name)s,
             %(boid)s,
-            %(tsl_number)s,
             %(payment_amount)s,
             %(gateway)s,
             %(renew_type)s,
@@ -1121,8 +1112,7 @@ def insert_demat_record(
             %(created_at_bs)s,
             %(updated_by)s,
             %(remarks)s,
-            %(is_bo_to_bo)s,
-            %(client_code)s
+            %(is_bo_to_bo)s
         )
         RETURNING id;
     """
@@ -1130,7 +1120,6 @@ def insert_demat_record(
     params = {
         "client_name": client_name.strip(),
         "boid": boid,
-        "tsl_number": tsl_number.strip().upper(),
         "payment_amount": float(payment_amount),
         "gateway": gateway.strip(),
         "renew_type": renew_type.strip(),
@@ -1140,7 +1129,6 @@ def insert_demat_record(
         "updated_by":open_by.strip().upper(),
         "remarks":remarks,
         "is_bo_to_bo": bo_to_bo,
-        "client_code":client_code
     }
 
     with conn.cursor() as cursor:

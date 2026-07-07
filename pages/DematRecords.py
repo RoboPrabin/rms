@@ -188,7 +188,7 @@ class DematRecords(BasePage):
                         open_by=self.username,
                         created_at_bs=st.session_state.nep_date,
                         remarks=remarks,
-                        bo_to_bo=bo_to_bo
+                        bo_to_bo=bo_to_bo,
                     )
                 except Exception as e:
                     st.error(f"Failed to save record: {e}")
@@ -869,6 +869,10 @@ class DematRecords(BasePage):
 
 
     def file_upload(self):
+        msg = st.session_state.pop("dp_upload_msg", None)
+        if msg:
+            st.success(msg)
+
         REQUIRED_COLUMNS = ["BOID", "NAME", "AMOUNT", "GATEWAY", "RENEW TYPE", "OPEN BY", "BRO"]
         GATEWAY_ALLOWED = ['CASH', 'QR', 'A/C DEBIT']
         RENEW_TYPE_ALLOWED = ['BO OPEN', 'LIFETIME BO', 'ALL', 'LIFETIME MEROSHARE', 'FREE']
@@ -957,16 +961,12 @@ class DematRecords(BasePage):
                     st.error(f"Failed to import data: {e}")
                     st.stop()
 
-                if inserted_count == 0 and skipped_count == 0:
-                    st.error("No records were inserted or skipped. Check your data.")
-                    st.stop()
-
-                st.success(f"Data import completed! Inserted: {inserted_count}")
+                parts = [f"Data import completed! Inserted: {inserted_count}"]
                 if skipped_count > 0:
-                    st.warning(f"Skipped (BOID exists): {skipped_count}")
+                    parts.append(f"Skipped (BOID exists): {skipped_count}")
+                st.session_state.dp_upload_msg = ". ".join(parts)
 
                 st.session_state.uploader_reset += 1
-                sleep(2.5)
                 st.rerun()
 
     def tms_download_template(self):
@@ -991,6 +991,10 @@ class DematRecords(BasePage):
         )
 
     def tms_file_upload(self):
+        msg = st.session_state.pop("tms_upload_msg", None)
+        if msg:
+            st.success(msg)
+
         REQUIRED_COLUMNS = ["DATE", "CLIENT CODE", "NAME", "BOID", "BRO", "ACCOUNT TYPE", "OPEN BY"]
 
         self.tms_download_template()
@@ -1097,16 +1101,12 @@ class DematRecords(BasePage):
                     if conn:
                         conn.close()
 
-                if inserted_count == 0 and skipped_count == 0:
-                    st.error("No records were inserted or skipped. Check your data.")
-                    st.stop()
-
-                st.success(f"Data import completed! Inserted: {inserted_count}")
+                parts = [f"Data import completed! Inserted: {inserted_count}"]
                 if skipped_count > 0:
-                    st.warning(f"Skipped (duplicate client code): {skipped_count}")
+                    parts.append(f"Skipped (duplicate client code): {skipped_count}")
+                st.session_state.tms_upload_msg = ". ".join(parts)
 
                 st.session_state.tms_uploader_reset += 1
-                sleep(2.5)
                 st.rerun()
 
 
