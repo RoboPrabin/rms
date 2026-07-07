@@ -1162,15 +1162,13 @@ def insert_tms_record(
     created_at_bs: str,
     opened_by: str,
     rm_name: str = "",
-    bro: str = "",
-    account_opening_date: str = "",
-    branch: str = "",
-    account_type: str = ""
+    account_type: str = "",
+    remarks: str = ""
 ):
     conn = get_connection()
     query = """
-        INSERT INTO tms_record (client_code, client_name, boid, created_at_bs, opened_by, rm_name, bro, account_opening_date, branch, account_type)
-        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s, %(rm_name)s, %(bro)s, %(account_opening_date)s, %(branch)s, %(account_type)s)
+        INSERT INTO tms_records (client_code, client_name, boid, created_at_bs, open_by, rm_name, account_type, remarks)
+        VALUES (%(client_code)s, %(client_name)s, %(boid)s, %(created_at_bs)s, %(opened_by)s, %(rm_name)s, %(account_type)s, %(remarks)s)
         RETURNING client_code;
     """
     params = {
@@ -1180,10 +1178,8 @@ def insert_tms_record(
         "created_at_bs": created_at_bs,
         "opened_by": opened_by.strip().upper(),
         "rm_name": rm_name.strip().upper() if rm_name else "",
-        "bro": bro.strip().upper() if bro else "",
-        "account_opening_date": account_opening_date,
-        "branch": branch.strip().upper() if branch else "",
-        "account_type": account_type.strip().upper() if account_type else ""
+        "account_type": account_type.strip().upper() if account_type else "",
+        "remarks": remarks
     }
     try:
         with conn.cursor() as cursor:
@@ -1206,23 +1202,19 @@ def update_tms_record(
     created_at_bs: str,
     opened_by: str,
     rm_name: str = "",
-    bro: str = "",
-    branch: str = "",
     account_type: str = "",
-    account_opening_date: str = ""
+    remarks: str = ""
 ):
     conn = get_connection()
     query = """
-        UPDATE tms_record
+        UPDATE tms_records
         SET client_name = %(client_name)s,
             boid = %(boid)s,
             created_at_bs = %(created_at_bs)s,
-            opened_by = %(opened_by)s,
+            open_by = %(opened_by)s,
             rm_name = %(rm_name)s,
-            bro = %(bro)s,
-            branch = %(branch)s,
             account_type = %(account_type)s,
-            account_opening_date = %(account_opening_date)s
+            remarks = %(remarks)s
         WHERE client_code = %(client_code)s
         RETURNING client_code;
     """
@@ -1233,10 +1225,8 @@ def update_tms_record(
         "created_at_bs": created_at_bs,
         "opened_by": opened_by.strip().upper(),
         "rm_name": rm_name.strip().upper() if rm_name else "",
-        "bro": bro.strip().upper() if bro else "",
-        "branch": branch.strip().upper() if branch else "",
         "account_type": account_type.strip().upper() if account_type else "",
-        "account_opening_date": account_opening_date
+        "remarks": remarks
     }
     try:
         with conn.cursor() as cursor:
@@ -1252,7 +1242,7 @@ def update_tms_record(
 
 
 def fetch_tms_records_df():
-    query = "SELECT * FROM tms_record ORDER BY created_at_bs DESC;"
+    query = "SELECT * FROM tms_records ORDER BY created_at_bs DESC;"
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(query)
@@ -1363,7 +1353,7 @@ def fetch_tms_records_with_branch_df():
             rows = cursor.fetchall()
             df_users = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame(columns=["username", "branch"])
 
-    df = df_records.merge(df_users, how="left", left_on="opened_by", right_on="username")
+    df = df_records.merge(df_users, how="left", left_on="open_by", right_on="username")
     if "branch" in df_records.columns:
         df.rename(columns={"branch_x": "Branch"}, inplace=True)
         df.drop(columns=["branch_y", "username"], inplace=True, errors="ignore")
