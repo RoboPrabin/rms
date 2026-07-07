@@ -91,6 +91,10 @@ class DematRecords(BasePage):
         for key, value in defaults.items():
             st.session_state.setdefault(key, value)
 
+        msg = st.session_state.pop("success_msg", None)
+        if msg:
+            st.success(msg)
+
         # ---------- Reset logic ----------
         if st.session_state.get("reset_form", False):
             for key in defaults:
@@ -191,8 +195,7 @@ class DematRecords(BasePage):
                     return
 
                 if record_id:
-                    st.success("Record saved successfully.")
-                    sleep(1)
+                    st.session_state.success_msg = "Record saved successfully."
                     st.session_state["reset_form"] = True
                     st.rerun()
                 else:
@@ -211,6 +214,10 @@ class DematRecords(BasePage):
 
         for key, value in defaults.items():
             st.session_state.setdefault(key, value)
+
+        msg = st.session_state.pop("tms_success_msg", None)
+        if msg:
+            st.success(msg)
 
         if st.session_state.get("tms_reset_form", False):
             for key in defaults:
@@ -246,6 +253,8 @@ class DematRecords(BasePage):
                 tms_client_code_val = st.session_state.tms_client_code.strip()
                 if not tms_client_code_val:
                     errors.append("Client Code is required")
+                elif not (tms_client_code_val.isdigit() or (tms_client_code_val.isalpha() and len(tms_client_code_val) <= 3)):
+                    errors.append("Client Code must be numeric or up to 3 alphabetic characters")
                 tms_client_name_val = st.session_state.tms_client_name.strip()
                 if not tms_client_name_val:
                     errors.append("Client Name is required")
@@ -300,8 +309,7 @@ class DematRecords(BasePage):
                         conn.close()
 
                 if record_id:
-                    st.success("Record saved successfully.")
-                    sleep(1)
+                    st.session_state.tms_success_msg = "Record saved successfully."
                     st.session_state["tms_reset_form"] = True
                     st.rerun()
 
