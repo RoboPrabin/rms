@@ -474,7 +474,7 @@ class TransactionMonitoring(BasePage):
 
 
     def render_page(self):
-        if self.role == "BRO":
+        if self.role == "BRO" and self.username != "YUBARAJ":
             mode = st.radio(
                 "Mode",
                 ['Data Entry',  'View All Restrictions'],
