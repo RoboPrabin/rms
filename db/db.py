@@ -3900,12 +3900,13 @@ def get_notable_clients_with_turnover(from_date, to_date):
                 n.id, n.client_code, n.client_name, n.reason,
                 n.noted_by, n.noted_at, n.updated_at, n.updated_by,
                 k.clientbranch AS branch, k.boid,
-                COALESCE(SUM(f.amount) FILTER (WHERE f.transaction_type = 'Buy'), 0) AS buying_amount,
-                COALESCE(SUM(f.amount) FILTER (WHERE f.transaction_type = 'Sell'), 0) AS selling_amount
+                COALESCE(SUM(f.amount) FILTER (WHERE LOWER(f.transaction_type) = 'buy'), 0) AS buying_amount,
+                COALESCE(SUM(f.amount) FILTER (WHERE LOWER(f.transaction_type) = 'sell'), 0) AS selling_amount,
+                COALESCE(SUM(f.amount), 0) AS total_amount
             FROM notable_client n
             LEFT JOIN kyc k ON n.client_code = k.clientmembercode
             LEFT JOIN floorsheet f ON n.client_code = f.clientcode
-                AND to_date(substr(f.uploaded_at, 1, 10), 'YYYY-MM-DD') BETWEEN %s AND %s
+                AND DATE(f.uploaded_at) BETWEEN %s AND %s
             GROUP BY n.id, n.client_code, n.client_name, n.reason,
                      n.noted_by, n.noted_at, n.updated_at, n.updated_by,
                      k.clientbranch, k.boid

@@ -58,6 +58,7 @@ class NotableClient(BasePage):
             )
             _cached_kyc.clear()
             _cached_notable_clients.clear()
+            _cached_notable_clients_with_turnover.clear()
             st.success("Client added to notable list ✅")
             sleep(1)
             st.rerun()
@@ -88,6 +89,7 @@ class NotableClient(BasePage):
                     return
                 db.update_notable_client_by_id(record["ID"], reason=new_reason.strip(), updated_by=self.username)
                 _cached_notable_clients.clear()
+                _cached_notable_clients_with_turnover.clear()
                 st.success("Updated ✅")
                 sleep(0.5)
                 st.rerun()
@@ -95,25 +97,52 @@ class NotableClient(BasePage):
             if st.button("🗑️ Delete", use_container_width=True):
                 db.delete_notable_client(record["ID"])
                 _cached_notable_clients.clear()
+                _cached_notable_clients_with_turnover.clear()
                 st.success("Deleted ✅")
                 sleep(0.5)
                 st.rerun()
 
     def _view_edit(self):
-        rows = _cached_notable_clients()
+        fiscal_year = st.selectbox("Fiscal year", ["82/83", "83/84"], index=0)
+        from_date, to_date = helper.get_fiscal_year_dates(fiscal_year)
+        st.caption(f"Showing floorsheet turnover from {from_date} to {to_date}.")
+
+        rows = _cached_notable_clients_with_turnover(from_date, to_date)
         if not rows:
             st.info("No notable clients found.", icon="ℹ️")
             return
         df = pd.DataFrame(
             rows,
-            columns=["ID", "Client Code", "Client Name", "Reason", "Noted By", "Noted At", "Updated At", "Updated By", "Branch", "BOID"],
+            columns=[
+                "ID", "Client Code", "Client Name", "Reason", "Noted By", "Noted At",
+                "Updated At", "Updated By", "Branch", "BOID", "Buying Amount", "Selling Amount", "Total Amount"
+            ],
         )
         df["Noted At"] = pd.to_datetime(df["Noted At"]).dt.strftime("%Y-%m-%d %I:%M %p")
         if df["Updated At"].notna().any():
             df["Updated At"] = pd.to_datetime(df["Updated At"]).dt.strftime("%Y-%m-%d %I:%M %p")
+        df["Buying Amount"] = pd.to_numeric(df["Buying Amount"], errors="coerce").fillna(0)
+        df["Selling Amount"] = pd.to_numeric(df["Selling Amount"], errors="coerce").fillna(0)
+        df["Total Amount"] = pd.to_numeric(df["Total Amount"], errors="coerce").fillna(0)
         display_df = df.drop(columns=["ID"])
+        first_columns = [
+            "Branch", "Client Code", "Client Name", "BOID",
+            "Buying Amount", "Selling Amount", "Total Amount"
+        ]
+        display_df = display_df[first_columns + [col for col in display_df.columns if col not in first_columns]]
         st.badge(f"Total: {len(df)}")
-        selection = st.dataframe(display_df, use_container_width=True, key="notable_view", selection_mode="single-row", on_select="rerun")
+        selection = st.dataframe(
+            display_df,
+            use_container_width=True,
+            key="notable_view",
+            selection_mode="single-row",
+            on_select="rerun",
+            column_config={
+                "Buying Amount": st.column_config.NumberColumn("Buying Amount", format="%.2f"),
+                "Selling Amount": st.column_config.NumberColumn("Selling Amount", format="%.2f"),
+                "Total Amount": st.column_config.NumberColumn("Total Amount", format="%.2f"),
+            },
+        )
         selected_rows = st.session_state.get("notable_view", {}).get("selection", {}).get("rows", [])
         if selected_rows:
             idx = selected_rows[0]
