@@ -39,6 +39,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "cashin_out": True,
         "trade_history": True,
+        "notable_client": True,
     },
 
     "MANAGER": {
@@ -74,6 +75,7 @@ DEFAULT_ROLE_ACCESS = {
         "cashin_out": True,
         "trade_history": True,
         "risk_monitoring": True,
+        "notable_client": True,
     },
 
     "BM": {
@@ -104,6 +106,7 @@ DEFAULT_ROLE_ACCESS = {
         "cashin_out": True,
         "trade_history": True,
         "risk_monitoring": True,
+        "notable_client": True,
     },
 
     "RM": {
@@ -132,6 +135,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "trade_history": True,
         "risk_monitoring": True,
+        "notable_client": True,
     },
 
     "HR": {
@@ -241,4 +245,5 @@ ALL_MENU_KEYS = {
     "tms_code",
     "mail_cleaner",
     "risk_monitoring",
+    "notable_client",
 }

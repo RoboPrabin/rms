@@ -61,6 +61,7 @@ AML_MAP = {
     "transaction_monitoring": (page_url.transaction_monitoring_url, "🕵️ Transaction monitoring"),
     "trade_history":          (page_url.trade_history_url,          "🔎 Trade history"),
     "risk_monitoring":        (page_url.risk_monitoring_url,        "🚨 Risk monitoring"),
+    "notable_client":         (page_url.notable_client_url,         "⭐ Notable client"),
 }
 
 # User Management

@@ -3850,3 +3850,120 @@ def end_session(username: str):
                 cur.fetchall()
     finally:
         conn.close()
+
+
+def insert_notable_client(client_code, client_name, reason, noted_by):
+    conn = get_connection()
+    try:
+        query = """
+            INSERT INTO notable_client (client_code, client_name, reason, noted_by)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id;
+        """
+        with conn.cursor() as cur:
+            cur.execute(query, (client_code, client_name, reason, noted_by))
+            new_id = cur.fetchone()[0]
+        conn.commit()
+        return new_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def get_notable_clients():
+    conn = get_connection()
+    try:
+        query = """
+            SELECT
+                n.id, n.client_code, n.client_name, n.reason,
+                n.noted_by, n.noted_at, n.updated_at, n.updated_by,
+                k.clientbranch AS branch, k.boid
+            FROM notable_client n
+            LEFT JOIN kyc k ON n.client_code = k.clientmembercode
+            ORDER BY n.noted_at DESC;
+        """
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+        return rows
+    finally:
+        conn.close()
+
+
+def get_notable_clients_with_turnover(from_date, to_date):
+    conn = get_connection()
+    try:
+        query = """
+            SELECT
+                n.id, n.client_code, n.client_name, n.reason,
+                n.noted_by, n.noted_at, n.updated_at, n.updated_by,
+                k.clientbranch AS branch, k.boid,
+                COALESCE(SUM(f.amount) FILTER (WHERE f.transaction_type = 'Buy'), 0) AS buying_amount,
+                COALESCE(SUM(f.amount) FILTER (WHERE f.transaction_type = 'Sell'), 0) AS selling_amount
+            FROM notable_client n
+            LEFT JOIN kyc k ON n.client_code = k.clientmembercode
+            LEFT JOIN floorsheet f ON n.client_code = f.clientcode
+                AND to_date(substr(f.uploaded_at, 1, 10), 'YYYY-MM-DD') BETWEEN %s AND %s
+            GROUP BY n.id, n.client_code, n.client_name, n.reason,
+                     n.noted_by, n.noted_at, n.updated_at, n.updated_by,
+                     k.clientbranch, k.boid
+            ORDER BY n.noted_at DESC;
+        """
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(query, (from_date, to_date))
+            rows = cur.fetchall()
+        return rows
+    finally:
+        conn.close()
+
+
+def update_notable_client(client_code, client_name, reason, updated_by):
+    conn = get_connection()
+    try:
+        query = """
+            UPDATE notable_client
+            SET client_name = %s, reason = %s, updated_by = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE client_code = %s;
+        """
+        with conn.cursor() as cur:
+            cur.execute(query, (client_name, reason, updated_by, client_code))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def update_notable_client_by_id(record_id, reason, updated_by):
+    conn = get_connection()
+    try:
+        query = """
+            UPDATE notable_client
+            SET reason = %s, updated_by = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s::uuid;
+        """
+        with conn.cursor() as cur:
+            cur.execute(query, (reason, updated_by, record_id))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def delete_notable_client(record_id):
+    conn = get_connection()
+    try:
+        query = """DELETE FROM notable_client WHERE id = %s::uuid;"""
+        with conn.cursor() as cur:
+            cur.execute(query, (record_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
