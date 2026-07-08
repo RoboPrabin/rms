@@ -3852,16 +3852,16 @@ def end_session(username: str):
         conn.close()
 
 
-def insert_notable_client(client_code, client_name, reason, noted_by):
+def insert_notable_client(client_code, client_name, reason, noted_by, client_type=None):
     conn = get_connection()
     try:
         query = """
-            INSERT INTO notable_client (client_code, client_name, reason, noted_by)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO notable_client (client_code, client_name, reason, noted_by, client_type)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id;
         """
         with conn.cursor() as cur:
-            cur.execute(query, (client_code, client_name, reason, noted_by))
+            cur.execute(query, (client_code, client_name, reason, noted_by, client_type))
             new_id = cur.fetchone()[0]
         conn.commit()
         return new_id
@@ -3879,6 +3879,7 @@ def get_notable_clients():
             SELECT
                 n.id, n.client_code, n.client_name, n.reason,
                 n.noted_by, n.noted_at, n.updated_at, n.updated_by,
+                n.client_type,
                 k.clientbranch AS branch, k.boid
             FROM notable_client n
             LEFT JOIN kyc k ON n.client_code = k.clientmembercode
@@ -3899,6 +3900,7 @@ def get_notable_clients_with_turnover(from_date, to_date):
             SELECT
                 n.id, n.client_code, n.client_name, n.reason,
                 n.noted_by, n.noted_at, n.updated_at, n.updated_by,
+                n.client_type,
                 k.clientbranch AS branch, k.boid,
                 COALESCE(SUM(f.amount) FILTER (WHERE LOWER(f.transaction_type) = 'buy'), 0) AS buying_amount,
                 COALESCE(SUM(f.amount) FILTER (WHERE LOWER(f.transaction_type) = 'sell'), 0) AS selling_amount,
@@ -3906,9 +3908,10 @@ def get_notable_clients_with_turnover(from_date, to_date):
             FROM notable_client n
             LEFT JOIN kyc k ON n.client_code = k.clientmembercode
             LEFT JOIN floorsheet f ON n.client_code = f.clientcode
-                AND DATE(f.uploaded_at) BETWEEN %s AND %s
+                AND f.uploaded_at::date BETWEEN %s::date AND %s::date
             GROUP BY n.id, n.client_code, n.client_name, n.reason,
                      n.noted_by, n.noted_at, n.updated_at, n.updated_by,
+                     n.client_type,
                      k.clientbranch, k.boid
             ORDER BY n.noted_at DESC;
         """
@@ -3938,16 +3941,16 @@ def update_notable_client(client_code, client_name, reason, updated_by):
         conn.close()
 
 
-def update_notable_client_by_id(record_id, reason, updated_by):
+def update_notable_client_by_id(record_id, reason, updated_by, client_type=None):
     conn = get_connection()
     try:
         query = """
             UPDATE notable_client
-            SET reason = %s, updated_by = %s, updated_at = CURRENT_TIMESTAMP
+            SET reason = %s, updated_by = %s, updated_at = CURRENT_TIMESTAMP, client_type = %s
             WHERE id = %s::uuid;
         """
         with conn.cursor() as cur:
-            cur.execute(query, (reason, updated_by, record_id))
+            cur.execute(query, (reason, updated_by, client_type, record_id))
         conn.commit()
     except Exception as e:
         conn.rollback()

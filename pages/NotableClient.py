@@ -1,24 +1,25 @@
+from datetime import date, timedelta
 from time import sleep
 import pandas as pd
 import streamlit as st
 from streamlit_bridge.navigation import render_sidebar
+from streamlit_autorefresh import st_autorefresh
 from db import db
 from utils import helper
 from pages.BasePage import BasePage
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def _cached_kyc():
     rows = db.get_kyc()
     return pd.DataFrame(rows, columns=["Client Code", "Client Name", "Branch", "BOID"])
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=600)
 def _cached_notable_clients():
     return db.get_notable_clients()
 
 
-@st.cache_data(ttl=60)
 def _cached_notable_clients_with_turnover(from_date, to_date):
     return db.get_notable_clients_with_turnover(from_date, to_date)
 
@@ -39,13 +40,17 @@ class NotableClient(BasePage):
         col1, col2 = st.columns(2)
         with col1:
             selected = st.selectbox("Client Code *", [""] + client_codes)
-            reason = st.text_area("Reason *")
+            client_type = st.selectbox("Client Type *", ["", "PEPS", "SPECIAL CLIENT"])
         with col2:
             auto_name = code_to_name.get(selected, "")
             client_name = st.text_input("Client Name *", value=auto_name, disabled=True).upper()
+            reason = st.text_area("Reason *")
         if st.button("Add", icon="⭐"):
             if not selected:
                 st.warning("Please select a client.", icon="⚠️")
+                return
+            if not client_type:
+                st.warning("Please select a client type.", icon="⚠️")
                 return
             if not reason.strip():
                 st.warning("Reason is required.", icon="⚠️")
@@ -55,69 +60,81 @@ class NotableClient(BasePage):
                 client_name=client_name.strip() or auto_name,
                 reason=reason.strip(),
                 noted_by=self.username,
+                client_type=client_type,
             )
             _cached_kyc.clear()
             _cached_notable_clients.clear()
-            _cached_notable_clients_with_turnover.clear()
             st.success("Client added to notable list ✅")
             sleep(1)
             st.rerun()
 
-    @st.dialog("✏️ Notable Client Details", width="large")
+    @st.dialog("Notable Client Details", width="large")
     def _detail_dialog(self, record):
+        with st.container(border=True):
+            col1, col2, col3 = st.columns(3)
+            col1.text_input("Branch", value=record.get("Branch", ""), disabled=True)
+            col2.text_input("BOID", value=record.get("BOID", ""), disabled=True)
+            col3.text_input("Noted By", value=record["Noted By"], disabled=True)
+            col1.text_input("Noted At", value=record["Noted At"], disabled=True)
+            if record.get("Updated By"):
+                col2.text_input("Updated By", value=record["Updated By"], disabled=True)
+                col3.text_input("Updated At", value=record["Updated At"], disabled=True)
+
         new_code = st.text_input("Client Code *", value=record["Client Code"]).upper()
         new_name = st.text_input("Client Name", value=record["Client Name"], disabled=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.text_input("Branch", value=record.get("Branch", ""), disabled=True)
-        with col2:
-            st.text_input("BOID", value=record.get("BOID", ""), disabled=True)
-        st.text_input("Noted By", value=record["Noted By"], disabled=True)
-        st.text_input("Noted At", value=record["Noted At"], disabled=True)
-        if record.get("Updated By"):
-            st.text_input("Updated By", value=record["Updated By"], disabled=True)
-            st.text_input("Updated At", value=record["Updated At"], disabled=True)
+        new_client_type = st.selectbox("Client Type *", ["", "PEPS", "SPECIAL CLIENT"],
+                                       index=["", "PEPS", "SPECIAL CLIENT"].index(record.get("Client Type", "") or ""))
         new_reason = st.text_area("Reason *", value=record["Reason"])
+
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Update", use_container_width=True):
+            if st.button("Update", type="primary", use_container_width=True):
                 if not new_code.strip():
-                    st.warning("Client Code is required.", icon="⚠️")
+                    st.warning("Client Code is required.")
+                    return
+                if not new_client_type:
+                    st.warning("Please select a client type.")
                     return
                 if not new_reason.strip():
-                    st.warning("Reason is required.", icon="⚠️")
+                    st.warning("Reason is required.")
                     return
-                db.update_notable_client_by_id(record["ID"], reason=new_reason.strip(), updated_by=self.username)
+                db.update_notable_client_by_id(record["ID"], reason=new_reason.strip(), updated_by=self.username, client_type=new_client_type)
                 _cached_notable_clients.clear()
-                _cached_notable_clients_with_turnover.clear()
-                st.success("Updated ✅")
+                st.success("Updated")
                 sleep(0.5)
                 st.rerun()
         with col2:
-            if st.button("🗑️ Delete", use_container_width=True):
+            if st.button("Delete", type="secondary", use_container_width=True):
                 db.delete_notable_client(record["ID"])
                 _cached_notable_clients.clear()
-                _cached_notable_clients_with_turnover.clear()
-                st.success("Deleted ✅")
+                st.success("Deleted")
                 sleep(0.5)
                 st.rerun()
 
     def _view_edit(self):
-        fiscal_year = st.selectbox("Fiscal year", ["82/83", "83/84"], index=0)
-        from_date, to_date = helper.get_fiscal_year_dates(fiscal_year)
-        st.caption(f"Showing floorsheet turnover from {from_date} to {to_date}.")
+        st_autorefresh(interval=60_000, key="notable_client_refresh")
+        yesterday = date.today() - timedelta(days=1)
+        col1, col2 = st.columns(2)
+        with col1:
+            from_date = st.date_input("From Date", value=yesterday)
+        with col2:
+            to_date = st.date_input("To Date", value=yesterday)
+        if from_date > to_date:
+            st.error("From Date cannot be later than To Date", icon="📢")
+            st.stop()
 
         rows = _cached_notable_clients_with_turnover(from_date, to_date)
         if not rows:
             st.info("No notable clients found.", icon="ℹ️")
             return
         df = pd.DataFrame(
-            rows,
-            columns=[
-                "ID", "Client Code", "Client Name", "Reason", "Noted By", "Noted At",
-                "Updated At", "Updated By", "Branch", "BOID", "Buying Amount", "Selling Amount", "Total Amount"
-            ],
+            [dict(r) for r in rows],
         )
+        df.columns = [
+            "ID", "Client Code", "Client Name", "Reason", "Noted By", "Noted At",
+            "Updated At", "Updated By", "Client Type", "Branch", "BOID",
+            "Buying Amount", "Selling Amount", "Total Amount"
+        ]
         df["Noted At"] = pd.to_datetime(df["Noted At"]).dt.strftime("%Y-%m-%d %I:%M %p")
         if df["Updated At"].notna().any():
             df["Updated At"] = pd.to_datetime(df["Updated At"]).dt.strftime("%Y-%m-%d %I:%M %p")
@@ -127,6 +144,7 @@ class NotableClient(BasePage):
         display_df = df.drop(columns=["ID"])
         first_columns = [
             "Branch", "Client Code", "Client Name", "BOID",
+            "Client Type", "Reason",
             "Buying Amount", "Selling Amount", "Total Amount"
         ]
         display_df = display_df[first_columns + [col for col in display_df.columns if col not in first_columns]]
@@ -143,7 +161,10 @@ class NotableClient(BasePage):
                 "Total Amount": st.column_config.NumberColumn("Total Amount", format="%.2f"),
             },
         )
-        selected_rows = st.session_state.get("notable_view", {}).get("selection", {}).get("rows", [])
+        try:
+            selected_rows = selection.selection.rows
+        except (AttributeError, KeyError):
+            selected_rows = []
         if selected_rows:
             idx = selected_rows[0]
             self._detail_dialog(df.iloc[idx])
