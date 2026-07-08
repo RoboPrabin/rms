@@ -80,6 +80,7 @@ MENU_SECTIONS = [
                     ("transaction_monitoring", "🕵️", "Transaction monitoring"),
                     ("trade_history",          "🔎", "Trade history"),
                     ("risk_monitoring",        "🚨", "Risk monitoring"),
+                    ("notable_client",         "⭐", "Notable client"),
                 ],
             },
         ],
