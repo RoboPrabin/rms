@@ -3959,6 +3959,26 @@ def update_notable_client_by_id(record_id, reason, updated_by, client_type=None)
         conn.close()
 
 
+def update_notable_client_type_by_code(client_code, client_type):
+    conn = get_connection()
+    try:
+        query = """
+            UPDATE notable_client
+            SET client_type = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE client_code = %s;
+        """
+        with conn.cursor() as cur:
+            cur.execute(query, (client_type, client_code))
+            affected = cur.rowcount
+        conn.commit()
+        return affected
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
 def delete_notable_client(record_id):
     conn = get_connection()
     try:

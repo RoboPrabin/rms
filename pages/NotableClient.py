@@ -53,8 +53,7 @@ class NotableClient(BasePage):
                 st.warning("Please select a client type.", icon="⚠️")
                 return
             if not reason.strip():
-                st.warning("Reason is required.", icon="⚠️")
-                return
+                pass
             db.insert_notable_client(
                 client_code=selected.strip(),
                 client_name=client_name.strip() or auto_name,
