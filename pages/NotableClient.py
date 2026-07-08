@@ -113,7 +113,7 @@ class NotableClient(BasePage):
     def _view_edit(self):
         st_autorefresh(interval=60_000, key="notable_client_refresh")
         yesterday = date.today() - timedelta(days=1)
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([2, 2, 1])
         with col1:
             from_date = st.date_input("From Date", value=yesterday)
         with col2:
@@ -121,6 +121,33 @@ class NotableClient(BasePage):
         if from_date > to_date:
             st.error("From Date cannot be later than To Date", icon="📢")
             st.stop()
+
+        if "notable_data_loaded" not in st.session_state:
+            st.session_state.notable_data_loaded = False
+        if "notable_loaded_dates" not in st.session_state:
+            st.session_state.notable_loaded_dates = None
+
+        current_dates = (from_date, to_date)
+        if st.session_state.notable_data_loaded and st.session_state.notable_loaded_dates != current_dates:
+            st.session_state.notable_data_loaded = False
+
+        col1, col2, col3 = st.columns([2, 2, 1])
+        with col1:
+            kyc_df = _cached_kyc()
+            all_codes = sorted(kyc_df["Client Code"].astype(str).unique())
+            search_code = st.selectbox("Search Client Code", ["All"] + all_codes)
+        with col2:
+            filter_type = st.selectbox("Client Type", ["All", "PEPS", "SPECIAL CLIENT"])
+        with col3:
+            st.write("")
+            st.write("")
+            if st.button("Load Data", type="primary", use_container_width=True):
+                st.session_state.notable_data_loaded = True
+                st.session_state.notable_loaded_dates = current_dates
+
+        if not st.session_state.notable_data_loaded:
+            st.info("Set filters and click **Load Data** to view records.", icon="ℹ️")
+            return
 
         rows = _cached_notable_clients_with_turnover(from_date, to_date)
         if not rows:
@@ -147,7 +174,17 @@ class NotableClient(BasePage):
             "Buying Amount", "Selling Amount", "Total Amount"
         ]
         display_df = display_df[first_columns + [col for col in display_df.columns if col not in first_columns]]
-        st.badge(f"Total: {len(df)}")
+
+        if search_code != "All":
+            display_df = display_df[display_df["Client Code"].astype(str) == search_code]
+        if filter_type != "All":
+            display_df = display_df[display_df["Client Type"] == filter_type]
+
+        if display_df.empty:
+            st.info("No matching records.", icon="ℹ️")
+            return
+
+        st.badge(f"Total: {len(display_df)}")
         selection = st.dataframe(
             display_df,
             use_container_width=True,
