@@ -1002,51 +1002,43 @@ def delete_demat_records(boid: int):
 
 
 def update_demat_record(
-    # record_id: str,
     *,
     client_name: str,
     boid: str,
-    tsl_number: str,
     payment_amount,
     gateway: str,
     renew_type: str,
     rm_name: str,
     updated_by: str,
     bo_to_bo:bool,
-    client_code:str
 ):
     """
-    Update a demat record by ID.
+    Update a demat record by BOID.
     """
     query = """
         UPDATE demat_records
         SET 
             client_name = %(client_name)s,
             boid = %(boid)s,
-            tsl_number = %(tsl_number)s,
             payment_amount = %(payment_amount)s,
             gateway = %(gateway)s,
             renew_type = %(renew_type)s,
             rm_name = %(rm_name)s,
             updated_at = CURRENT_TIMESTAMP,
             updated_by = %(updated_by)s,
-            is_bo_to_bo = %(is_bo_to_bo)s,
-            client_code = %(client_code)s
+            is_bo_to_bo = %(is_bo_to_bo)s
         WHERE boid = %(boid)s;
     """
 
     params = {
         "client_name": client_name.strip(),
         "boid": boid.strip(),
-        "tsl_number": tsl_number.strip(),
         "payment_amount": payment_amount,
         "gateway": gateway.strip(),
         "renew_type": renew_type.strip(),
         "rm_name": rm_name.strip(),
         "updated_by": updated_by,
         "is_bo_to_bo":bo_to_bo,
-        "client_code":client_code
-        # "id": record_id
     }
 
     with get_connection() as conn:
