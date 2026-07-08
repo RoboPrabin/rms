@@ -106,7 +106,6 @@ DEFAULT_ROLE_ACCESS = {
         "cashin_out": True,
         "trade_history": True,
         "risk_monitoring": True,
-        "notable_client": True,
     },
 
     "RM": {
@@ -135,7 +134,6 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "trade_history": True,
         "risk_monitoring": True,
-        "notable_client": True,
     },
 
     "HR": {
