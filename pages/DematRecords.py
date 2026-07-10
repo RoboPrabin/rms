@@ -607,9 +607,10 @@ class DematRecords(BasePage):
             except ValueError:
                 rm_index = 0
             rm_name = st.selectbox("Bro", bro_options, index=rm_index)
+            branch = st.text_input("Branch", value=selected_row.get("Branch", ""), disabled=True)
         with col2:
             boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
-            opened_by = st.text_input("Opened By", value=selected_row.get("Opened By", ""), key="tms_edit_opened")
+            opened_by = st.text_input("Opened By", value=selected_row.get("Open By", ""), key="tms_edit_opened")
             account_type_val = str(selected_row.get("Account Type", "NEW")).strip().title()
             account_type_idx = 0 if account_type_val == "New" else 1
             account_type = st.selectbox("Account Type", ["NEW", "Update"], index=account_type_idx)
