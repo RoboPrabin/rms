@@ -597,7 +597,7 @@ class DematRecords(BasePage):
         col1, col2 = st.columns(2)
         with col1:
             client_name = st.text_input("Client Name", value=selected_row.get("Client Name", ""))
-            created_bs = st.text_input("Created Date (B.S.)", value=selected_row.get("Created At Bs", ""))
+            created_bs = st.text_input("Created Date (B.S.)", value=selected_row.get("Created At Bs", ""), disabled=True)
             rm_value = str(selected_row.get("Bro", "N/A")).strip()
             rm_value_mapped = self._username_to_option.get(rm_value, "N/A")
             bro_options = ["N/A", "SELF"] + self.all_user_options
@@ -610,7 +610,7 @@ class DematRecords(BasePage):
             branch = st.text_input("Branch", value=selected_row.get("Branch", ""), disabled=True)
         with col2:
             boid = st.text_input("BOID", value=selected_row.get("Boid", ""), disabled=True)
-            opened_by = st.text_input("Opened By", value=selected_row.get("Open By", ""), key="tms_edit_opened")
+            opened_by = st.text_input("Opened By", value=selected_row.get("Open By", ""), disabled=True, key="tms_edit_opened")
             account_type_val = str(selected_row.get("Account Type", "NEW")).strip().title()
             account_type_idx = 0 if account_type_val == "New" else 1
             account_type = st.selectbox("Account Type", ["NEW", "Update"], index=account_type_idx)
