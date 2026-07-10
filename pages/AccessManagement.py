@@ -69,6 +69,7 @@ MENU_SECTIONS = [
                     ("kyc_modify",    "📚", "KYC modification"),
                     ("demat_records", "🧾", "TMS and Demat records"),
                     ("tms_code",      "🏷️", "TMS code"),
+                    ("find_file",     "🔍", "Find file"),
                 ],
             },
             {

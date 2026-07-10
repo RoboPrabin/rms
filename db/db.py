@@ -3971,6 +3971,78 @@ def update_notable_client_type_by_code(client_code, client_type):
         conn.close()
 
 
+def get_all_find_file():
+    conn = get_connection()
+    try:
+        query = "SELECT * FROM find_file ORDER BY filename"
+        df = pd.read_sql(query, conn)
+        return df
+    except Exception as e:
+        print("DB Error:", e)
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+def insert_find_file(df: pd.DataFrame, username: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    inserted = 0
+    now = datetime.now()
+    for _, row in df.iterrows():
+        try:
+            cur.execute("""
+                INSERT INTO find_file (id, clientname, clientcode, filename)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                str(uuid.uuid4()),
+                row.get("clientname", ""),
+                row.get("clientcode", ""),
+                row.get("filename", ""),
+            ))
+            inserted += 1
+        except Exception:
+            pass
+    conn.commit()
+    cur.close()
+    conn.close()
+    return inserted
+
+
+def update_find_file(record_id, clientname, clientcode, filename):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE find_file
+                SET clientname = %s, clientcode = %s, filename = %s
+                WHERE id = %s::uuid
+            """, (clientname, clientcode, filename, record_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print("DB Error:", e)
+        return False
+    finally:
+        conn.close()
+
+
+def delete_find_file(record_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM find_file WHERE id = %s::uuid", (record_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print("DB Error:", e)
+        return False
+    finally:
+        conn.close()
+
+
 def delete_notable_client(record_id):
     conn = get_connection()
     try:
