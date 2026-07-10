@@ -2,8 +2,8 @@ from pathlib import Path
 import time
 
 
-# PROFILE = "PROD"
-PROFILE = "DEV"
+PROFILE = "PROD"
+# PROFILE = "DEV"
 
 if PROFILE == "PROD":
     PROJECT_PATH = r"E:\Trishakti\Projects\rms"

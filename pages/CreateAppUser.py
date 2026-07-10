@@ -211,14 +211,21 @@ class CreateAppUser(BasePage):
             ].values[0]
             st.write(db_branch)
             # --- Resolve DB → display for users ---
-            alias_display = df_users.loc[df_users["username"] == db_alias, "display"].values[0]
-            onboarded_by_display = df_users.loc[df_users["username"] == db_onboarded_by, "display"].values[0]
-            role_display = df_users.loc[df_users["role"] == db_role, "role"].values[0]
-            branch_display = df_users.loc[df_users["branch"] == db_branch, "branch"].values[0]
+            alias_matches = df_users.loc[df_users["username"] == db_alias, "display"]
+            alias_display = alias_matches.values[0] if len(alias_matches) > 0 and pd.notna(db_alias) else ""
+
+            onboarded_matches = df_users.loc[df_users["username"] == db_onboarded_by, "display"]
+            onboarded_by_display = onboarded_matches.values[0] if len(onboarded_matches) > 0 and pd.notna(db_onboarded_by) else ""
+
+            role_matches = df_users.loc[df_users["role"] == db_role, "role"]
+            role_display = role_matches.values[0] if len(role_matches) > 0 else db_role
+
+            branch_matches = df_users.loc[df_users["branch"] == db_branch, "branch"]
+            branch_display = branch_matches.values[0] if len(branch_matches) > 0 else db_branch
             # --- Resolve display → index (Streamlit requirement) ---
-            alias_index = options.index(alias_display)
-            onboarded_by_index = options.index(onboarded_by_display)
-            role_index = self.user_roles.index(role_display)
+            alias_index = options.index(alias_display) if alias_display in options else 0
+            onboarded_by_index = options.index(onboarded_by_display) if onboarded_by_display in options else 0
+            role_index = self.user_roles.index(role_display) if role_display in self.user_roles else 0
             update_branches = [b for b in self.branch if b != "OTHER"]
             branch_index = update_branches.index(branch_display) if branch_display in update_branches else 0
             # --- Status options ---
