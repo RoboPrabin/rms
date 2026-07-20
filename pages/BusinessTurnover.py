@@ -29,7 +29,7 @@ class BusinessTurnover(BasePage):
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         activate_client_code_hotkey()
-        st.set_page_config("Business turnover", page_icon="🅱️", layout='wide')
+        st.set_page_config("Broker Business Trunover", page_icon="🅱️", layout='wide')
 
         self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
         self.today_np_date = nepali_date.today()
@@ -43,7 +43,7 @@ class BusinessTurnover(BasePage):
         # self.role= user['role']
         # self.branch = user['branch']
         navigation.render_sidebar()
-        st.header("🅱️ Business Turnover", anchor=False)
+        st.header("🅱️ Broker Business Trunover", anchor=False)
 
     # -------------------------------
     # Helper: Rename columns
@@ -192,11 +192,43 @@ class BusinessTurnover(BasePage):
     # -------------------------------
     # Render Page
     # -------------------------------
+    # -------------------------------
+    # Top Brokers View
+    # -------------------------------
+    def show_top_brokers_view(self):
+        selected_date = st.date_input("Select Date", width=400)
+        if selected_date:
+            date_str = selected_date.strftime('%Y-%m-%d')
+            df = db.fetch_top_brokers(date=date_str)
+
+            df.drop(columns=['date', 'DT_Row_Index'], inplace=True)
+            df.rename(columns={
+                "name": "Broker Name", "number": "Broker No.",
+                "buyerAmount": "Buyer Amount (Rs.)", "sellerAmount": "Seller Amount (Rs.)",
+                "totalAmount": "Total Amount (Rs.)", "differ": "Difference (Rs.)",
+                "matchingAmount": "Matching Amount (Rs.)"
+            }, inplace=True)
+            df.index = df.index + 1
+            numeric_cols = df.columns.difference(['Broker Name', 'Broker No.'])
+            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+            if not df.empty:
+                idx = df.index[df['Broker Name'] == 'Trishakti Securities Public Limited'].tolist()
+                st.badge(f"Trishakti's Rank: {idx[0]}", color='green')
+                st.dataframe(df.style.format({col: "{:,.0f}" for col in numeric_cols}))
+            else:
+                st.info("No data available for selected date.", icon="📢")
+
+    # -------------------------------
+    # Render Page
+    # -------------------------------
     def render_page(self):
-        view = st.radio("View", ['Normal', 'Compare'], horizontal=True)
+        view = st.radio("View", ['Normal', 'Compare', 'Top Brokers'], horizontal=True)
         st.divider()
         if view == "Normal":
             self.show_date_selection_ui()
+        elif view == "Top Brokers":
+            self.show_top_brokers_view()
         elif view == "Compare":
             col1, col2 = st.columns([1,1])
             with col1:

@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 BI_MAP = {
     "reports":           (page_url.reports_url,           "📂 Reports"),
     "client_profile":    (page_url.client_remarks_url,    "🖊️ Client profile"),
-    "business_turnover": (page_url.business_turnover_url, "🅱️ Business turnover"),
-    "top_broker":        (page_url.top_broker_url,        "🏦 Top brokers"),
+    "business_turnover": (page_url.business_turnover_url, "🅱️ Broker Business Trunover"),
     "cbr":               (page_url.cbr_url,               "🌱 Cost benefit"),
     "business_ratio":    (page_url.business_ratio_url,    "⚖️ Business ratio"),
     "floorsheet":        (page_url.floorsheet_url,        "📄 Floorsheet"),

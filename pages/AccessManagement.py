@@ -19,8 +19,7 @@ MENU_SECTIONS = [
         "items": [
             ("reports",           "📂", "Reports"),
             ("client_profile",    "🖊️", "Client profile"),
-            ("business_turnover", "🅱️", "Business turnover"),
-            ("top_broker",        "🏦", "Top brokers"),
+            ("business_turnover", "🅱️", "Broker Business Trunover"),
             ("cbr",               "🌱", "Cost benefit"),
             ("business_ratio",    "⚖️", "Business ratio"),
             ("floorsheet",        "📄", "Floorsheet"),
