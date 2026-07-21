@@ -85,6 +85,7 @@ def get_city_code(full_name: str) -> str:
         "HETAUDA": "HTD",
         "BUTWAL": "BTL",
         "BANEPA": "BNP",
+        "BHAKTAPUR": "BKT",
         "DHANGADHI": "DHI",
     }
     
