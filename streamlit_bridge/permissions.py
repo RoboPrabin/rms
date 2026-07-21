@@ -133,6 +133,7 @@ DEFAULT_ROLE_ACCESS = {
         "feedback": True,
         "trade_history": True,
         "risk_monitoring": True,
+        "cashin_out": True,
     },
 
     "HR": {
