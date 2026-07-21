@@ -138,7 +138,7 @@ def get_fiscal_year_dates(fiscal_year: str) -> Tuple[date, date]:
         start_date = date(
             BASE_START_DATE.year + offset,
             BASE_START_DATE.month,
-            BASE_START_DATE.day + offset
+            BASE_START_DATE.day + (1 if offset > 0 else 0)
         )
 
         end_date = date(

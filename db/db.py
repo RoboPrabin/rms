@@ -3214,6 +3214,51 @@ def get_all_app_user():
     conn.close()
     return row
 
+def fetch_branches():
+    query = "SELECT DISTINCT branch FROM app_user WHERE branch IS NOT NULL AND branch != '' ORDER BY branch"
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            return [row[0] for row in cur.fetchall()]
+
+def fetch_floorsheet_by_date_range(start_date, end_date, branch=None):
+    base_query = """
+        SELECT f.buyerbrokingfirmcode, f.sellerbrokingfirmcode, f.amount, f.branch, f.transaction_type
+        FROM floorsheet f
+        WHERE DATE(f.uploaded_at) BETWEEN %s AND %s
+    """
+    params = [start_date, end_date]
+    if branch:
+        base_query += " AND f.branch = %s"
+        params.append(branch)
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(base_query, params)
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
+    return pd.DataFrame(rows, columns=columns)
+
+def fetch_floorsheet_branch_totals(start_date, end_date, trishakti_code):
+    query = """
+        SELECT
+            COALESCE(branch, 'TOTAL') AS branch,
+            SUM(CASE WHEN buyerbrokingfirmcode = %s THEN amount ELSE 0 END) AS purchase_turnover,
+            SUM(CASE WHEN sellerbrokingfirmcode = %s THEN amount ELSE 0 END) AS sell_turnover
+        FROM floorsheet
+        WHERE DATE(uploaded_at) BETWEEN %s AND %s
+        GROUP BY ROLLUP(branch)
+        ORDER BY
+            CASE WHEN branch IS NULL THEN 1 ELSE 0 END,
+            2 + 3 DESC
+    """
+    params = [trishakti_code, trishakti_code, start_date, end_date]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
+    return pd.DataFrame(rows, columns=columns)
+
 def get_kyc():
     conn = get_connection()
     cur = conn.cursor()

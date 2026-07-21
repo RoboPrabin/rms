@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from utils.custom_hotkey import activate_client_code_hotkey
-from utils import auth_utils, helper
+from utils import helper
 from db import db
-from nepali_datetime import date as nepali_date
-import streamlit_bridge.app_state as app_state
 import streamlit_bridge.navigation as navigation
 from pages.BasePage import BasePage
 
@@ -13,7 +11,7 @@ from pages.BasePage import BasePage
 def fetch_top_brokers_cached(start_date, end_date):
     return db.fetch_top_brokers_by_date(start_date, end_date)
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour, adjust as needed
+@st.cache_data(ttl=3600)
 def fetch_and_process_data(start_date: date, end_date: date) -> pd.DataFrame:
     df = db.fetch_top_brokers_by_date(start_date, end_date)
     cols_to_convert = ["totalAmount", "buyerAmount", "sellerAmount", "matchingAmount"]
@@ -21,27 +19,21 @@ def fetch_and_process_data(start_date: date, end_date: date) -> pd.DataFrame:
         df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "", regex=False), errors='coerce')
     return df
 
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_floorsheet_cached(start_date, end_date):
+    return db.fetch_floorsheet_by_date_range(start_date, end_date)
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_broker_totals_cached(start_date, end_date, trishakti_code):
+    return db.fetch_floorsheet_branch_totals(start_date, end_date, trishakti_code)
 
 class BusinessTurnover(BasePage):
     def __init__(self):
         super().__init__()
-
         helper.eliminate_top_padding()
         st.session_state.active_menu = "business"
         activate_client_code_hotkey()
         st.set_page_config("Broker Business Trunover", page_icon="🅱️", layout='wide')
-
-        self.today_eng_date = datetime.now().strftime("%Y-%m-%d (%A)")
-        self.today_np_date = nepali_date.today()
-
-        # Authentication
-        # app_state.restore_state_from_query_params()
-        # app_state.sync_query_params_from_session()
-        # app_state.check_authenticaiton_state()
-        # user = auth_utils.ensure_logged_in()
-        # self.username= user['username']
-        # self.role= user['role']
-        # self.branch = user['branch']
         navigation.render_sidebar()
         st.header("🅱️ Broker Business Trunover", anchor=False)
 
@@ -62,7 +54,7 @@ class BusinessTurnover(BasePage):
     def show_date_selection_ui(self):
         col1, col2, col3 = st.columns(3)
         with col1:
-            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '81/82', '82/83'], index=1)
+            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=1)
             start_d, end_d = helper.get_fiscal_year_dates(fiscal_year=fiscal_year_date)
         with col2:
             start_date = st.date_input("Start date", start_d)
@@ -76,9 +68,6 @@ class BusinessTurnover(BasePage):
             st.stop()
         self.calculate_and_show_data(start_date=start_date, end_date=end_date)
 
-    # -------------------------------
-    # Normal View: Data Calculation
-    # -------------------------------
     def calculate_and_show_data(self, start_date, end_date):
         df = fetch_top_brokers_cached(start_date, end_date)
         if df.empty:
@@ -87,14 +76,10 @@ class BusinessTurnover(BasePage):
 
         df = df.sort_values(by=['date', 'DT_Row_Index'], ascending=[True, True])
 
-        # Convert numeric columns early
         cols_to_convert = ["totalAmount", "buyerAmount", "sellerAmount", "matchingAmount"]
         for col in cols_to_convert:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "", regex=False), errors='coerce')
 
-        # -------------------------------
-        # Broker SelectBox: Number + Name
-        # -------------------------------
         broker_options = df[["number", "name"]].drop_duplicates().copy()
         broker_options["number"] = broker_options["number"].astype(int)
         broker_options = broker_options.sort_values("number", ascending=True)
@@ -105,9 +90,6 @@ class BusinessTurnover(BasePage):
         if 'checked' not in st.session_state or filter_value == "None":
             st.session_state.checked = False
 
-        # -------------------------------
-        # Aggregated Data Option
-        # -------------------------------
         agg_checkbox = st.checkbox("Aggregate Data", value=st.session_state.checked)
         st.divider()
 
@@ -123,7 +105,6 @@ class BusinessTurnover(BasePage):
             }).reset_index(drop=True)
             broker_summary_df.index += 1
 
-            # Trishakti Turnover
             trishakti_row = broker_summary_df[broker_summary_df["Broker Name"].str.strip().str.lower() == "trishakti securities public limited"]
             if not trishakti_row.empty:
                 turnover = trishakti_row["Total Turnover"].iloc[0]
@@ -135,28 +116,18 @@ class BusinessTurnover(BasePage):
             st.dataframe(broker_summary_df, use_container_width=True)
             st.stop()
 
-        # -------------------------------
-        # Reset index for daily view
-        # -------------------------------
         df = df.reset_index(drop=True)
         df.index += 1
 
-        # -------------------------------
-        # KPIs
-        # -------------------------------
         total_market_turnover = (df["totalAmount"].sum()/2)
         trishakti_turnover = df.loc[df["name"].str.strip().str.lower() == "trishakti securities public limited","totalAmount"].sum()
 
-        # Selected Broker
         if filter_value != 'None':
             selected_number = int(filter_value.split(" - ")[0].strip())
             selected_name = filter_value.split(" - ")[1].strip()
             filtered_df = df[df["number"].astype(int) == selected_number]
             other_turnover_total = filtered_df['totalAmount'].sum()
 
-        # -------------------------------
-        # Display KPIs
-        # -------------------------------
         st.metric("🟡 NEPSE Total Turnover", f"NPR {total_market_turnover:,.2f}", border=True)
         kpi_col1, kpi_col2 = st.columns(2)
         with kpi_col1:
@@ -173,9 +144,6 @@ class BusinessTurnover(BasePage):
                 total_contribution = (other_turnover_total / total_market_turnover) * 100
                 st.metric(f"⚪ {selected_name} Market Contribution", f"{total_contribution:.4f} %", border=True)
 
-        # -------------------------------
-        # Show Reference Data
-        # -------------------------------
         show_reference = st.toggle("Show Reference")
         if show_reference:
             st.badge(f"Total rows: {len(df)}")
@@ -189,12 +157,6 @@ class BusinessTurnover(BasePage):
             st.dataframe(df, use_container_width=True)
 
 
-    # -------------------------------
-    # Render Page
-    # -------------------------------
-    # -------------------------------
-    # Top Brokers View
-    # -------------------------------
     def show_top_brokers_view(self):
         selected_date = st.date_input("Select Date", width=400)
         if selected_date:
@@ -220,22 +182,74 @@ class BusinessTurnover(BasePage):
                 st.info("No data available for selected date.", icon="📢")
 
     # -------------------------------
+    # Our Brokers View
+    # -------------------------------
+    def show_our_brokers_view(self):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '82/83', '83/84'], index=1)
+            start_d, end_d = helper.get_fiscal_year_dates(fiscal_year=fiscal_year_date)
+        with col2:
+            start_date = st.date_input("Start date", start_d)
+        with col3:
+            end_date = st.date_input("End date", end_d)
+
+        if start_date > end_date:
+            st.error("Start date cannot be greater than end date", icon="📢")
+            st.stop()
+
+        try:
+            with st.spinner("Loading floorsheet data..."):
+                trishakti_code = None
+                top_df = fetch_top_brokers_cached(start_date, end_date)
+                if not top_df.empty:
+                    tri_row = top_df[top_df["name"].str.strip().str.lower() == "trishakti securities public limited"]
+                    if not tri_row.empty:
+                        trishakti_code = str(int(tri_row["number"].iloc[0]))
+
+                if not trishakti_code:
+                    st.info("Trishakti broker code not found")
+                    st.stop()
+
+                table = fetch_broker_totals_cached(start_date, end_date, trishakti_code)
+
+            if table.empty:
+                st.info("No floorsheet data found for selected period")
+                st.stop()
+
+            table["total_turnover"] = table["purchase_turnover"] + table["sell_turnover"]
+            total_all = table.loc[table["branch"] != "TOTAL", "total_turnover"].sum()
+            table["Branch Contribution"] = (table["total_turnover"] / total_all * 100).round(2) if total_all != 0 else 0
+
+            table.index += 1
+            for col in ["purchase_turnover", "sell_turnover", "total_turnover"]:
+                table[col] = table[col].map("{:,.2f}".format)
+            table["Branch Contribution"] = table["Branch Contribution"].map("{:.2f}%".format)
+
+            st.dataframe(table, use_container_width=True)
+        except Exception:
+            st.error("Failed to load floorsheet data. Please try again.")
+
+    # -------------------------------
     # Render Page
     # -------------------------------
     def render_page(self):
         view = st.radio("View", ['Normal', 'Compare', 'Top Brokers'], horizontal=True)
+        # view = st.radio("View", ['Normal', 'Compare', 'Top Brokers', 'Our Brokers'], horizontal=True)
         st.divider()
         if view == "Normal":
             self.show_date_selection_ui()
         elif view == "Top Brokers":
             self.show_top_brokers_view()
+        # elif view == "Our Brokers":
+        #     self.show_our_brokers_view()
         elif view == "Compare":
             col1, col2 = st.columns([1,1])
             with col1:
-                first_fiscal_year_date = st.selectbox("1st Fiscal year", ['-select-', '81/82', '82/83'], index=1)
+                first_fiscal_year_date = st.selectbox("1st Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=1)
                 first_fy_start_date, fist_fy_end_date = helper.get_fiscal_year_dates(fiscal_year=first_fiscal_year_date)
             with col2:
-                second_fiscal_year_date = st.selectbox("2nd Fiscal year", ['-select-', '81/82', '82/83'], index=2)
+                second_fiscal_year_date = st.selectbox("2nd Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=2)
                 second_fy_start_date, second_fy_end_date = helper.get_fiscal_year_dates(fiscal_year=second_fiscal_year_date)
             if first_fiscal_year_date == second_fiscal_year_date:
                 st.info(f"You cannot compare with same fiscal year. Choose different fiscal year.", icon="📢")
@@ -257,17 +271,11 @@ class BusinessTurnover(BasePage):
             second_start = second_fy_start_date
             second_end = second_fy_start_date + timedelta(days=days - 1)
 
-
-
-            # In Compare view:
             first_fy_df = fetch_and_process_data(first_start, first_end)
             second_fy_df = fetch_and_process_data(second_start, second_end)
 
-
             nepse_turnover_1 = first_fy_df['totalAmount'].sum()
             nepse_turnover_2 = second_fy_df['totalAmount'].sum()
-            # st.success(f"{turnover1}  | {turnover2}")
-            # Filter rows where 'name' column matches case-insensitively
             turnover1 = first_fy_df[first_fy_df['name'].str.lower() == "trishakti securities public limited"]['totalAmount'].sum()
             turnover2 = second_fy_df[second_fy_df['name'].str.lower() == "trishakti securities public limited"]['totalAmount'].sum()
 
@@ -280,11 +288,9 @@ class BusinessTurnover(BasePage):
                 st.metric("🟡 Nepse Turnover FY 82/83", f"{nepse_turnover_2:,.2f}", border=True)
             col1, col2 = st.columns(2)
             with col1:
-                # st.badge(f"Rows: {len(first_fy_df)}")
                 label = "🔴 Trishakti Turnover in FY" if diff < 0 else "🟢 Trishakti Turnover in FY"
                 st.metric(f"{label} {first_fiscal_year_date}:", f"Rs. {turnover1:,.2f}", border=True)
             with col2:
-                # st.badge(f"Rows: {len(second_fy_df)}")
                 label = "🔴 Trishakti Turnover in FY" if diff < 0 else "🟢 Trishakti Turnover in FY"
                 st.metric(f"{label} {second_fiscal_year_date}:", f"Rs.{turnover2:,.2f}", border=True)
 
