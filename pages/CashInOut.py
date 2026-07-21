@@ -184,10 +184,20 @@ class CashInOut(BasePage):
         df_final = df_final[column_order]
         df_final.rename(columns={'drAmount': 'Cash In Amount'}, inplace=True)
         df_final.drop(columns=['Clearance Date', 'Transaction Date'], inplace=True)
-        bro_summary = df_final.groupby('BRO')['Cash In Amount'].sum().reset_index()
-        bro_summary.sort_values(by='Cash In Amount', ascending=False, inplace=True)
+
+        # Branch summary from ALL data (not filtered by role)
         branch_summary = df_final.groupby('Branch')['Cash In Amount'].sum().reset_index()
         branch_summary.sort_values(by='Cash In Amount', ascending=False, inplace=True)
+
+        if self.role == "BRO":
+            alias = helper.get_alias_name(self.username)
+            df_final = df_final[df_final['BRO'] == alias]
+        elif self.role == "BM":
+            branch_val = (self.branch or "").strip().upper()
+            df_final = df_final[df_final['Branch'] == branch_val]
+
+        bro_summary = df_final.groupby('BRO')['Cash In Amount'].sum().reset_index()
+        bro_summary.sort_values(by='Cash In Amount', ascending=False, inplace=True)
 
         self.show_tabbed_dataframes(df_final, bro_summary, branch_summary)
 
