@@ -54,7 +54,7 @@ class BusinessTurnover(BasePage):
     def show_date_selection_ui(self):
         col1, col2, col3 = st.columns(3)
         with col1:
-            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=1)
+            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=3)
             start_d, end_d = helper.get_fiscal_year_dates(fiscal_year=fiscal_year_date)
         with col2:
             start_date = st.date_input("Start date", start_d)
@@ -187,7 +187,7 @@ class BusinessTurnover(BasePage):
     def show_our_brokers_view(self):
         col1, col2, col3 = st.columns(3)
         with col1:
-            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '82/83', '83/84'], index=1)
+            fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '82/83', '83/84'], index=2)
             start_d, end_d = helper.get_fiscal_year_dates(fiscal_year=fiscal_year_date)
         with col2:
             start_date = st.date_input("Start date", start_d)
@@ -246,7 +246,7 @@ class BusinessTurnover(BasePage):
         elif view == "Compare":
             col1, col2 = st.columns([1,1])
             with col1:
-                first_fiscal_year_date = st.selectbox("1st Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=1)
+                first_fiscal_year_date = st.selectbox("1st Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=3)
                 first_fy_start_date, fist_fy_end_date = helper.get_fiscal_year_dates(fiscal_year=first_fiscal_year_date)
             with col2:
                 second_fiscal_year_date = st.selectbox("2nd Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=2)
