@@ -55,6 +55,9 @@ class BusinessTurnover(BasePage):
         col1, col2, col3 = st.columns(3)
         with col1:
             fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=3)
+            if fiscal_year_date == '-select-':
+                st.info("Please select a fiscal year.", icon="📢")
+                st.stop()
             start_d, end_d = helper.get_fiscal_year_dates(fiscal_year=fiscal_year_date)
         with col2:
             start_date = st.date_input("Start date", start_d)
@@ -188,6 +191,9 @@ class BusinessTurnover(BasePage):
         col1, col2, col3 = st.columns(3)
         with col1:
             fiscal_year_date = st.selectbox("Fiscal year", ['-select-', '82/83', '83/84'], index=2)
+            if fiscal_year_date == '-select-':
+                st.info("Please select a fiscal year.", icon="📢")
+                st.stop()
             start_d, end_d = helper.get_fiscal_year_dates(fiscal_year=fiscal_year_date)
         with col2:
             start_date = st.date_input("Start date", start_d)
@@ -247,9 +253,15 @@ class BusinessTurnover(BasePage):
             col1, col2 = st.columns([1,1])
             with col1:
                 first_fiscal_year_date = st.selectbox("1st Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=3)
+                if first_fiscal_year_date == '-select-':
+                    st.info("Please select a fiscal year.", icon="📢")
+                    st.stop()
                 first_fy_start_date, fist_fy_end_date = helper.get_fiscal_year_dates(fiscal_year=first_fiscal_year_date)
             with col2:
                 second_fiscal_year_date = st.selectbox("2nd Fiscal year", ['-select-', '81/82', '82/83', '83/84'], index=2)
+                if second_fiscal_year_date == '-select-':
+                    st.info("Please select a fiscal year.", icon="📢")
+                    st.stop()
                 second_fy_start_date, second_fy_end_date = helper.get_fiscal_year_dates(fiscal_year=second_fiscal_year_date)
             if first_fiscal_year_date == second_fiscal_year_date:
                 st.info(f"You cannot compare with same fiscal year. Choose different fiscal year.", icon="📢")
