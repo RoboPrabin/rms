@@ -123,7 +123,17 @@ class BusinessTurnover(BasePage):
         df.index += 1
 
         total_market_turnover = (df["totalAmount"].sum()/2)
-        trishakti_turnover = df.loc[df["name"].str.strip().str.lower() == "trishakti securities public limited","totalAmount"].sum()
+
+        tri_row = df[df["name"].str.strip().str.lower() == "trishakti securities public limited"]
+        trishakti_code = str(int(tri_row["number"].iloc[0])) if not tri_row.empty else None
+        if trishakti_code:
+            floor_df = fetch_floorsheet_cached(start_date, end_date)
+            floor_df["buyerbrokingfirmcode"] = floor_df["buyerbrokingfirmcode"].astype(str)
+            floor_df["sellerbrokingfirmcode"] = floor_df["sellerbrokingfirmcode"].astype(str)
+            trishakti_floor = floor_df[(floor_df["buyerbrokingfirmcode"] == trishakti_code) | (floor_df["sellerbrokingfirmcode"] == trishakti_code)]
+            trishakti_turnover = trishakti_floor["amount"].sum()
+        else:
+            trishakti_turnover = 0
 
         if filter_value != 'None':
             selected_number = int(filter_value.split(" - ")[0].strip())
@@ -131,13 +141,13 @@ class BusinessTurnover(BasePage):
             filtered_df = df[df["number"].astype(int) == selected_number]
             other_turnover_total = filtered_df['totalAmount'].sum()
 
-        st.metric("🟡 NEPSE Total Turnover", f"NPR {total_market_turnover:,.2f}", border=True)
+        st.metric("🟡 NEPSE Total Turnover (BUY/SELL)", f"NPR {total_market_turnover:,.2f}", border=True)
         kpi_col1, kpi_col2 = st.columns(2)
         with kpi_col1:
-            st.metric("🔵 Trishakti Total Turnover", f"NPR {trishakti_turnover:,.2f}", border=True)
+            st.metric("🔵 Trishakti Total Turnover (BUY/SELL)", f"NPR {trishakti_turnover:,.2f}", border=True)
         with kpi_col2:
-            total_contribution = (trishakti_turnover / total_market_turnover) * 100
-            st.metric(f"🔵 Trishakti Market Contribution", f"{total_contribution:.4f} %", border=True)
+            total_contribution = ((trishakti_turnover / total_market_turnover) * 100)/2
+            st.metric(f"🔵 Trishakti Market Share", f"{total_contribution:.4f} %", border=True)
         
         col1, col2 = st.columns(2)
         if filter_value != 'None':
@@ -180,7 +190,29 @@ class BusinessTurnover(BasePage):
             if not df.empty:
                 idx = df.index[df['Broker Name'] == 'Trishakti Securities Public Limited'].tolist()
                 st.badge(f"Trishakti's Rank: {idx[0]}", color='green')
+
+                nepse_turnover = df['Total Amount (Rs.)'].sum() / 2
+                tri_row = df[df['Broker Name'] == 'Trishakti Securities Public Limited']
+                trishakti_code = str(int(tri_row['Broker No.'].iloc[0])) if not tri_row.empty else None
+                if trishakti_code:
+                    floor_df = fetch_floorsheet_cached(selected_date, selected_date)
+                    floor_df["buyerbrokingfirmcode"] = floor_df["buyerbrokingfirmcode"].astype(str)
+                    floor_df["sellerbrokingfirmcode"] = floor_df["sellerbrokingfirmcode"].astype(str)
+                    trishakti_floor = floor_df[(floor_df["buyerbrokingfirmcode"] == trishakti_code) | (floor_df["sellerbrokingfirmcode"] == trishakti_code)]
+                    trishakti_turnover = trishakti_floor["amount"].sum()
+                else:
+                    trishakti_turnover = 0
+                market_share = ((trishakti_turnover / nepse_turnover * 100)/2) if nepse_turnover != 0 else 0
+
+
                 st.dataframe(df.style.format({col: "{:,.0f}" for col in numeric_cols}))
+                
+                st.metric("🟡 NEPSE Total Turnover (BUY/SELL)", f"NPR {nepse_turnover:,.2f}", border=True)
+                kpi_col1, kpi_col2 = st.columns(2)
+                with kpi_col1:
+                    st.metric("🔵 Trishakti Total Turnover (BUY/SELL)", f"NPR {trishakti_turnover:,.2f}", border=True)
+                with kpi_col2:
+                    st.metric("🔵 Trishakti Market Share", f"{market_share:.4f} %", border=True)
             else:
                 st.info("No data available for selected date.", icon="📢")
 
