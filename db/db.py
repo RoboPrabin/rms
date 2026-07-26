@@ -3224,7 +3224,7 @@ def fetch_branches():
 def fetch_floorsheet_by_date_range(start_date, end_date, branch=None):
     base_query = """
         SELECT f.buyerbrokingfirmcode, f.sellerbrokingfirmcode, f.amount, f.branch, f.transaction_type
-        FROM floorsheet f
+        FROM new_floorsheet f
         WHERE DATE(f.uploaded_at) BETWEEN %s AND %s
     """
     params = [start_date, end_date]
@@ -3244,7 +3244,7 @@ def fetch_floorsheet_branch_totals(start_date, end_date, trishakti_code):
             COALESCE(branch, 'TOTAL') AS branch,
             SUM(CASE WHEN buyerbrokingfirmcode = %s THEN amount ELSE 0 END) AS purchase_turnover,
             SUM(CASE WHEN sellerbrokingfirmcode = %s THEN amount ELSE 0 END) AS sell_turnover
-        FROM floorsheet
+        FROM new_floorsheet
         WHERE DATE(uploaded_at) BETWEEN %s AND %s
         GROUP BY ROLLUP(branch)
         ORDER BY

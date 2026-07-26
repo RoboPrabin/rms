@@ -130,6 +130,7 @@ class BusinessTurnover(BasePage):
             floor_df = fetch_floorsheet_cached(start_date, end_date)
             floor_df["buyerbrokingfirmcode"] = floor_df["buyerbrokingfirmcode"].astype(str)
             floor_df["sellerbrokingfirmcode"] = floor_df["sellerbrokingfirmcode"].astype(str)
+            floor_df["amount"] = pd.to_numeric(floor_df["amount"], errors='coerce').fillna(0)
             trishakti_floor = floor_df[(floor_df["buyerbrokingfirmcode"] == trishakti_code) | (floor_df["sellerbrokingfirmcode"] == trishakti_code)]
             trishakti_turnover = trishakti_floor["amount"].sum()
         else:
@@ -198,6 +199,7 @@ class BusinessTurnover(BasePage):
                     floor_df = fetch_floorsheet_cached(selected_date, selected_date)
                     floor_df["buyerbrokingfirmcode"] = floor_df["buyerbrokingfirmcode"].astype(str)
                     floor_df["sellerbrokingfirmcode"] = floor_df["sellerbrokingfirmcode"].astype(str)
+                    floor_df["amount"] = pd.to_numeric(floor_df["amount"], errors='coerce').fillna(0)
                     trishakti_floor = floor_df[(floor_df["buyerbrokingfirmcode"] == trishakti_code) | (floor_df["sellerbrokingfirmcode"] == trishakti_code)]
                     trishakti_turnover = trishakti_floor["amount"].sum()
                 else:
