@@ -152,7 +152,7 @@ def format_numeric_columns(df, columns):
         return df
     for col in present:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-    df[present] = df[present].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+    df[present] = df[present].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
     return df
 
 
@@ -445,7 +445,7 @@ class DPM3(BasePage):
         if view_df.size <= max_elements:
             numeric_cols = view_df.select_dtypes(include="number").columns.tolist()
             if numeric_cols:
-                view_df[numeric_cols] = view_df[numeric_cols].applymap(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
+                view_df[numeric_cols] = view_df[numeric_cols].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
         view_df.reset_index(drop=True, inplace=True)
         view_df.index = view_df.index + 1
         st.dataframe(view_df, width='stretch')
@@ -549,7 +549,7 @@ class DPM3(BasePage):
         format_cols = ['QUANTITY', 'CLOSE PRICE', 'TOTAL VALUATION']
         present_fmt = [c for c in format_cols if c in df_onhold.columns]
         if present_fmt:
-            df_onhold[present_fmt] = df_onhold[present_fmt].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+            df_onhold[present_fmt] = df_onhold[present_fmt].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
         st.dataframe(df_onhold, width='stretch')
 
     def _render_latest_holdings(self):
@@ -667,7 +667,7 @@ class DPM3(BasePage):
         format_cols = ['QUANTITY', 'CLOSE PRICE', 'TOTAL VALUATION']
         present_fmt = [c for c in format_cols if c in df_onhold.columns]
         if present_fmt:
-            df_onhold[present_fmt] = df_onhold[present_fmt].applymap(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
+            df_onhold[present_fmt] = df_onhold[present_fmt].map(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
         st.dataframe(df_onhold, width='stretch')
 
     def render_page(self):
